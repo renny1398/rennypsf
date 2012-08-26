@@ -12,6 +12,7 @@ FILE(GLOB HEADERS *.h)
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 add_executable(rennypsf main.cpp psx.cpp)
 =======
 add_executable(rennypsf main.cpp)
@@ -21,3 +22,6 @@ add_executable(rennypsf main.cpp)
 ADD_EXECUTABLE(rennypsf ${CPPFILES} ${HEADERS})
 TARGET_LINK_LIBRARIES(rennypsf ${wxWidgets_LIBRARIES})
 >>>>>>> 1428e97... updated CMakeLists.txt
+=======
+add_executable(rennypsf main.cpp psx.cpp)
+>>>>>>> c4d0ba8... added cpp file
