@@ -1,0 +1,12 @@
+eclipse.preferences.version=1
+environment/project/0.1665912660/CPLUS_INCLUDE_PATH/delimiter=\:
+environment/project/0.1665912660/CPLUS_INCLUDE_PATH/operation=replace
+environment/project/0.1665912660/CPLUS_INCLUDE_PATH/value=/usr/local/include\:/usr/include
+environment/project/0.1665912660/C_INCLUDE_PATH/delimiter=\:
+environment/project/0.1665912660/C_INCLUDE_PATH/operation=append
+environment/project/0.1665912660/C_INCLUDE_PATH/value=/usr/local/include\:/usr/include
+environment/project/0.1665912660/PATH/delimiter=\:
+environment/project/0.1665912660/PATH/operation=append
+environment/project/0.1665912660/PATH/value=/usr/local/bin\:/usr/bin
+environment/project/0.1665912660/append=true
+environment/project/0.1665912660/appendContributed=true
