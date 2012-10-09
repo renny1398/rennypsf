@@ -157,7 +157,7 @@ enum OPCODE_ENUM {
     OPCODE_LB = 0x20, OPCODE_LH, OPCODE_LWL, OPCODE_LW, OPCODE_LBU, OPCODE_LHU, OPCODE_LWR,
     OPCODE_SB = 0x28, OPCODE_SH, OPCODE_SWL, OPCODE_SW, OPCODE_SWR = 0x2e,
     OPCODE_LWC0 = 0x30, OPCODE_LWC1, OPCODE_LWC2, OPCODE_LWC3,
-    OPCODE_SWC0 = 0x38, OPCODE_SWC1, OPCODE_SWC2, OPCODE_SWC3
+    OPCODE_SWC0 = 0x38, OPCODE_SWC1, OPCODE_SWC2, OPCODE_SWC3, OPCODE_HLECALL = 0x3b
 };
 
 enum SPECIAL_ENUM {
@@ -173,14 +173,10 @@ enum BCOND_ENUM {
 };
 
 
-
 namespace Interpreter {
 
 void Init();
 void Reset();
-//void Shutdown();
-void Exception(uint32_t, uint32_t);
-// void BranchTest();
 void ExecuteBIOS();
 
 void ExecuteOnce();
@@ -224,6 +220,6 @@ inline void ExecuteOpcode(uint32_t code) {
     OPCODES[_opcode(code)](code);
 }
 
-}   // namespace R3000A::Interpreter
 
+}   // namespace R3000A::Interpreter
 }   // namespace R3000A

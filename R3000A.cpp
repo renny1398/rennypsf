@@ -1,6 +1,7 @@
 #include "R3000A.h"
 #include "PSXMemory.h"
 #include "PSXBIOS.h"
+#include "PSXCounters.h"
 
 #include <wx/debug.h>
 #include <cstring>
@@ -65,7 +66,7 @@ void R3000A::Interpreter::Init()
 inline void R3000A::Interpreter::ExecuteOnce()
 {
     uint32_t pc = PC;
-    uint32_t code = PSXMemory::LoadUserMemory32(pc);
+    uint32_t code = psxMu32(pc);
     //wxMessageOutputDebug().Printf("PC = 0x%08x, OPCODE = 0x%02x", pc, code >> 26);
     pc += 4;
     ++cycle;
@@ -116,12 +117,12 @@ bool flagBranch = false;    // set when doBranch is called
 
 void BranchTest()
 {
-//    if (cycle - nexts_counter >= next_counter) {
-//        RootCounter::Update();
-//    }
+    if (cycle - PSXRootCounter::nextsCounter >= PSXRootCounter::nextCounter) {
+        PSXRootCounter::Update();
+    }
 
     // interrupt mask register ($1f801074)
-    if (PSXMemory::memHardware[0x1070] & PSXMemory::memHardware[0x1074]) {
+    if (psxHu32(0x1070) & psxHu32(0x1074)) {
         if ((CP0.SR & 0x401) == 0x401) {
             Exception(0x400, false);
         }
@@ -419,7 +420,7 @@ DELAY_OPCODE const DELAY_OPCODES[64] = {
 
 void DelayTest(uint32_t reg, uint32_t branch_pc)
 {
-    uint32_t branch_code = PSXMemory::LoadUserMemory32(branch_pc);
+    uint32_t branch_code = psxMu32(branch_pc);
     inDelaySlot = true;
     uint32_t opcode = branch_code >> 26;
     if (DELAY_OPCODES[opcode](branch_code, reg, branch_pc)) {
@@ -438,7 +439,7 @@ static inline void DoBranch(uint32_t branch_pc)
     flagBranch = true;
 
     uint32_t pc = PC;
-    uint32_t code = PSXMemory::LoadUserMemory32(pc);
+    uint32_t code = psxMu32(pc);
     pc += 4;
     PC = pc;
     ++cycle;
@@ -953,8 +954,69 @@ static void COP3(uint32_t code) {
 }
 
 
-static void HLECALL(uint32_t code) {
+////////////////////////////////////////
+// HLE functions
+////////////////////////////////////////
 
+static void hleDummy()
+{
+    PC = GPR.RA;
+    BranchTest();
+}
+
+static void hleA0()
+{
+    PSXBIOS::biosA0[GPR.T1 & 0xff]();
+    BranchTest();
+}
+
+static void hleB0()
+{
+    PSXBIOS::biosB0[GPR.T1 & 0xff]();
+    BranchTest();
+}
+
+static void hleC0()
+{
+    PSXBIOS::biosC0[GPR.T1 & 0xff]();
+    BranchTest();
+}
+
+static void hleBootstrap() {}
+
+struct EXEC {
+    uint32_t pc0;
+    uint32_t gp0;
+    uint32_t t_addr;
+    uint32_t t_size;
+    uint32_t d_addr;
+    uint32_t d_size;
+    uint32_t b_addr;
+    uint32_t b_size;
+    uint32_t S_addr;
+    uint32_t s_size;
+    uint32_t sp, fp, gp, ret, base;
+};
+
+static void hleExecRet()
+{
+    EXEC *header = pointer_cast<EXEC*>(PSXMemory::CharPtr(GPR.S0));
+    GPR.RA = BFLIP32(header->ret);
+    GPR.SP = BFLIP32(header->sp);
+    GPR.FP = BFLIP32(header->fp);
+    GPR.GP = BFLIP32(header->gp);
+    GPR.S0 = BFLIP32(header->base);
+    GPR.V0 = 1;
+    PC = GPR.RA;
+}
+
+void (*const HLEt[])() = {
+        hleDummy, hleA0, hleB0, hleC0, hleBootstrap, hleExecRet
+};
+
+
+static void HLECALL(uint32_t code) {
+    HLEt[code & 0xff]();
 }
 
 
@@ -991,7 +1053,6 @@ void Shutdown()
 }
 
 
-
 }   // namespace R3000A::Interpreter
 }   // namespace R3000A
 
@@ -1004,7 +1065,7 @@ void (*R3000A::Interpreter::OPCODES[64])(uint32_t) = {
         LB, LH, LWL, LW, LBU, LHU, LWR, OPNULL,
         SB, SH, SWL, SW, OPNULL, OPNULL, SWR, OPNULL,
         LWC0, LWC1, LWC2, LWC3, OPNULL, OPNULL, OPNULL, OPNULL,
-        SWC0, SWC1, SWC2, SWC3, OPNULL, OPNULL, OPNULL, OPNULL
+        SWC0, SWC1, SWC2, HLECALL, OPNULL, OPNULL, OPNULL, OPNULL
 };
 
 void (*R3000A::Interpreter::SPECIALS[64])(uint32_t) = {
@@ -1023,7 +1084,6 @@ void (*R3000A::Interpreter::BCONDS[24])(uint32_t) = {
         OPNULL, OPNULL, OPNULL, OPNULL, OPNULL, OPNULL, OPNULL, OPNULL,
         BLTZAL, BGEZAL, OPNULL, OPNULL, OPNULL, OPNULL, OPNULL, OPNULL
 };
-
 
 
 void R3000A::Interpreter::ExecuteBlock() {

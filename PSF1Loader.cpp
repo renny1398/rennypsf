@@ -43,9 +43,9 @@ SoundFormat *PSF1Loader::Load()
 
     stream.SeekI(preloaded_psf->m_ofsBinary);
     // char *compressed = new char[preloaded_psf->m_lenBinary];
-    char *uncompressed = new char[0x800 + 0x200000];    // registers + UserMemory
+    char *uncompressed = new char[0x800 + 0x200000];    // header + UserMemory
     wxZlibInputStream zlib_stream(stream);
-    zlib_stream.Read(uncompressed, 0x800 + 0x200000);
+    zlib_stream.Read(uncompressed, 0x800);
 
     const PSF::PSXEXEHeader &header = *(reinterpret_cast<PSF::PSXEXEHeader*>(uncompressed));
     if (memcmp(header.signature, "PS-X EXE", 8) != 0) {
@@ -82,12 +82,21 @@ SoundFormat *PSF1Loader::Load()
         }
     }
 
+    /*
+    binary = uncompressed;
+    for (int i = 0; i < 0x800; i++) {
+        wxMessageOutputDebug().Printf("0x%08X", binary);
+        binary++;
+    }*/
+    zlib_stream.Read(uncompressed + 0x800, 0x200000);
+    PSXMemory::Init();
     PSXMemory::Load(header.text_addr, header.text_size, uncompressed + 0x800);
 
     PSF1 *psf1 = new PSF1();
     psf1->m_header = header;
 
     wxMessageOutputDebug().Printf("PSF File '%s' is loaded.", GetPath());
+    delete [] uncompressed;
     return psf1;
 }
 

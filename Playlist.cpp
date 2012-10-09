@@ -20,8 +20,9 @@ PSFPlaylist::PSFPlaylist(wxWindow* parent, wxWindowID id)
 	treeImage->Add(idx1);
 	AssignImageList(treeImage);
 
-	fdt = new PSFFileDropTarget(this);
-	SetDropTarget(fdt);
+//	fdt = new PSFFileDropTarget(this);
+//	SetDropTarget(fdt);
+    DragAcceptFiles(true);
 }
 
 PSFPlaylist::~PSFPlaylist()
@@ -36,9 +37,31 @@ PSFPlaylistItem* PSFPlaylist::GetSelectedItem() const
 }
 
 
+bool PSFPlaylist::Append(const wxString &file_name)
+{
+    if (wxDirExists(file_name)) {
+        wxPuts(wxT("WARNING: we cannot open a directory yet."));
+        return false;
+    }
+    wxString path, name, ext;
+    wxFileName::SplitPath(file_name, &path, &name, &ext);
+    if (ext.IsEmpty()) return false;
+
+    PSFPlaylistItem *item = wxNEW PSFPlaylistItem(file_name, name, ext);
+    if (item->IsAvailable()) {
+        AppendItem(item->GetFileName(), 1, 1, item);
+        return true;
+    }
+    delete item;
+    return false;
+}
+
+
+
 wxBEGIN_EVENT_TABLE(PSFPlaylist, wxTreeCtrl)
 EVT_TREE_SEL_CHANGED(ID_PLAYLIST, PSFPlaylist::Selected)
 EVT_TREE_ITEM_ACTIVATED(ID_PLAYLIST, PSFPlaylist::Activated)
+EVT_DROP_FILES(PSFPlaylist::OnDropFiles)
 wxEND_EVENT_TABLE()
 
 
@@ -53,19 +76,15 @@ void PSFPlaylist::Selected(wxTreeEvent &event)
 
 void PSFPlaylist::Activated(wxTreeEvent& event)
 {
-/*
-    PSFPlaylistItem *item = dynamic_cast<PSFPlaylistItem*>(GetItemData(GetSelection()));
-    wxASSERT_MSG(item != 0, "failed to dynamic-cast wxTreeItemData into PSFPlaylistItem");
-
-    wxMessageOutputDebug().Printf(wxT("Begin playing."));
-
-    SoundFormat *sound = item->m_loader->Load();
-    item->m_sound = sound;
-    */
     wxCommandEvent play_event(wxEVT_COMMAND_BUTTON_CLICKED, ID_PLAY);
     wxPostEvent(this, play_event);
 }
 
+
+void PSFPlaylist::OnDropFiles(wxDropFilesEvent &event)
+{
+    wxMessageOutputDebug().Printf("OnDropFiles");
+}
 
 
 PSFPlaylistItem::PSFPlaylistItem(const wxString& fullpath, const wxString& filename)
@@ -149,9 +168,10 @@ bool PSFPlaylistItem::PreloadSound(const wxString &path, const wxString &ext)
 }
 
 
-
+/*
 bool PSFFileDropTarget::OnDropFiles(wxCoord x, wxCoord y, const wxArrayString& filenames) {
-	int i = 0;
+    wxMessageOutputDebug().Printf("OnDropFile");
+    int i = 0;
 	do {
 		if (wxDirExists(filenames[i])) {
 			wxPuts(wxT("WARNING: we cannot open a directory yet."));
@@ -172,3 +192,11 @@ bool PSFFileDropTarget::OnDropFiles(wxCoord x, wxCoord y, const wxArrayString& f
 	} while ((++i) < filenames.GetCount());
 	return true;
 }
+
+
+wxDragResult PSFFileDropTarget::OnEnter(wxCoord x, wxCoord y, wxDragResult defResult)
+{
+    wxMessageOutputDebug().Printf("OnEnter");
+    return OnDragOver(x, y, defResult);
+}
+*/

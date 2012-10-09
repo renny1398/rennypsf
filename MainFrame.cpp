@@ -2,7 +2,7 @@
 #include "app.h"
 
 #include <wx/filefn.h>
-
+#include <wx/filedlg.h>
 
 #include "Playlist.h"
 
@@ -88,12 +88,22 @@ MainFrame::MainFrame(const wxString& title, const wxPoint& pos, const wxSize& si
 	SetSizer(frame_sizer);
 	SetAutoLayout(true);
 	frame_sizer->Fit(this);
+
+    // test
+    // DragAcceptFiles(true);
 }
 
 
 
 void MainFrame::OnOpen(wxCommandEvent &event)
 {
+    wxFileDialog file_dialog(this, _("Open PSF file"), "", "", "PSF files (*.psf)|*.psf", wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+    if (file_dialog.ShowModal() == wxID_CANCEL) {
+        return;
+    }
+
+    wxString path = file_dialog.GetPath();
+    file_treectrl->Append(path);
 }
 
 void MainFrame::OnExit(wxCommandEvent &event)

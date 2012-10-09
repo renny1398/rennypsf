@@ -44,11 +44,12 @@ void PSXMemory::Reset()
 void PSXMemory::Load(uint32_t address, int32_t length, char *data)
 {
     // Init();
+    wxASSERT_MSG(data != 0, "ERROR");
+    wxMessageOutputDebug().Printf("Load data (length: %d) at 0x%08p into 0x%08x", length, data, address);
 
     uint32_t offset = address & 0xffff;
     if (offset) {
         uint32_t len = (0x10000 - offset) > length ? length : 0x10000 - offset;
-        wxASSERT_MSG(SegmentLUT[address >> 16] != 0, "Invalid PSX memory address");
         memcpy(SegmentLUT[address << 16] + offset, data, len);
         address += len;
         data += len;
@@ -57,6 +58,8 @@ void PSXMemory::Load(uint32_t address, int32_t length, char *data)
 
     uint32_t segment = address >> 16;
     while (length > 0) {
+        wxASSERT_MSG(SegmentLUT[segment] != 0, "Invalid PSX memory address");
+        wxMessageOutputDebug().Printf("Segment = %d, Pointer to segment = %p", segment, SegmentLUT[segment]);
         memcpy(SegmentLUT[segment++], data, length < 0x10000 ? length : 0x10000);
         data += 0x10000;
         length -= 0x10000;

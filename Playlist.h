@@ -22,12 +22,15 @@ public:
 	PSFPlaylist(wxWindow* parent, wxWindowID id);
     ~PSFPlaylist();
 
-    wxTreeItemId Append(const wxString& text, int image = -1, int selImage = -1, PSFPlaylistItem* data = 0);
+    wxTreeItemId AppendItem(const wxString& text, int image = -1, int selImage = -1, PSFPlaylistItem* data = 0);
     PSFPlaylistItem* GetSelectedItem() const;
+
+    bool Append(const wxString& file_name);
 
 protected:
     void Selected(wxTreeEvent &event);
     void Activated(wxTreeEvent &event);
+    void OnDropFiles(wxDropFilesEvent& event);
 
 	wxDECLARE_EVENT_TABLE();
 
@@ -74,11 +77,12 @@ class PSFFileDropTarget: public wxFileDropTarget
 public:
 	PSFFileDropTarget(PSFPlaylist *playlist): playlist(playlist) {}
 	bool OnDropFiles(wxCoord x, wxCoord y, const wxArrayString& filenames);
+    wxDragResult OnEnter(wxCoord x, wxCoord y, wxDragResult defResult);
 };
 
 
 
-inline wxTreeItemId PSFPlaylist::Append(const wxString &text, int image, int selImage, PSFPlaylistItem *data)
+inline wxTreeItemId PSFPlaylist::AppendItem(const wxString &text, int image, int selImage, PSFPlaylistItem *data)
 {
-    return AppendItem(rootId, text, image, selImage, data);
+    return wxTreeCtrl::AppendItem(rootId, text, image, selImage, data);
 }
