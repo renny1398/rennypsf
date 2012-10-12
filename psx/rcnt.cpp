@@ -1,6 +1,6 @@
-#include "PSXCounters.h"
-#include "R3000A.h"
-#include "PSXMemory.h"
+#include "rcnt.h"
+#include "r3000a.h"
+#include "memory.h"
 #include <cstring>
 #include <wx/msgout.h>
 
@@ -10,14 +10,9 @@ const int PSXCLK = 33868800;	/* 33.8688 Mhz */
 static const int counter_num = 4;
 static uint32_t last = 0;
 
+namespace PSX {
+namespace RootCounter {
 
-
-
-
-
-
-namespace PSXRootCounter
-{
 
 Counter counters[5];
 unsigned long nextCounter;
@@ -27,9 +22,9 @@ unsigned long &g_nextCounter = nextCounter;
 unsigned long &g_nextsCounter = nextsCounter;
 
 
-void _update(unsigned long index)
+void update(unsigned long index)
 {
-    counters[index].sCycle = R3000A::cycle;
+    counters[index].sCycle = R3000a.Cycle;
     if ( (!(counters[index].mode & 1) || (index != 2)) && counters[index].mode & 0x30 ) {
         if (counters[index].mode & 0x10) {  // interrupt on target
             counters[index].Cycle = (counters[index].target - counters[index].count) * counters[index].rate / BIAS;
@@ -45,7 +40,7 @@ void _update(unsigned long index)
 void Reset(unsigned long index)
 {
     counters[index].count = 0;
-    _update(index);
+    update(index);
 
     psxHu32ref(0x1070) |= BFLIP32(counters[index].interrupt);
     if ( (counters[index].mode & 0x40) == 0 ) { // only 1 interrupt
@@ -53,16 +48,16 @@ void Reset(unsigned long index)
     }
 }
 
-void Set()
+void set()
 {
     g_nextCounter = LONG_MAX;
-    g_nextsCounter = R3000A::cycle;
+    g_nextsCounter = R3000a.Cycle;
 
     for (int i = 0; i < counter_num; i++) {
         long count;
         if (counters[i].Cycle == ULONG_MAX) continue;
 
-        count = counters[i].Cycle - (R3000A::cycle - counters[i].sCycle);
+        count = counters[i].Cycle - (R3000a.Cycle - counters[i].sCycle);
         if (count < 0) {
             g_nextCounter = 0;
             break;
@@ -95,17 +90,17 @@ void Init()
 
     // cnt = 4; // if SPU_async == NULL
 
-    _update(0); _update(1); _update(2); _update(3);
-    Set();
+    update(0); update(1); update(2); update(3);
+    set();
     last = 0;
 }
 
 
 void Update()
 {
-    uint32_t cycle = R3000A::cycle;
+    uint32_t cycle = R3000a.Cycle;
     if ( (cycle- counters[3].sCycle) >= counters[3].Cycle ) {
-        _update(3);
+        update(3);
         psxHu32ref(0x1070) |= BFLIP32(1);
     }
     if ( (cycle- counters[0].sCycle) >= counters[0].Cycle ) {
@@ -118,15 +113,15 @@ void Update()
         Reset(2);
     }
 
-    Set();
+    set();
 }
 
 
 void WriteCount(unsigned long index, unsigned long value)
 {
     counters[index].count = value;
-    _update(index);
-    Set();
+    update(index);
+    set();
 }
 
 
@@ -163,16 +158,16 @@ void WriteMode(unsigned long index, unsigned long value)
         }
     }
 
-    _update(index);
-    Set();
+    update(index);
+    set();
 }
 
 
 void WriteTarget(unsigned long index, unsigned long value)
 {
     counters[index].target = value;
-    _update(index);
-    Set();
+    update(index);
+    set();
 }
 
 
@@ -181,9 +176,9 @@ unsigned long ReadCount(unsigned long index)
     unsigned long ret;
 
     if (counters[index].mode & 0x08) {  // count to value in target
-        ret = counters[index].count + BIAS*((R3000A::cycle - counters[index].sCycle) / counters[index].rate);
+        ret = counters[index].count + BIAS*((R3000a.Cycle - counters[index].sCycle) / counters[index].rate);
     } else {    // count to 0xffff
-        ret = counters[index].count + BIAS*(R3000A::cycle / counters[index].rate);
+        ret = counters[index].count + BIAS*(R3000a.Cycle / counters[index].rate);
     }
 
     return ret & 0xffff;
@@ -193,24 +188,27 @@ unsigned long ReadCount(unsigned long index)
 unsigned long SPURun()
 {
     unsigned long cycles;
-    if (R3000A::cycle < last) {
+    if (R3000a.Cycle < last) {
         cycles = UINT_FAST32_MAX - last;
-        cycles += R3000A::cycle + 1;
+        cycles += R3000a.Cycle + 1;
     } else {
-        cycles = R3000A::cycle - last;
+        cycles = R3000a.Cycle - last;
     }
 
     if (cycles >= 16) {
-        wxMessageOutputDebug().Printf("TODO: implement SPUasync");
-        last = R3000A::cycle;
+        // wxMessageOutputDebug().Printf("TODO: implement SPUasync");
+        // wxMessageOutputDebug().Printf("PC = 0x%08x", R3000a.PC);
+        last = R3000a.Cycle;
     }
     return 1;
 }
 
 void DeadLoopSkip()
 {
+    wxMessageOutputDebug().Printf("CounterDeadLoopSkip");
+
     long min, lmin;
-    uint32_t cycle = R3000A::cycle;
+    uint32_t cycle = R3000a.Cycle;
 
     lmin = LONG_MAX;
 
@@ -226,8 +224,9 @@ void DeadLoopSkip()
     }
 
     if (lmin > 0) {
-        R3000A::cycle = cycle + lmin;
+        R3000a.Cycle = cycle + lmin;
     }
 }
 
-}   // namespace PSXRootCounter;
+}   // namespace RootCounter;
+}   // namespace PSX

@@ -1,8 +1,5 @@
 #include "PSF.h"
-#include "R3000A.h"
-#include "PSXMemory.h"
-#include "PSXBIOS.h"
-#include "PSXCounters.h"
+#include "psx/psx.h"
 #include <wx/msgout.h>
 
 
@@ -12,16 +9,16 @@ void PSF::Init()
 
 void PSF::Reset()
 {
-    R3000A::Reset();
+    PSX::R3000a.Reset();
 }
 
 
 bool PSF::Play()
 {
     wxMessageOutputDebug().Printf("initial PC = 0x%08x", m_header.pc0);
-    PSXBIOS::Init();
-    PSXRootCounter::Init();
-    m_thread = R3000A::Interpreter::Execute();
+    PSX::BIOS::Init();
+    PSX::RootCounter::Init();
+    m_thread = PSX::Interpreter_.Execute();
 
     return true;
 }
@@ -29,8 +26,8 @@ bool PSF::Play()
 
 bool PSF::Stop()
 {
-    R3000A::Interpreter::Shutdown();
+    PSX::Interpreter_.Shutdown();
     m_thread = 0;
-    PSXMemory::Reset();
+    PSX::Memory::Reset();
     return true;
 }

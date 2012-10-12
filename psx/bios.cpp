@@ -1,18 +1,38 @@
-#include "PSXBIOS.h"
-#include "R3000A.h"
-#include "PSXMemory.h"
-#include "PSXCounters.h"
-#include "PSXHardware.h"
+#include "psx.h"
+#include "interpreter.h"
 #include <wx/msgout.h>
 
 #include <cstring>
 #include <cstdlib>
 
 
-using namespace R3000A;
-using namespace PSXMemory;
+using namespace PSX::R3000A;
+using namespace PSX::Memory;
 
-namespace PSXBIOS {
+
+namespace {
+
+using namespace PSX;
+uint32_t& PC = R3000a.PC;
+uint32_t& A0 = R3000a.GPR.A0;
+uint32_t& A1 = R3000a.GPR.A1;
+uint32_t& A2 = R3000a.GPR.A2;
+uint32_t& A3 = R3000a.GPR.A3;
+uint32_t& V0 = R3000a.GPR.V0;
+uint32_t& GP = R3000a.GPR.GP;
+uint32_t& SP = R3000a.GPR.SP;
+uint32_t& FP = R3000a.GPR.FP;
+uint32_t& RA = R3000a.GPR.RA;
+
+GeneralPurposeRegisters& GPR = R3000a.GPR;
+Cop0Registers& CP0 = R3000a.CP0;
+
+}
+
+
+
+namespace PSX {
+namespace BIOS {
 
 struct malloc_chunk {
     uint32_t stat;
@@ -23,8 +43,8 @@ struct malloc_chunk {
 
 typedef struct EventCallback {
     uint32_t desc;
-    int32_t status;
-    int32_t mode;
+    uint32_t status;
+    uint32_t mode;
     uint32_t fhandler;
 } EvCB[32];
 
@@ -37,12 +57,11 @@ const uint32_t EVENT_MODE_INTERRUPT	= 0x1000;
 const uint32_t EVENT_MODE_NO_INTERRUPT = 0x2000;
 
 struct TCB {
-    int32_t status;
-    int32_t mode;
+    uint32_t status;
+    uint32_t mode;
     uint32_t reg[32];
     uint32_t func;
 };
-
 
 static uint32_t *jmp_int;
 
@@ -59,25 +78,25 @@ static EvCB *RcEV; // 0xf2
 static uint32_t heap_addr;
 static uint32_t SysIntRP[8];
 static TCB Thread[8];
-static int CurThread;
+static uint32_t CurThread;
 
 
 static inline void softCall(uint32_t pc) {
     PC = pc;
-    GPR.RA = 0x80001000;
+    RA = 0x80001000;
     do {
-        Interpreter::ExecuteBlock();
+        Interpreter_.ExecuteBlock();
     } while (PC != 0x80001000);
 }
 
 static inline void softCall2(uint32_t pc) {
-    uint32_t saved_ra = GPR.RA;
+    uint32_t saved_ra = RA;
     PC = pc;
-    GPR.RA = 0x80001000;
+    RA = 0x80001000;
     do {
-        Interpreter::ExecuteBlock();
-    } while (GPR.PC != 0x80001000);
-    GPR.RA = saved_ra;
+        Interpreter_.ExecuteBlock();
+    } while (PC != 0x80001000);
+    RA = saved_ra;
 }
 
 static inline void _DeliverEvent(uint32_t ev, uint32_t spec) {
@@ -102,142 +121,142 @@ static inline void _DeliverEvent(uint32_t ev, uint32_t spec) {
 
 static void bios_nop()
 {
-    PC = GPR.RA;
+    PC = RA;
 }
 
 
 static void abs()   // A0:0e
 {
-    int32_t a0 = static_cast<int32_t>(GPR.A0);
+    int32_t a0 = static_cast<int32_t>(A0);
     if (a0 < 0) {
-        GPR.V0 = -a0;
+        V0 = -a0;
     } else {
-        GPR.V0 = a0;
+        V0 = a0;
     }
-    PC = GPR.RA;
+    PC = RA;
 }
 
 static void (*const labs)() = abs;  // A0:0f
 
 static void atoi()  // A0:10
 {
-    GPR.V0 = ::atoi(CharPtr(GPR.A0));
-    PC = GPR.RA;
+    V0 = ::atoi(CharPtr(A0));
+    PC = RA;
 }
 
 static void (*const atol)() = atoi; // A0:11
 
 static void setjmp()    // A0:13
 {
-    uint32_t *jmp_buf = Uint32Ptr(GPR.A0);
+    uint32_t *jmp_buf = Uint32Ptr(A0);
 
-    jmp_buf[0] = BFLIP32(GPR.RA);
-    jmp_buf[1] = BFLIP32(GPR.SP);
-    jmp_buf[2] = BFLIP32(GPR.FP);
+    jmp_buf[0] = BFLIP32(RA);
+    jmp_buf[1] = BFLIP32(SP);
+    jmp_buf[2] = BFLIP32(FP);
     for (int i = 0; i < 8; i++) {
         jmp_buf[3+i] = BFLIP32(GPR.S[i]);
     }
-    GPR.V0 = 0;
-    PC = GPR.RA;
+    V0 = 0;
+    PC = RA;
 }
 
 static void longjmp()   // A0:14
 {
-    uint32_t *jmp_buf = Uint32Ptr(GPR.A0);
+    uint32_t *jmp_buf = Uint32Ptr(A0);
 
-    GPR.RA = BFLIP32(jmp_buf[0]);
-    GPR.SP = BFLIP32(jmp_buf[1]);
-    GPR.FP = BFLIP32(jmp_buf[2]);
+    RA = BFLIP32(jmp_buf[0]);
+    SP = BFLIP32(jmp_buf[1]);
+    FP = BFLIP32(jmp_buf[2]);
     for (int i = 0; i < 8; i++) {
         GPR.S[i] = BFLIP32(jmp_buf[3+i]);
     }
-    GPR.V0 = GPR.A1;
-    PC = GPR.RA;
+    V0 = A1;
+    PC = RA;
 }
 
 static void strcat()    // A0:15
 {
-    uint32_t a0 = GPR.A0;
+    uint32_t a0 = A0;
     char *dest = CharPtr(a0);
-    const char *src = CharPtr(GPR.A1);
+    const char *src = CharPtr(A1);
 
     ::strcat(dest, src);
 
-    GPR.V0 = a0;
-    PC = GPR.RA;
+    V0 = a0;
+    PC = RA;
 }
 
 static void strncat()   // A0:16
 {
-    uint32_t a0 = GPR.A0;
+    uint32_t a0 = A0;
     char *dest = CharPtr(a0);
-    const char *src = CharPtr(GPR.A1);
-    const uint32_t count = psxMu32(GPR.A2);
+    const char *src = CharPtr(A1);
+    const uint32_t count = psxMu32(A2);
 
     ::strncat(dest, src, count);
 
-    GPR.V0 = a0;
-    PC = GPR.RA;
+    V0 = a0;
+    PC = RA;
 }
 
 static void strcmp()    // A0:17
 {
-    GPR.V0 = ::strcmp(CharPtr(GPR.A0), CharPtr(GPR.A1));
-    PC = GPR.RA;
+    V0 = ::strcmp(CharPtr(A0), CharPtr(A1));
+    PC = RA;
 }
 
 static void strncmp()    // A0:18
 {
-    GPR.V0 = ::strncmp(CharPtr(GPR.A0), CharPtr(GPR.A1), psxMu32(GPR.A2));
-    PC = GPR.RA;
+    V0 = ::strncmp(CharPtr(A0), CharPtr(A1), psxMu32(A2));
+    PC = RA;
 }
 
 static void strcpy()    // A0:19
 {
-    uint32_t a0 = GPR.A0;
-    ::strcpy(CharPtr(a0), CharPtr(GPR.A1));
-    GPR.V0 = a0;
-    PC = GPR.RA;
+    uint32_t a0 = A0;
+    ::strcpy(CharPtr(a0), CharPtr(A1));
+    V0 = a0;
+    PC = RA;
 }
 
 static void strncpy()   // A0:1a
 {
-    uint32_t a0 = GPR.A0;
-    ::strncpy(CharPtr(a0), CharPtr(GPR.A1), psxMu32(GPR.A2));
-    GPR.V0 = a0;
-    PC = GPR.RA;
+    uint32_t a0 = A0;
+    ::strncpy(CharPtr(a0), CharPtr(A1), psxMu32(A2));
+    V0 = a0;
+    PC = RA;
 }
 
 static void strlen()    // A0:1b
 {
-    GPR.V0 = ::strlen(CharPtr(GPR.A0));
-    PC = GPR.RA;
+    V0 = ::strlen(CharPtr(A0));
+    PC = RA;
 }
 
 static void index()     // A0:1c
 {
-    uint32_t a0 = GPR.A0;
+    uint32_t a0 = A0;
     const char *src = CharPtr(a0);
-    char *ret = ::strchr(src, GPR.A1);
+    char *ret = ::strchr(src, A1);
     if (ret) {
-        GPR.V0 = a0 + (ret - src);
+        V0 = a0 + (ret - src);
     } else {
-        GPR.V0 = 0;
+        V0 = 0;
     }
-    PC = GPR.RA;
+    PC = RA;
 }
 
 static void rindex()    // A0:1d
 {
-    uint32_t a0 = GPR.A0;
+    uint32_t a0 = A0;
     const char *src = CharPtr(a0);
-    char *ret = ::strrchr(src, GPR.A1);
+    char *ret = ::strrchr(src, A1);
     if (ret) {
-        GPR.V0 = a0 + (ret - src);
+        V0 = a0 + (ret - src);
     } else {
-        GPR.V0 = 0;
+        V0 = 0;
     }
-    PC = GPR.RA;
+    PC = RA;
 }
 
 static void (*const strchr)() = index;  // A0:1e
@@ -245,149 +264,149 @@ static void (*const strrchr)() = rindex;    // A0:1f
 
 static void strpbrk()   // A0:20
 {
-    uint32_t a0 = GPR.A0;
+    uint32_t a0 = A0;
     const char *src = CharPtr(a0);
-    char *ret = ::strpbrk(src, CharPtr(GPR.A1));
+    char *ret = ::strpbrk(src, CharPtr(A1));
     if (ret) {
-        GPR.V0 = a0 + (ret - src);
+        V0 = a0 + (ret - src);
     } else {
-        GPR.V0 = 0;
+        V0 = 0;
     }
-    PC = GPR.RA;
+    PC = RA;
 }
 
 static void strspn()    // A0:21
 {
-    GPR.V0 = ::strspn(CharPtr(GPR.A0), CharPtr(GPR.A1));
-    PC = GPR.RA;
+    V0 = ::strspn(CharPtr(A0), CharPtr(A1));
+    PC = RA;
 }
 
 static void strcspn()   // A0:22
 {
-    GPR.V0 = ::strcspn(CharPtr(GPR.A0), CharPtr(GPR.A1));
-    PC = GPR.RA;
+    V0 = ::strcspn(CharPtr(A0), CharPtr(A1));
+    PC = RA;
 }
 
 static void strtok()    // A0:23
 {
-    uint32_t a0 = GPR.A0;
+    uint32_t a0 = A0;
     char *src = CharPtr(a0);
-    char *ret = ::strtok(src, CharPtr(GPR.A1));
+    char *ret = ::strtok(src, CharPtr(A1));
     if (ret) {
-        GPR.V0 = a0 + (ret - src);
+        V0 = a0 + (ret - src);
     } else {
-        GPR.V0 = 0;
+        V0 = 0;
     }
-    PC = GPR.RA;
+    PC = RA;
 }
 
 static void strstr()    // A0:24
 {
-    uint32_t a0 = GPR.A0;
+    uint32_t a0 = A0;
     const char *src = CharPtr(a0);
-    char *ret = ::strstr(src, CharPtr(GPR.A1));
+    char *ret = ::strstr(src, CharPtr(A1));
     if (ret) {
-        GPR.V0 = a0 + (ret - src);
+        V0 = a0 + (ret - src);
     } else {
-        GPR.V0 = 0;
+        V0 = 0;
     }
-    PC = GPR.RA;
+    PC = RA;
 }
 
 static void toupper()   // A0:25
 {
-    GPR.V0 = ::toupper(GPR.A0);
-    PC = GPR.RA;
+    V0 = ::toupper(A0);
+    PC = RA;
 }
 
 static void tolower()   // A0:26
 {
-    GPR.V0 = ::tolower(GPR.A0);
-    PC = GPR.RA;
+    V0 = ::tolower(A0);
+    PC = RA;
 }
 
 static void bcopy() // A0:27
 {
-    uint32_t a1 = GPR.A1;
-    ::memcpy(CharPtr(a1), CharPtr(GPR.A0), GPR.A2);
-    // GPR.V0 = a1;
-    PC = GPR.RA;
+    uint32_t a1 = A1;
+    ::memcpy(CharPtr(a1), CharPtr(A0), A2);
+    // V0 = a1;
+    PC = RA;
 }
 
 static void bzero() // A0:28
 {
-    uint32_t a0 = GPR.A0;
-    ::memset(CharPtr(a0), 0, GPR.A1);
-    // GPR.V0 = a0;
-    PC = GPR.RA;
+    uint32_t a0 = A0;
+    ::memset(CharPtr(a0), 0, A1);
+    // V0 = a0;
+    PC = RA;
 }
 
 static void bcmp()  // A0:29
 {
-    GPR.V0 = ::memcmp(CharPtr(GPR.A0), CharPtr(GPR.A1), GPR.A2);
-    PC = GPR.RA;
+    V0 = ::memcmp(CharPtr(A0), CharPtr(A1), A2);
+    PC = RA;
 }
 
 static void memcpy()    // A0:2A
 {
-    uint32_t a0 = GPR.A0;
-    ::memcpy(CharPtr(a0), CharPtr(GPR.A1), GPR.A2);
-    GPR.V0 = a0;
-    PC = GPR.RA;
+    uint32_t a0 = A0;
+    ::memcpy(CharPtr(a0), CharPtr(A1), A2);
+    V0 = a0;
+    PC = RA;
 }
 
 static void memset()    // A0:2b
 {
-    uint32_t a0 = GPR.A0;
-    ::memset(CharPtr(a0), GPR.A1, GPR.A2);
-    GPR.V0 = a0;
-    PC = GPR.RA;
+    uint32_t a0 = A0;
+    ::memset(CharPtr(a0), A1, A2);
+    V0 = a0;
+    PC = RA;
 }
 
 static void memmove()    // A0:2c
 {
-    uint32_t a0 = GPR.A0;
-    ::memmove(CharPtr(a0), CharPtr(GPR.A1), GPR.A2);
-    GPR.V0 = a0;
-    PC = GPR.RA;
+    uint32_t a0 = A0;
+    ::memmove(CharPtr(a0), CharPtr(A1), A2);
+    V0 = a0;
+    PC = RA;
 }
 
 static void memcmp()    // A0:2d
 {
-    GPR.V0 = ::memcmp(CharPtr(GPR.A0), CharPtr(GPR.A1), GPR.A2);
-    PC = GPR.RA;
+    V0 = ::memcmp(CharPtr(A0), CharPtr(A1), A2);
+    PC = RA;
 }
 
 static void memchr()    // A0:2e
 {
-    uint32_t a0 = GPR.A0;
+    uint32_t a0 = A0;
     const char *src = CharPtr(a0);
-    char *ret = static_cast<char*>(::memchr(src, GPR.A1, GPR.A2));
+    char *ret = static_cast<char*>(::memchr(src, A1, A2));
     if (ret) {
-        GPR.V0 = a0 + (ret - src);
+        V0 = a0 + (ret - src);
     } else {
-        GPR.V0 = 0;
+        V0 = 0;
     }
-    PC = GPR.RA;
+    PC = RA;
 }
 
 static void rand()  // A0:2f
 {
-    GPR.V0 = 1 + static_cast<int>(32767.0 * ::rand() / (RAND_MAX + 1.0));
-    PC = GPR.RA;
+    V0 = 1 + static_cast<int>(32767.0 * ::rand() / (RAND_MAX + 1.0));
+    PC = RA;
 }
 
 static void srand() // A0:30
 {
-    ::srand(GPR.A0);
-    PC = GPR.RA;
+    ::srand(A0);
+    PC = RA;
 }
 
 static void malloc()    // A0:33
 {
     uint32_t chunk = heap_addr;
     malloc_chunk *pChunk = reinterpret_cast<malloc_chunk*>(CharPtr(chunk));
-    uint32_t a0 = GPR.A0;
+    uint32_t a0 = A0;
 
     // search for first chunk that is large enough and not currently being used
     while ( a0 > BFLIP32(pChunk->size) || BFLIP32(pChunk->stat) == 1/*INUSE*/ ) {
@@ -408,14 +427,14 @@ static void malloc()    // A0:33
     pChunk->size = BFLIP32(a0);
     pChunk->fd = fd;
 
-    GPR.V0 = (chunk + sizeof(malloc_chunk)) | 0x80000000;
-    PC = GPR.RA;
+    V0 = (chunk + sizeof(malloc_chunk)) | 0x80000000;
+    PC = RA;
 }
 
 static void InitHeap()  // A0:39
 {
-    uint32_t a0 = GPR.A0;
-    uint32_t a1 = GPR.A1;
+    uint32_t a0 = A0;
+    uint32_t a1 = A1;
     heap_addr = a0;
 
     malloc_chunk *chunk = reinterpret_cast<malloc_chunk*>(CharPtr(a0));
@@ -427,7 +446,7 @@ static void InitHeap()  // A0:39
     }
     chunk->fd = 0;
     chunk->bk = 0;
-    PC = GPR.RA;
+    PC = RA;
 }
 
 static void (*const FlushCache)() = bios_nop;    // A0:44
@@ -436,7 +455,7 @@ static void _bu_init()      // A0:70
 {
     _DeliverEvent(0x11, 0x2);    // 0xf0000011, 0x0004
     _DeliverEvent(0x81, 0x2);    // 0xf4000001, 0x0004
-    PC = GPR.RA;
+    PC = RA;
 }
 
 static void (*const _96_init)() = bios_nop;     // A0:71
@@ -446,15 +465,15 @@ static void (*const _96_remove)() = bios_nop;   // A0:72
 
 static void SetRCnt()   // B0:02
 {
-    uint32_t a0 = GPR.A0;
-    uint32_t a1 = GPR.A1;
-    uint32_t a2 = GPR.A2;
+    uint32_t a0 = A0;
+    uint32_t a1 = A1;
+    uint32_t a2 = A2;
 
     a0 &= 0x3;
-    GPR.A0 = a0;
+    A0 = a0;
     if (a0 != 3) {
         uint32_t mode = 0;
-        PSXRootCounter::WriteTarget(a0, a1);
+        RootCounter::WriteTarget(a0, a1);
         if (a2 & 0x1000) mode |= 0x050; // Interrupt Mode
         if (a2 & 0x0100) mode |= 0x008; // Count to 0xffff
         if (a2 & 0x0010) mode |= 0x001; // Timer stop mode
@@ -463,63 +482,63 @@ static void SetRCnt()   // B0:02
         } else {
             if (a2 & 0x0001) mode |= 0x100; // System Clock mode
         }
-        PSXRootCounter::WriteMode(a0, mode);
+        RootCounter::WriteMode(a0, mode);
     }
-    PC = GPR.RA;
+    PC = RA;
 }
 
 static void GetRCnt()   // B0:03
 {
-    uint32_t a0 = GPR.A0;
+    uint32_t a0 = A0;
     a0 &= 0x3;
-    GPR.A0 = a0;
+    A0 = a0;
     if (a0 != 3) {
-        GPR.V0 = PSXRootCounter::ReadCount(a0);
+        V0 = RootCounter::ReadCount(a0);
     } else {
-        GPR.V0 = 0;
+        V0 = 0;
     }
-    PC = GPR.RA;
+    PC = RA;
 }
 
 static void StartRCnt() // B0:04
 {
-    uint32_t a0 = GPR.A0;
+    uint32_t a0 = A0;
     a0 &= 0x3;
     if (a0 != 3) {
         psxHu32ref(0x1074) |= BFLIP32(1<<(a0+4));
     } else {
         psxHu32ref(0x1074) |= BFLIP32(1);
     }
-    // GPR.A0 = a0;
-    GPR.V0 = 1;
-    PC = GPR.RA;
+    // A0 = a0;
+    V0 = 1;
+    PC = RA;
 }
 
 static void StopRCnt()  // B0:05
 {
-    uint32_t a0 = GPR.A0;
+    uint32_t a0 = A0;
     a0 &= 0x3;
     if (a0 != 3) {
         psxHu32ref(0x1074) &= BFLIP32( ~(1<<(a0+4)) );
     } else {
         psxHu32ref(0x1074) &= BFLIP32(~1);
     }
-    // GPR.A0 = a0;
-    GPR.V0 = 1;
-    PC = GPR.RA;
+    // A0 = a0;
+    V0 = 1;
+    PC = RA;
 }
 
 static void ResetRCnt() // B0:06
 {
-    uint32_t a0 = GPR.A0;
+    uint32_t a0 = A0;
     a0 &= 0x3;
     if (a0 != 3) {
-        PSXRootCounter::WriteMode(a0, 0);
-        PSXRootCounter::WriteTarget(a0, 0);
-        PSXRootCounter::WriteCount(a0, 0);
+        RootCounter::WriteMode(a0, 0);
+        RootCounter::WriteTarget(a0, 0);
+        RootCounter::WriteCount(a0, 0);
     }
-    // GPR.A0 = a0;
-    PC = GPR.RA;
+    // A0 = a0;
+    PC = RA;
 }
 
 static inline int GetEv(int a0)
@@ -550,76 +569,76 @@ static inline int GetSpec(int a1)
 
 static void DeliverEvent()  // B0:07
 {
-    int ev = GetEv(GPR.A0);
-    int spec = GetSpec(GPR.A1);
+    int ev = GetEv(A0);
+    int spec = GetSpec(A1);
     _DeliverEvent(ev, spec);
-    PC = GPR.RA;
+    PC = RA;
 }
 
 static void OpenEvent() // B0:08
 {
-    int ev = GetEv(GPR.A0);
-    int spec = GetSpec(GPR.A1);
+    int ev = GetEv(A0);
+    int spec = GetSpec(A1);
     Event[ev][spec].status = BFLIP32(EVENT_STATUS_WAIT);
-    Event[ev][spec].mode = BFLIP32(GPR.A2);
-    Event[ev][spec].fhandler = BFLIP32(GPR.A3);
-    GPR.V0 = ev | (spec << 8);
-    PC = GPR.RA;
+    Event[ev][spec].mode = BFLIP32(A2);
+    Event[ev][spec].fhandler = BFLIP32(A3);
+    V0 = ev | (spec << 8);
+    PC = RA;
 }
 
 static void CloseEvent()    // B0:09
 {
-    uint32_t a0 = GPR.A0;
+    uint32_t a0 = A0;
     int ev = a0 & 0xff;
     int spec = (a0 >> 8) & 0xff;
     Event[ev][spec].status = BFLIP32(EVENT_STATUS_UNUSED);
-    GPR.V0 = 1;
-    PC = GPR.RA;
+    V0 = 1;
+    PC = RA;
 }
 
 static void WaitEvent() // B0:0a
 {
     // same as EnableEvent??
-    uint32_t a0 = GPR.A0;
+    uint32_t a0 = A0;
     int ev = a0 & 0xff;
     int spec = (a0 >> 8) & 0xff;
     Event[ev][spec].status = BFLIP32(EVENT_STATUS_ACTIVE);
-    GPR.V0 = 1;
-    PC = GPR.RA;
+    V0 = 1;
+    PC = RA;
 }
 
 static void TestEvent() // B0:0b
 {
-    uint32_t a0 = GPR.A0;
+    uint32_t a0 = A0;
     int ev = a0 & 0xff;
     int spec = (a0 >> 8) & 0xff;
     if (Event[ev][spec].status == BFLIP32(EVENT_STATUS_ALREADY)) {
         Event[ev][spec].status = BFLIP32(EVENT_STATUS_ACTIVE);
-        GPR.V0 = 1;
+        V0 = 1;
     } else {
-        GPR.V0 = 0;
+        V0 = 0;
     }
-    PC = GPR.RA;
+    PC = RA;
 }
 
 static void EnableEvent()   // B0:0c
 {
-    uint32_t a0 = GPR.A0;
+    uint32_t a0 = A0;
     int ev = a0 & 0xff;
     int spec = (a0 >> 8) & 0xff;
     Event[ev][spec].status = BFLIP32(EVENT_STATUS_ACTIVE);
-    GPR.V0 = 1;
-    PC = GPR.RA;
+    V0 = 1;
+    PC = RA;
 }
 
 static void DisableEvent()  // B0:0d
 {
-    uint32_t a0 = GPR.A0;
+    uint32_t a0 = A0;
     int ev = a0 & 0xff;
     int spec = (a0 >> 8) & 0xff;
     Event[ev][spec].status = BFLIP32(EVENT_STATUS_WAIT);
-    GPR.V0 = 1;
-    PC = GPR.RA;
+    V0 = 1;
+    PC = RA;
 }
 
 static void OpenTh()    // B0:0e
@@ -629,37 +648,37 @@ static void OpenTh()    // B0:0e
         if (Thread[th].status == 0) break;
     }
     Thread[th].status = BFLIP32(1);
-    Thread[th].func = BFLIP32(GPR.A0);
-    Thread[th].reg[29] = BFLIP32(GPR.A1);
-    Thread[th].reg[28] = BFLIP32(GPR.A2);
-    GPR.V0 = th;
-    PC = GPR.RA;
+    Thread[th].func = BFLIP32(A0);
+    Thread[th].reg[29] = BFLIP32(A1);
+    Thread[th].reg[28] = BFLIP32(A2);
+    V0 = th;
+    PC = RA;
 }
 
 static void CloseTh()   // B0:0f
 {
-    uint32_t th = GPR.A0 & 0xff;
+    uint32_t th = A0 & 0xff;
     if (Thread[th].status == 0) {
-        GPR.V0 = 0;
+        V0 = 0;
     } else {
         Thread[th].status = 0;
-        GPR.V0 = 1;
+        V0 = 1;
     }
-    PC = GPR.RA;
+    PC = RA;
 }
 
 static void ChangeTh()  // B0:10
 {
-    uint32_t th = GPR.A0 &0xff;
+    uint32_t th = A0 &0xff;
     if (Thread[th].status == 0 || CurThread == th) {
-        GPR.V0 = 0;
-        PC = GPR.RA;
+        V0 = 0;
+        PC = RA;
         return;
     }
-    GPR.V0 = 1;
+    V0 = 1;
     if (Thread[CurThread].status == BFLIP32(2)) {
         Thread[CurThread].status = BFLIP32(1);
-        Thread[CurThread].func = BFLIP32(GPR.RA);
+        Thread[CurThread].func = BFLIP32(RA);
         ::memcpy(Thread[CurThread].reg, GPR.R, 32*sizeof(uint32_t));
     }
     ::memcpy(GPR.R, Thread[th].reg, 32*sizeof(uint32_t));
@@ -685,58 +704,58 @@ static void ReturnFromException()   // B0:17
 static void ResetEntryInt() // B0:18
 {
     jmp_int = 0;
-    PC = GPR.RA;
+    PC = RA;
 }
 
 static void HookEntryInt()  // B0:19
 {
-    jmp_int = Uint32Ptr(GPR.A0);
-    PC = GPR.RA;
+    jmp_int = Uint32Ptr(A0);
+    PC = RA;
 }
 
 static void UnDeliverEvent()    // B0:20
 {
-    int ev = GetEv(GPR.A0);
-    int spec = GetSpec(GPR.A1);
+    int ev = GetEv(A0);
+    int spec = GetSpec(A1);
     if (Event[ev][spec].status == BFLIP32(EVENT_STATUS_ALREADY) && Event[ev][spec].mode == BFLIP32(EVENT_MODE_NO_INTERRUPT)) {
         Event[ev][spec].status = BFLIP32(EVENT_STATUS_ACTIVE);
     }
-    PC = GPR.RA;
+    PC = RA;
 }
 
 static void GetC0Table()    // B0:56
 {
-    GPR.V0 = 0x674;
-    PC = GPR.RA;
+    V0 = 0x674;
+    PC = RA;
 }
 
 static void GetB0Table()    // B0:57
 {
-    GPR.V0 = 0x874;
-    PC = GPR.RA;
+    V0 = 0x874;
+    PC = RA;
 }
 
 
 static void SysEnqIntRP()   // C0:02
 {
-    SysIntRP[GPR.A0] = GPR.A1;
-    GPR.V0 = 0;
-    PC = GPR.RA;
+    SysIntRP[A0] = A1;
+    V0 = 0;
+    PC = RA;
 }
 
 static void SysDeqIntRP()   // C0:03
 {
-    SysIntRP[GPR.A0] = 0;
-    GPR.V0 = 0;
-    PC = GPR.RA;
+    SysIntRP[A0] = 0;
+    V0 = 0;
+    PC = RA;
 }
 
 static void ChangeClearRCnt()   // C0:0a
 {
-    uint32_t *ptr = Uint32Ptr((GPR.A0 << 2) + 0x8600);
-    GPR.V0 = BFLIP32(*ptr);
-    *ptr = BFLIP32(GPR.A1);
-    PC = GPR.RA;
+    uint32_t *ptr = Uint32Ptr((A0 << 2) + 0x8600);
+    V0 = BFLIP32(*ptr);
+    *ptr = BFLIP32(A1);
+    PC = RA;
 }
 
 
@@ -882,7 +901,7 @@ void Interrupt()
             if (BFLIP32(psxHu32(0x1070)) & (1 << (i+4))) {
                 if (RcEV[i][1].status == BFLIP32(EVENT_STATUS_ACTIVE)) {
                     softCall(BFLIP32(RcEV[i][1].fhandler));
-                    PSXHardware::Write32(0x1f801070, ~(1 << (i+4)));
+                    Hardware::Write32(0x1f801070, ~(1 << (i+4)));
                 }
             }
         }
@@ -908,23 +927,23 @@ void Exception()
             }
         }
         if (jmp_int) {
-            PSXHardware::Write32(0x1f801070, 0xffffffff);
-            GPR.RA = BFLIP32(jmp_int[0]);
-            GPR.SP = BFLIP32(jmp_int[1]);
-            GPR.FP = BFLIP32(jmp_int[2]);
+            Hardware::Write32(0x1f801070, 0xffffffff);
+            RA = BFLIP32(jmp_int[0]);
+            SP = BFLIP32(jmp_int[1]);
+            FP = BFLIP32(jmp_int[2]);
             for (int i = 0; i < 8; i++) {
                 GPR.R[16+i] = BFLIP32(jmp_int[3+i]);
             }
-            GPR.GP = BFLIP32(jmp_int[11]);
-            GPR.V0 = 1;
-            PC = GPR.RA;
+            GP = BFLIP32(jmp_int[11]);
+            V0 = 1;
+            PC = RA;
             return;
         }
-        PSXHardware::Write16(0x1f801070, 0);
+        Hardware::Write16(0x1f801070, 0);
         break;
     case 0x20:  // SYSCALL
         status = CP0.SR;
-        switch (GPR.A0) {
+        switch (A0) {
         case 1: // EnterCritical (disable IRQs)
             status &= ~0x404;
             break;
@@ -935,7 +954,7 @@ void Exception()
         CP0.SR = (status & 0xfffffff0) | ((status & 0x3c) >> 2);
         return;
     default:
-        wxMessageOutputDebug().Printf("Unknown BIOS Exception (0x%02x)", R3000A::CP0.CAUSE & 0x3c);
+        wxMessageOutputDebug().Printf("Unknown BIOS Exception (0x%02x)", CP0.CAUSE & 0x3c);
     }
 
    uint32_t pc = CP0.EPC;
@@ -948,4 +967,5 @@ void Exception()
 }
 
 
-}   // namespace PSXBIOS
+}   // namespace BIOS
+}   // namespace PSX

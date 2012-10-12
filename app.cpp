@@ -20,8 +20,12 @@ bool RennypsfApp::OnInit()
 	GetCurrentProcess(&PSN);
 	TransformProcessType(&PSN, kProcessTransformToForegroundApplication);
 #endif
-	MainFrame *frame = new MainFrame("rennypsf", wxPoint(50,50), wxSize(640,480));
-	frame->Show(true);
+#ifdef __WXDEBUG__
+    MainFrame *frame = new MainFrame("Rennypsf (Debug mode)", wxPoint(50,50), wxSize(640,480));
+#else
+    MainFrame *frame = new MainFrame("Rennypsf", wxPoint(50,50), wxSize(640,480));
+#endif
+    frame->Show(true);
 	return true;
 }
 

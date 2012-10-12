@@ -1,4 +1,4 @@
-#include "SPU.h"
+#include "spu.h"
 #include <wx/msgout.h>
 
 
@@ -36,11 +36,12 @@ enum {
 uint16_t read1xx0(int ch)
 {
     uint16_t ret = 0;
-    int volume = m_spuChannels[ch].iLeftVolume;
-    if (m_spuChannels[ch].isLeftSweep) {
+    ChannelInfo& channelInfo = Spu.GetChannelInfo(ch);
+    int volume = channelInfo.iLeftVolume;
+    if (channelInfo.isLeftSweep) {
         ret |= 0x8000;
-        if (m_spuChannels[ch].isLeftExpSlope) ret |= 0x4000;
-        if (m_spuChannels[ch].isLeftDecreased) ret |= 0x2000;
+        if (channelInfo.isLeftExpSlope) ret |= 0x4000;
+        if (channelInfo.isLeftDecreased) ret |= 0x2000;
         if (volume < 0) ret |= 0x1000;
         ret |= volume & 0x7f;
         return ret;
@@ -53,11 +54,12 @@ uint16_t read1xx0(int ch)
 uint16_t read1xx2(int ch)
 {
     uint16_t ret = 0;
-    int volume = m_spuChannels[ch].iRightVolume;
-    if (m_spuChannels[ch].isRightSweep) {
+    ChannelInfo& channelInfo = Spu.GetChannelInfo(ch);
+    int volume = channelInfo.iRightVolume;
+    if (channelInfo.isRightSweep) {
         ret |= 0x8000;
-        if (m_spuChannels[ch].isRightExpSlope) ret |= 0x4000;
-        if (m_spuChannels[ch].isRightDecreased) ret |= 0x2000;
+        if (channelInfo.isRightExpSlope) ret |= 0x4000;
+        if (channelInfo.isRightDecreased) ret |= 0x2000;
         if (volume < 0) ret |= 0x1000;
         ret |= volume & 0x7f;
         return ret;
@@ -69,13 +71,13 @@ uint16_t read1xx2(int ch)
 // Get Pitch
 uint16_t read1xx4(int ch)
 {
-    return m_spuChannels[ch].iActFreq * 4096 / 44100;
+    return Spu.GetChannelInfo(ch).iActFreq * 4096 / 44100;
 }
 
 // Get start address of Sound
 uint16_t read1xx6(int ch)
 {
-    int soundBuffer = m_spuChannels[ch].pStart - m_spuMemC;
+    int soundBuffer = Spu.GetChannelInfo(ch).pStart - Spu.GetSoundBuffer();
     return soundBuffer >> 3;
 }
 
@@ -83,8 +85,12 @@ uint16_t read1xx6(int ch)
 uint16_t read1xx8(int ch)
 {
     uint16_t ret = 0;
-    if (m_spuChannels[ch].ADSRX.AttackModeExp) ret |= 0x8000;
-    ret |=
+    ChannelInfo& channelInfo = Spu.GetChannelInfo(ch);
+    if (channelInfo.ADSRX.AttackModeExp) ret |= 0x8000;
+    ret |= channelInfo.ADSRX.AttackRate << 8;
+    ret |= channelInfo.ADSRX.DecayRate << 4;
+    ret |= channelInfo.ADSRX.SustainLevel;
+    return ret;
 }
 
 
@@ -92,14 +98,7 @@ uint16_t read1xx8(int ch)
 }
 
 
-
-
-
-
-}  // namespace SPU
-
-
-uint16_t SPU::ReadRegister(unsigned long reg)
+uint16_t ReadRegister(unsigned long reg)
 {
     wxASSERT((reg & 0xfffffe00) == 0x1f801c00);
     // TODO: mutex lock
@@ -114,4 +113,11 @@ uint16_t SPU::ReadRegister(unsigned long reg)
     // SPU Global Registers
     int ofs = (reg - 0x1f801d80) >> 1;
 
+    return 0;
 }
+
+
+
+
+}  // namespace SPU
+

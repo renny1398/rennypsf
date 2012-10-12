@@ -13,16 +13,16 @@ PSFPlaylist::PSFPlaylist(wxWindow* parent, wxWindowID id)
     rootId = AddRoot(wxT("Root"));  // "Root" is dummy
 
 	// register folder and file icons
-	wxImageList *treeImage = new wxImageList(16,16);
+    wxImageList *treeImage = new wxImageList(0, 0);
 	wxBitmap idx0 = wxArtProvider::GetBitmap(wxART_FOLDER, wxART_OTHER);
 	wxBitmap idx1 = wxArtProvider::GetBitmap(wxART_NEW, wxART_OTHER);
 	treeImage->Add(idx0);
 	treeImage->Add(idx1);
 	AssignImageList(treeImage);
 
-//	fdt = new PSFFileDropTarget(this);
-//	SetDropTarget(fdt);
-    DragAcceptFiles(true);
+    fdt = new PSFFileDropTarget(this);
+    SetDropTarget(fdt);
+//    DragAcceptFiles(true);
 }
 
 PSFPlaylist::~PSFPlaylist()
@@ -47,7 +47,7 @@ bool PSFPlaylist::Append(const wxString &file_name)
     wxFileName::SplitPath(file_name, &path, &name, &ext);
     if (ext.IsEmpty()) return false;
 
-    PSFPlaylistItem *item = wxNEW PSFPlaylistItem(file_name, name, ext);
+    PSFPlaylistItem *item = new PSFPlaylistItem(file_name, name, ext);
     if (item->IsAvailable()) {
         AppendItem(item->GetFileName(), 1, 1, item);
         return true;
@@ -168,7 +168,7 @@ bool PSFPlaylistItem::PreloadSound(const wxString &path, const wxString &ext)
 }
 
 
-/*
+
 bool PSFFileDropTarget::OnDropFiles(wxCoord x, wxCoord y, const wxArrayString& filenames) {
     wxMessageOutputDebug().Printf("OnDropFile");
     int i = 0;
@@ -182,9 +182,9 @@ bool PSFFileDropTarget::OnDropFiles(wxCoord x, wxCoord y, const wxArrayString& f
 			if (ext.IsEmpty()) continue;
             // if (ExtIsAvailable(ext) == false) continue;
 
-            PSFPlaylistItem *item = wxNEW PSFPlaylistItem(filenames[i], name, ext);
+            PSFPlaylistItem *item = new PSFPlaylistItem(filenames[i], name, ext);
             if (item->IsAvailable()) {
-                playlist->Append(item->GetFileName(), 1, 1, item);
+                playlist->AppendItem(item->GetFileName(), 1, 1, item);
             } else {
                 delete item;
             }
@@ -199,4 +199,4 @@ wxDragResult PSFFileDropTarget::OnEnter(wxCoord x, wxCoord y, wxDragResult defRe
     wxMessageOutputDebug().Printf("OnEnter");
     return OnDragOver(x, y, defResult);
 }
-*/
+

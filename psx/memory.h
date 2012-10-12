@@ -9,8 +9,9 @@ inline T pointer_cast(void* p)
 }
 
 
-namespace PSXMemory
-{
+namespace PSX {
+namespace Memory {
+
     void Init();
     bool IsInited();
     void Reset();
@@ -36,7 +37,9 @@ namespace PSXMemory
     extern uint8_t memParallelPort[0x10000];
     extern uint8_t memHardware[0x3000];   // Scratch Pad [0x0000 - 0x03ff] + Hardware Registers [0x1000 - 0x2fff]
     extern uint8_t memBIOS[0x80000];
-}
+
+}   // namespace Memory
+}   // namespace PSX
 
 
 ////////////////////////////////
@@ -79,12 +82,12 @@ inline uint32_t PSXMemory::LoadUserMemory32(uint32_t addr)
 }
 */
 
-inline char* PSXMemory::CharPtr(uint32_t addr)
+inline char* PSX::Memory::CharPtr(uint32_t addr)
 {
     return pointer_cast<char*>(memUser + (addr & 0x1fffff));
 }
 
-inline uint32_t* PSXMemory::Uint32Ptr(uint32_t addr)
+inline uint32_t* PSX::Memory::Uint32Ptr(uint32_t addr)
 {
     return pointer_cast<uint32_t*>(memUser + (addr & 0x1fffff));
 }
@@ -92,27 +95,27 @@ inline uint32_t* PSXMemory::Uint32Ptr(uint32_t addr)
 
 template<typename T>
 inline T psxM(uint32_t addr) {
-    return BFLIP( *pointer_cast<T*>(PSXMemory::memUser + (addr & 0x1fffff)) );
+    return BFLIP( *pointer_cast<T*>(PSX::Memory::memUser + (addr & 0x1fffff)) );
 }
 
 template<typename T>
 inline T& psxMref(uint32_t addr) {
-    return *pointer_cast<T*>(PSXMemory::memUser + (addr & 0x1fffff));
+    return *pointer_cast<T*>(PSX::Memory::memUser + (addr & 0x1fffff));
 }
 
 template<typename T>
 inline T psxH(uint32_t addr) {
-    return BFLIP( *pointer_cast<T*>(PSXMemory::memHardware + (addr & 0x3fff)) );
+    return BFLIP( *pointer_cast<T*>(PSX::Memory::memHardware + (addr & 0x3fff)) );
 }
 
 template<typename T>
 inline T& psxHref(uint32_t addr) {
-    return *pointer_cast<T*>(PSXMemory::memHardware + (addr & 0x3fff));
+    return *pointer_cast<T*>(PSX::Memory::memHardware + (addr & 0x3fff));
 }
 
 template<typename T>
 inline T& psxRref(uint32_t addr) {
-    return *pointer_cast<T*>(PSXMemory::memBIOS + (addr & 0xffff));
+    return *pointer_cast<T*>(PSX::Memory::memBIOS + (addr & 0xffff));
 }
 
 
@@ -177,30 +180,30 @@ inline uint32_t& psxRu32ref(uint32_t addr) {
 // Read from & Write into PSX memory
 ////////////////////////////////////////
 
-#include "PSXHardware.h"
+#include "hardware.h"
 #include <wx/msgout.h>
 
 template<typename T>
-T PSXMemory::Read(uint32_t addr)
+T PSX::Memory::Read(uint32_t addr)
 {
     uint32_t segment = addr >> 16;
     if (segment == 0x1f80) {
         if (addr < 0x1f801000)  // Scratch Pad
             return psxH<T>(addr);
         // Hardware Registers
-        return PSXHardware::Read<T>(addr);
+        return Hardware::Read<T>(addr);
     }
     uint8_t *base_addr = SegmentLUT[segment];
     uint32_t offset = addr & 0xffff;
     if (base_addr == 0) {
-        wxMessageOutputDebug().Printf("Bad Segment: %04x", segment);
+        wxMessageOutputDebug().Printf("PSX::Memory::Read : bad segment: %04x", segment);
         return 0;
     }
     return BFLIP(*pointer_cast<T*>(base_addr + offset));
 }
 
 template<typename T>
-void PSXMemory::Write(uint32_t addr, T value)
+void PSX::Memory::Write(uint32_t addr, T value)
 {
     uint32_t segment = addr >> 16;
     if (segment == 0x1f80) {
@@ -208,10 +211,14 @@ void PSXMemory::Write(uint32_t addr, T value)
             psxHref<T>(addr) = BFLIP(value);
             return;
         }
-        PSXHardware::Write(addr, value);
+        Hardware::Write(addr, value);
         return;
     }
     uint8_t *base_addr = SegmentLUT[segment];
     uint32_t offset = addr & 0xffff;
+    if (base_addr == 0) {
+        wxMessageOutputDebug().Printf("PSX::Memory::Write : bad segment: %04x", segment);
+        return;
+    }
     *pointer_cast<T*>(base_addr + offset) = BFLIP(value);
 }

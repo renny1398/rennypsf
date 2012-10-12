@@ -1,7 +1,5 @@
 #include "PSF1Loader.h"
 #include "PSF1.h"
-#include "R3000A.h"
-#include "PSXMemory.h"
 
 #include <wx/file.h>
 #include <wx/wfstream.h>
@@ -9,6 +7,9 @@
 #include <cstring>
 #include <wx/hashmap.h>
 #include <wx/filename.h>
+
+
+namespace R3000A = PSX::R3000A;
 
 
 PSF1Loader::~PSF1Loader()
@@ -71,9 +72,9 @@ SoundFormat *PSF1Loader::Load()
         }
     }
 
-    R3000A::GPR.PC = header.pc0;
-    R3000A::GPR.GP = header.gp0;
-    R3000A::GPR.SP = header.sp0;
+    PSX::R3000a.GPR.PC = header.pc0;
+    PSX::R3000a.GPR.GP = header.gp0;
+    PSX::R3000a.GPR.SP = header.sp0;
 
     for (IntStrHash::iterator it = libname_hash.begin(), it_end = libname_hash.end(); it != it_end; ++it) {
         PSF1 *psflib = LoadLib(it->second);
@@ -82,15 +83,9 @@ SoundFormat *PSF1Loader::Load()
         }
     }
 
-    /*
-    binary = uncompressed;
-    for (int i = 0; i < 0x800; i++) {
-        wxMessageOutputDebug().Printf("0x%08X", binary);
-        binary++;
-    }*/
     zlib_stream.Read(uncompressed + 0x800, 0x200000);
-    PSXMemory::Init();
-    PSXMemory::Load(header.text_addr, header.text_size, uncompressed + 0x800);
+    PSX::Memory::Init();
+    PSX::Memory::Load(header.text_addr, header.text_size, uncompressed + 0x800);
 
     PSF1 *psf1 = new PSF1();
     psf1->m_header = header;

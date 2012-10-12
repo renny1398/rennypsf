@@ -1,8 +1,7 @@
-#ifndef PSF_H
-#define PSF_H
+#pragma once
 
 #include "SoundFormat.h"
-#include "R3000A.h"
+#include "psx/psx.h"
 #include <stdint.h>
 
 class PSF: public SoundFormat
@@ -48,7 +47,7 @@ public:
 private:
     PSXEXEHeader m_header;
     void *m_memory;
-    R3000A::Interpreter::Thread *m_thread;
+    PSX::InterpreterThread *m_thread;
 };
 
 #include <wx/file.h>
@@ -70,5 +69,3 @@ protected:
     uint32_t m_lenBinary;
     uint32_t m_crc32Binary;
 };
-
-#endif // PSF_H

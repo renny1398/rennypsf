@@ -40,7 +40,7 @@ struct ADSRInfoEx
     long           lDummy2;
 };
 
-struct Channel
+struct ChannelInfo
 {
     bool            bNew;                               // start flag
 
@@ -133,15 +133,13 @@ struct REVERBInfo
     int IN_COEF_R;      // (coef.)
 };
 
-}   // namespace SPU
-
 class PSF;
 class PSF1;
 
 class SPU
 {
 public:
-    SPU(PSF* psf);
+    SPU();
 
     void Init();
     bool Open();
@@ -149,21 +147,26 @@ public:
     bool Close();
     void Flush();
 
+    ChannelInfo& GetChannelInfo(int ch);
+    unsigned char* GetSoundBuffer() const;
 
     // ADSR
     void InitADSR();
-    void StartADSR(Channel& ch);
-    int MixADSR(Channel& ch);
+    void StartADSR(ChannelInfo& ch);
+    int MixADSR(ChannelInfo& ch);
 
     // Reverb
     void InitReverb();
     void SetReverb(unsigned short value);
-    void StartReverb(Channel& ch);
-    void StoreReverb(Channel& ch, int ns);
+    void StartReverb(ChannelInfo& ch);
+    void StoreReverb(ChannelInfo& ch, int ns);
 
     // Register
     unsigned short ReadRegister(unsigned long reg);
     void WriteRegister(unsigned long reg, unsigned short val);
+
+    // substance
+    static SPU Spu;
 
 protected:
     // Reverb
@@ -183,7 +186,7 @@ private:
     // PSX Buffer & Addresses
     unsigned short m_regArea[10000];
     unsigned short m_spuMem[256*1024];
-    unsigned char* m_spuMemC;
+    unsigned char* m_spuMemC;   // uchar* version of spuMem
     unsigned char* m_pSpuIrq;
     unsigned char* m_pSpuBuffer;
     unsigned char* m_pMixIrq;
@@ -202,7 +205,7 @@ private:
     int m_iUseDBufIrq;
 
     // MAIN infos struct for each channel
-    Channel m_spuChannels[25];
+    ChannelInfo channels[25];
     REVERBInfo m_reverbInfo;
 
     unsigned long m_noiseVal;
@@ -243,3 +246,19 @@ private:
     int  iReverbNum;
 
 };
+
+
+inline ChannelInfo& SPU::GetChannelInfo(int ch)
+{
+    return channels[ch];
+}
+
+inline unsigned char* SPU::GetSoundBuffer() const
+{
+    return m_spuMemC;
+}
+
+
+extern SPU& Spu;
+
+}   // namespace SPU

@@ -4,30 +4,8 @@
 #include <wx/msgout.h>
 
 
+namespace PSX {
 namespace R3000A {
-
-
-typedef bool (*INIT_FUNC)();
-typedef void (*RESET_FUNC)();
-typedef void (*SHUTDOWN_FUNC)();
-typedef void (*EXCEPTION_FUNC)(uint32_t, uint32_t);
-typedef void (*BRANCH_TEST_FUNC)();
-typedef void (*EXECUTE_BIOS_FUNC)();
-
-
-//INIT_FUNC Init;
-//RESET_FUNC Reset;
-//SHUTDOWN_FUNC Shutdown;
-//EXCEPTION_FUNC Exception;
-//BRANCH_TEST_FUNC BranchTest;
-//EXECUTE_BIOS_FUNC ExecuteBIOS;
-
-void Reset();
-
-
-void Exception(uint32_t code, bool branch_delay);
-
-
 
 ////////////////////////////////
 // R3000A Registers
@@ -81,72 +59,132 @@ union Cop0Registers {
     uint32_t R[17];
 };
 
+} // namespace R3000A
 
+////////////////////////////////////////////////////////////////////////
+// implement of R3000A processor
+////////////////////////////////////////////////////////////////////////
 
-extern GeneralPurposeRegisters GPR;
-extern Cop0Registers CP0;
-extern uint32_t& PC;
+class R3000AImpl
+{
+private:
+    R3000AImpl() {}
+    ~R3000AImpl() {}
 
-extern uint_fast32_t cycle;
-extern uint_fast32_t interrupt;
+public:
+    void Init();
+    void Reset();
+    void Execute();
+    void ExecuteBlock();
+    // void Clear(uint32_t addr, uint32_t size);
+    void Shutdown();
+
+    static R3000AImpl& GetInstance();
+
+    void BranchTest();
+    void Exception(uint32_t code, bool branch_delay);
+
+    bool IsInDelaySlot() const;
+    void EnterDelaySlot();
+    void LeaveDelaySlot();
+
+    bool isDoingBranch() const;
+
+public:
+    static R3000A::GeneralPurposeRegisters GPR;
+    static R3000A::Cop0Registers CP0;
+    static uint32_t& HI;
+    static uint32_t& LO;
+    static uint32_t& PC;
+    static uint32_t Cycle;  // clock count
+    static uint32_t Interrupt;
+
+private:
+    static bool inDelaySlot;    // for SYSCALL
+    static bool doingBranch;    // set when doBranch is called
+
+    friend class InterpreterImpl;
+    friend class RecompilerImpl;
+    friend class DisassemblerImpl;
+};
+
+inline bool R3000AImpl::IsInDelaySlot() const {
+    return inDelaySlot;
+}
+
+inline void R3000AImpl::EnterDelaySlot() {
+    inDelaySlot = true;
+}
+
+inline void R3000AImpl::LeaveDelaySlot() {
+    inDelaySlot = false;
+}
+
+inline bool R3000AImpl::isDoingBranch() const {
+    return doingBranch;
+}
+
+// an alias of R3000A instance
+extern R3000AImpl& R3000a;
+
 
 
 ////////////////////////////////
 // Instruction Macros
 ////////////////////////////////
 
-inline uint32_t _opcode(uint32_t code) {
+inline uint32_t opcode_(uint32_t code) {
     return code >> 26;
 }
 
-inline uint32_t _rs(uint32_t code) {
+inline uint32_t rs_(uint32_t code) {
     return (code >> 21) & 0x01f;
 }
 
-inline uint32_t _rt(uint32_t code) {
+inline uint32_t rt_(uint32_t code) {
     return (code >> 16) & 0x001f;
 }
 
-inline uint32_t _rd(uint32_t code) {
+inline uint32_t rd_(uint32_t code) {
     return (code >> 11) & 0x0001f;
 }
 
 
-inline uint32_t& _regSrc(uint32_t code) {
-    return GPR.R[_rs(code)];
+inline uint32_t& regSrc_(uint32_t code) {
+    return R3000a.GPR.R[rs_(code)];
 }
 
-inline uint32_t& _regTrg(uint32_t code) {
-    return GPR.R[_rt(code)];
+inline uint32_t& regTrg_(uint32_t code) {
+    return R3000a.GPR.R[rt_(code)];
 }
 
-inline uint32_t& _regDst(uint32_t code) {
-    return GPR.R[_rd(code)];
+inline uint32_t& regDst_(uint32_t code) {
+    return R3000a.GPR.R[rd_(code)];
 }
 
 
-inline int16_t _immediate(uint32_t code) {
+inline int16_t immediate_(uint32_t code) {
     return code & 0xffff;
 }
 
-inline uint16_t _immediateU(uint32_t code) {
+inline uint16_t immediateU_(uint32_t code) {
     return code & 0xffff;
 }
 
-inline uint32_t _target(uint32_t code) {
+inline uint32_t target_(uint32_t code) {
     return code & 0x03ffffff;
 }
 
-inline uint32_t _shamt(uint32_t code) {
+inline uint32_t shamt_(uint32_t code) {
     return (code >> 6) & 0x1f;
 }
 
-inline uint32_t _funct(uint32_t code) {
+inline uint32_t funct_(uint32_t code) {
     return code & 0x3f;
 }
 
-inline uint32_t _addr(uint32_t code) {
-    return _regSrc(code) + _immediate(code);
+inline uint32_t addr_(uint32_t code) {
+    return regSrc_(code) + immediate_(code);
 }
 
 
@@ -172,54 +210,4 @@ enum BCOND_ENUM {
     BCOND_BLTZ, BCOND_BGEZ, BCOND_BLTZAL = 0x10, BCOND_BGEZAL
 };
 
-
-namespace Interpreter {
-
-void Init();
-void Reset();
-void ExecuteBIOS();
-
-void ExecuteOnce();
-void ExecuteBlock();
-
-
-
-class Thread: public wxThread
-{
-public:
-    Thread(): wxThread(wxTHREAD_DETACHED) {}
-
-protected:
-    ExitCode Entry()
-    {
-        do {
-            ExecuteOnce();
-        } while (TestDestroy() == false);
-        return 0;
-    }
-
-    void OnExit()
-    {
-        wxMessageOutputDebug().Printf("PSX Thread is ended.");
-    }
-};
-
-
-
-
-Thread* Execute();
-void Shutdown();
-
-
-extern void (*OPCODES[64])(uint32_t);
-extern void (*SPECIALS[64])(uint32_t);
-extern void (*BCONDS[24])(uint32_t);
-extern void (*COPz[16])(uint32_t);
-
-inline void ExecuteOpcode(uint32_t code) {
-    OPCODES[_opcode(code)](code);
-}
-
-
-}   // namespace R3000A::Interpreter
-}   // namespace R3000A
+}   // namespace PSX

@@ -1,9 +1,12 @@
-#include "SPU.h"
+#include "spu.h"
 #include <wx/msgout.h>
 #include <cstring>
 
 
-SPU::SPU(PSF* psf): m_psf(psf)
+namespace SPU {
+
+
+SPU::SPU()
 {
 }
 
@@ -37,7 +40,7 @@ void SPU::InitADSR()
 }
 
 
-void SPU::StartADSR(Channel &channel)
+void SPU::StartADSR(ChannelInfo &channel)
 {
     channel.ADSRX.lVolume = 1;
     channel.ADSRX.State = 0;
@@ -52,7 +55,7 @@ static const unsigned long TableDisp[] = {
     -0x1b+9+32, -0x1b+10+32, -0x1b+11+32, -0x1b+12+32
 };
 
-int SPU::MixADSR(Channel &ch)
+int SPU::MixADSR(ChannelInfo &ch)
 {
     unsigned long disp;
     long envVol = ch.ADSRX.EnvelopeVol;
@@ -140,7 +143,7 @@ void SPU::InitReverb()
     iReverbNum = 1;
 
     if (m_iUseReverb == 2) {
-        memset(sRVBStart, 0, NSSIZE*2*4);
+        memset(sReverbStart, 0, NSSIZE*2*4);
     }
 }
 
@@ -176,11 +179,11 @@ void SPU::SetReverb(unsigned short value)
         iReverbOff = 128; iReverbNum = 2; iReverbRepeat = 128;
         return;
     }
-    iReverb = 32;  iReverbNum = 1; iReverbRepeat = 0;
+    iReverbOff = 32;  iReverbNum = 1; iReverbRepeat = 0;
 }
 
 
-void SPU::StartReverb(Channel &ch)
+void SPU::StartReverb(ChannelInfo &ch)
 {
     if (ch.hasReverb && (m_spuCtrl & 0x80)) {
         if (m_iUseReverb == 2) {
@@ -199,23 +202,23 @@ void SPU::StartReverb(Channel &ch)
 }
 
 
-void SPU::StoreReverb(Channel &ch, int ns)
+void SPU::StoreReverb(ChannelInfo &ch, int ns)
 {
     if (m_iUseReverb == 0) return;
     if (m_iUseReverb == 2) {    // Neil's reverb
         const int iRxl = (ch.sval * ch.iLeftVolume) / 0x4000;
         const int iRxr = (ch.sval * ch.iRightVolume) / 0x4000;
         ns <<= 1;
-        *(sRVBStart+ns+0) += iRxl;
-        *(sRVBStart+ns+1) += iRxr;
+        *(sReverbStart+ns+0) += iRxl;
+        *(sReverbStart+ns+1) += iRxr;
         return;
     }
     // Pete's easy fake reverb
     int *pN;
     int iRn, iRr = 0;
 
-    const int iRxl = (ch.sval * ch.iLeftVolume) / 0x8000;
-    const int iRxr = (ch.sval * ch.iRightVolume) / 0x8000;
+    int iRxl = (ch.sval * ch.iLeftVolume) / 0x8000;
+    int iRxr = (ch.sval * ch.iRightVolume) / 0x8000;
 
     for (iRn = 1; iRn <= ch.iRVBNum; iRn++) {
         pN = sReverbPlay + ((ch.iRVBOffset + iRr + ns) << 1);
@@ -413,8 +416,14 @@ int SPU::MixReverbRight()
 
 void SPU::Init()
 {
-    m_spuMemC = m_spuMem;
-    memset(m_spuChannels, 0, sizeof(m_spuChannels));
+    m_spuMemC = (unsigned char*)m_spuMem;
+    memset(channels, 0, sizeof(channels));
 //    memset()
     InitADSR();
 }
+
+
+SPU SPU::Spu;
+SPU& Spu = SPU::Spu;
+
+}   // namespace SPU

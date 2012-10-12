@@ -1,17 +1,18 @@
-#include "PSXMemory.h"
+#include "memory.h"
 #include <wx/msgout.h>
 
-namespace PSXMemory
-{
-    uint8_t *SegmentLUT[0x10000];
-    uint8_t memUser[0x200000];
-    uint8_t memParallelPort[0x10000];
-    uint8_t memHardware[0x3000];
-    uint8_t memBIOS[0x80000];
-}
+
+namespace PSX {
+namespace Memory {
+
+uint8_t *SegmentLUT[0x10000];
+uint8_t memUser[0x200000];
+uint8_t memParallelPort[0x10000];
+uint8_t memHardware[0x3000];
+uint8_t memBIOS[0x80000];
 
 
-void PSXMemory::Init()
+void Init()
 {
     if (SegmentLUT[0x0000] != 0) return;
 
@@ -32,7 +33,8 @@ void PSXMemory::Init()
     wxMessageOutputDebug().Printf("Initialized PSX Memory.");
 }
 
-void PSXMemory::Reset()
+
+void Reset()
 {
     memset(memUser, 0, 0x00200000);
     memset(memParallelPort, 0, 0x00010000);
@@ -41,7 +43,7 @@ void PSXMemory::Reset()
 
 
 // name 'Load' is not right?
-void PSXMemory::Load(uint32_t address, int32_t length, char *data)
+void Load(uint32_t address, int32_t length, char *data)
 {
     // Init();
     wxASSERT_MSG(data != 0, "ERROR");
@@ -49,7 +51,7 @@ void PSXMemory::Load(uint32_t address, int32_t length, char *data)
 
     uint32_t offset = address & 0xffff;
     if (offset) {
-        uint32_t len = (0x10000 - offset) > length ? length : 0x10000 - offset;
+        uint32_t len = (0x10000 - offset) > length ? static_cast<uint32_t>(length) : 0x10000 - offset;
         memcpy(SegmentLUT[address << 16] + offset, data, len);
         address += len;
         data += len;
@@ -67,3 +69,5 @@ void PSXMemory::Load(uint32_t address, int32_t length, char *data)
 }
 
 
+}   // namespace Memory
+}   // namespace PSX

@@ -2,8 +2,8 @@
 #include <stdint.h>
 
 
-namespace PSXRootCounter
-{
+namespace PSX {
+namespace RootCounter {
 
 void Init();
 void Update();
@@ -26,4 +26,5 @@ extern unsigned long nextCounter, nextsCounter;
 unsigned long SPURun();
 void DeadLoopSkip();
 
-}   // namespace PSXRootCounter
+}   // namespace RootCounter
+}   // namespace PSX

@@ -5,6 +5,13 @@ FIND_PACKAGE(wxWidgets REQUIRED core base)
 SET(CMAKE_C_COMPILER clang)
 SET(CMAKE_CXX_COMPILER clang++)
 
+SET(CMAKE_BUILD_TYPE Debug)
+SET(wxWidgets_USE_DEBUG ON)
+SET(wxWidgets_USE_REL_AND_DBG ON)
+
+SET(CMAKE_C_FLAGS_DEBUG "-g -W -Wall")
+SET(CMAKE_CXX_FLAGS_DEBUG "-g -W -Wall")
+
 IF(wxWidgets_FOUND)
     INCLUDE(${wxWidgets_USE_FILE})
 
@@ -15,6 +22,11 @@ IF(wxWidgets_FOUND)
     #    SET_PROPERTY(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS_DEBUG ${wxWidgets_DEFINITIONS_DEBUG})
     #ENDIF(wxWidgets_DEFINITIONS_DEBUG)
 
+    FILE(GLOB PSX_SRC psx/*.cpp)
+    ADD_LIBRARY(psx ${PSX_SRC})
+    FILE(GLOB SPU_SRC spu/*.cpp)
+    ADD_LIBRARY(spu ${SPU_SRC})
+
     ADD_EXECUTABLE(rennypsf ${CPPFILES} ${HEADERS})
-    TARGET_LINK_LIBRARIES(rennypsf ${wxWidgets_LIBRARIES})
+    TARGET_LINK_LIBRARIES(rennypsf ${wxWidgets_LIBRARIES} psx spu)
 ENDIF(wxWidgets_FOUND)
