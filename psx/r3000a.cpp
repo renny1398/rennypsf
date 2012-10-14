@@ -17,19 +17,18 @@ const char *strGPR[35] = {
     "HI", "LO", "PC"
 };
 
+namespace R3000A {
 
-//namespace R3000A {
+GeneralPurposeRegisters Processor::GPR;
+Cop0Registers Processor::CP0;
+uint32_t& Processor::HI = GPR.HI;
+uint32_t& Processor::LO = GPR.LO;
+uint32_t& Processor::PC = GPR.PC;
+uint32_t Processor::Cycle;
+uint32_t Processor::Interrupt;
 
-R3000A::GeneralPurposeRegisters R3000AImpl::GPR;
-R3000A::Cop0Registers R3000AImpl::CP0;
-uint32_t& R3000AImpl::HI = GPR.HI;
-uint32_t& R3000AImpl::LO = GPR.LO;
-uint32_t& R3000AImpl::PC = GPR.PC;
-uint32_t R3000AImpl::Cycle;
-uint32_t R3000AImpl::Interrupt;
-
-bool R3000AImpl::inDelaySlot = false;
-bool R3000AImpl::doingBranch = false;
+bool Processor::inDelaySlot = false;
+bool Processor::doingBranch = false;
 
 /*
 GeneralPurposeRegisters GPR;
@@ -45,8 +44,17 @@ uint_fast32_t interrupt;
 //uint32_t delayed_load_value;
 
 
-void R3000AImpl::Reset()
+void Processor::Init()
 {
+    CP0.R[12] = 0x10900000; // COP0_ENABLED | BEV | TS
+    CP0.R[15] = 0x00000002; // PRevId = Revision Id, same as R3000A
+    wxMessageOutputDebug().Printf("Initialized R3000A processor.");
+}
+
+
+void Processor::Reset()
+{
+    inDelaySlot = doingBranch = false;
     memset(&GPR, 0, sizeof(GPR));
     memset(&CP0, 0, sizeof(CP0));
     PC = 0xbfc00000;
@@ -55,13 +63,14 @@ void R3000AImpl::Reset()
     CP0.R[15] = 0x00000002; // PRevId = Revision Id, same as R3000A
 //    delayed_load_target = 0;
 //    delayed_load_value = 0;
+    wxMessageOutputDebug().Printf("R3000A processor is reset.");
 }
 
 
 
 
 
-void R3000AImpl::Exception(uint32_t code, bool branch_delay)
+void Processor::Exception(uint32_t code, bool branch_delay)
 {
     CP0.CAUSE = code;
 
@@ -93,14 +102,14 @@ void R3000AImpl::Exception(uint32_t code, bool branch_delay)
 ////////////////////////////////////////////////////////////////
 
 
-void R3000AImpl::BranchTest()
+void Processor::BranchTest()
 {
     if (Cycle - RootCounter::nextsCounter >= RootCounter::nextCounter) {
         RootCounter::Update();
     }
 
     // interrupt mask register ($1f801074)
-    if (psxHu32(0x1070) & psxHu32(0x1074)) {
+    if (u32H(0x1070) & u32H(0x1074)) {
         if ((CP0.SR & 0x401) == 0x401) {
             Exception(0x400, false);
         }
@@ -108,16 +117,14 @@ void R3000AImpl::BranchTest()
 }
 
 
-R3000AImpl& R3000AImpl::GetInstance()
+Processor& Processor::GetInstance()
 {
-    static R3000AImpl instance;
+    static Processor instance;
     return instance;
 }
 
-R3000AImpl& R3000a = R3000AImpl::GetInstance();
+}   // namespace R3000A
 
-//}   // namespace R3000A
-
-//R3000A::R3000AImpl& R3000a = R3000A::R3000AImpl::R3000a;
+R3000A::Processor& R3000a = R3000A::Processor::GetInstance();
 
 }   // namespace PSX

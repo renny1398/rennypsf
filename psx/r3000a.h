@@ -59,17 +59,16 @@ union Cop0Registers {
     uint32_t R[17];
 };
 
-} // namespace R3000A
 
 ////////////////////////////////////////////////////////////////////////
 // implement of R3000A processor
 ////////////////////////////////////////////////////////////////////////
 
-class R3000AImpl
+class Processor
 {
 private:
-    R3000AImpl() {}
-    ~R3000AImpl() {}
+    Processor() {}
+    ~Processor() {}
 
 public:
     void Init();
@@ -79,7 +78,7 @@ public:
     // void Clear(uint32_t addr, uint32_t size);
     void Shutdown();
 
-    static R3000AImpl& GetInstance();
+    static Processor& GetInstance();
 
     void BranchTest();
     void Exception(uint32_t code, bool branch_delay);
@@ -91,8 +90,8 @@ public:
     bool isDoingBranch() const;
 
 public:
-    static R3000A::GeneralPurposeRegisters GPR;
-    static R3000A::Cop0Registers CP0;
+    static GeneralPurposeRegisters GPR;
+    static Cop0Registers CP0;
     static uint32_t& HI;
     static uint32_t& LO;
     static uint32_t& PC;
@@ -103,30 +102,31 @@ private:
     static bool inDelaySlot;    // for SYSCALL
     static bool doingBranch;    // set when doBranch is called
 
-    friend class InterpreterImpl;
-    friend class RecompilerImpl;
-    friend class DisassemblerImpl;
+    friend class Interpreter;
+    friend class Recompiler;
+    friend class Disassembler;
 };
 
-inline bool R3000AImpl::IsInDelaySlot() const {
+inline bool Processor::IsInDelaySlot() const {
     return inDelaySlot;
 }
 
-inline void R3000AImpl::EnterDelaySlot() {
+inline void Processor::EnterDelaySlot() {
     inDelaySlot = true;
 }
 
-inline void R3000AImpl::LeaveDelaySlot() {
+inline void Processor::LeaveDelaySlot() {
     inDelaySlot = false;
 }
 
-inline bool R3000AImpl::isDoingBranch() const {
+inline bool Processor::isDoingBranch() const {
     return doingBranch;
 }
 
-// an alias of R3000A instance
-extern R3000AImpl& R3000a;
+} // namespace R3000A
 
+// an alias of R3000A instance
+extern R3000A::Processor& R3000a;
 
 
 ////////////////////////////////

@@ -8,9 +8,8 @@ namespace SPU {
 
 SPU::SPU()
 {
+    Init();
 }
-
-
 
 
 ////////////////////////////////////////////////////////////////////////
@@ -424,6 +423,7 @@ void SPU::Init()
 
 
 SPU SPU::Spu;
-SPU& Spu = SPU::Spu;
 
 }   // namespace SPU
+
+SPU::SPU& Spu = SPU::SPU::Spu;

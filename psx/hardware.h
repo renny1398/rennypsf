@@ -33,7 +33,7 @@ template<> void Write(uint32_t addr, uint32_t value);
 
 template<typename T>
 inline T PSX::Hardware::Read(uint32_t addr) {
-    return psxH<T>(addr);   // dummy
+    return Hwm<T>(addr);   // dummy
 }
 template<typename T>
 inline void PSX::Hardware::Write(uint32_t addr, T value) {

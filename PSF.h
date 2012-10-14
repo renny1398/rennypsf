@@ -47,7 +47,7 @@ public:
 private:
     PSXEXEHeader m_header;
     void *m_memory;
-    PSX::InterpreterThread *m_thread;
+    PSX::R3000A::InterpreterThread *m_thread;
 };
 
 #include <wx/file.h>

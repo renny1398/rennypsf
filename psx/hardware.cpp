@@ -1,15 +1,15 @@
 #include "hardware.h"
 #include "rcnt.h"
+#include "dma.h"
 #include <wx/msgout.h>
 
 
 namespace PSX {
 namespace Hardware {
 
-
 uint8_t Read8(uint32_t addr)
 {
-    return psxHu8(addr);
+    return u8H(addr);
 }
 
 
@@ -25,16 +25,15 @@ uint16_t Read16(uint32_t addr)
             return static_cast<uint16_t>(RootCounter::counters[index].mode);
         case 2:
             return static_cast<uint16_t>(RootCounter::counters[index].target);
-        default:
-            wxMessageOutputStderr().Printf("ERROR: invalid PSX memory address (0x%08x)", addr);
-            return 0;
         }
+        wxMessageOutputStderr().Printf("ERROR: invalid PSX memory address (0x%08x)", addr);
+        return 0;
     }
     if ((addr & 0xfffffe00) == 0x1f801c00) {    // SPU
         wxMessageOutputDebug().Printf("TODO: implement SPUreadRegister");
         return 0;
     }
-    return psxHu16(addr);
+    return u16H(addr);
 }
 
 
@@ -50,25 +49,24 @@ uint32_t Read32(uint32_t addr)
             return RootCounter::counters[index].mode;
         case 2:
             return RootCounter::counters[index].target;
-        default:
-            wxMessageOutputStderr().Printf("ERROR: invalid PSX memory address (0x%08x)", addr);
-            return 0;
         }
+        wxMessageOutputStderr().Printf("ERROR: invalid PSX memory address (0x%08x)", addr);
+        return 0;
     }
-    return psxHu32(addr);
+    return u32H(addr);
 }
 
 
 void Write8(uint32_t addr, uint8_t value)
 {
-    psxHu8ref(addr) = value;
+    u8Href(addr) = value;
 }
 
 
 void Write16(uint32_t addr, uint16_t value)
 {
     if (addr == 0x1f801070) {
-        psxHu16ref(0x1070) &= BFLIP16(psxHu16(0x1074) & value);
+        u16Href(0x1070) &= BFLIP16(u16H(0x1074) & value);
         return;
     }
     if ((addr & 0xffffffc0) == 0x1f801100) { // root counters
@@ -93,18 +91,19 @@ void Write16(uint32_t addr, uint16_t value)
         wxMessageOutputDebug().Printf("TODO: implement SPUwriteRegister");
         return;
     }
-    psxHu16ref(addr) = BFLIP16(value);
+    u16Href(addr) = BFLIP16(value);
 }
 
 
 void Write32(uint32_t addr, uint32_t value)
 {
     if (addr == 0x1f801070) {
-        psxHu32ref(0x1070) &= BFLIP32(psxHu32(0x1074) & value);
+        u32Href(0x1070) &= BFLIP32(u32H(0x1074) & value);
         return;
     }
     if (addr == 0x1f8010c8) {
-        wxMessageOutputDebug().Printf("TODO: implement DMA4 chcr");
+        // wxMessageOutputDebug().Printf("TODO: implement DMA4 chcr");
+        DMA::Write(4, value);
         return;
     }
     if ((addr & 0xffffffc0) == 0x1f801100) { // root counters
@@ -129,7 +128,7 @@ void Write32(uint32_t addr, uint32_t value)
         wxMessageOutputDebug().Printf("TODO: implement SPUwriteRegister");
         return;
     }
-    psxHu32ref(addr) = BFLIP32(value);
+    u32Href(addr) = BFLIP32(value);
 }
 
 

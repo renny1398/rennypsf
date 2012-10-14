@@ -42,7 +42,7 @@ void Reset(unsigned long index)
     counters[index].count = 0;
     update(index);
 
-    psxHu32ref(0x1070) |= BFLIP32(counters[index].interrupt);
+    u32Href(0x1070) |= BFLIP32(counters[index].interrupt);
     if ( (counters[index].mode & 0x40) == 0 ) { // only 1 interrupt
         counters[index].Cycle = ULONG_MAX;
     }
@@ -101,7 +101,7 @@ void Update()
     uint32_t cycle = R3000a.Cycle;
     if ( (cycle- counters[3].sCycle) >= counters[3].Cycle ) {
         update(3);
-        psxHu32ref(0x1070) |= BFLIP32(1);
+        u32Href(0x1070) |= BFLIP32(1);
     }
     if ( (cycle- counters[0].sCycle) >= counters[0].Cycle ) {
         Reset(0);

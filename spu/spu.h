@@ -133,6 +133,7 @@ struct REVERBInfo
     int IN_COEF_R;      // (coef.)
 };
 
+
 class PSF;
 class PSF1;
 
@@ -164,6 +165,13 @@ public:
     // Register
     unsigned short ReadRegister(unsigned long reg);
     void WriteRegister(unsigned long reg, unsigned short val);
+
+    // DMA
+    uint16_t ReadDMA(void);
+    void ReadDMAMemory(uint32_t psxAddr, uint32_t size);
+    void WriteDMA(uint16_t);
+    void WriteDMAMemory(uint32_t psxAddr, uint32_t size);
+
 
     // substance
     static SPU Spu;
@@ -259,6 +267,6 @@ inline unsigned char* SPU::GetSoundBuffer() const
 }
 
 
-extern SPU& Spu;
-
 }   // namespace SPU
+
+extern SPU::SPU& Spu;

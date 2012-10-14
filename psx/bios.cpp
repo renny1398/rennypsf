@@ -191,7 +191,7 @@ static void strncat()   // A0:16
     uint32_t a0 = A0;
     char *dest = CharPtr(a0);
     const char *src = CharPtr(A1);
-    const uint32_t count = psxMu32(A2);
+    const uint32_t count = u32M(A2);
 
     ::strncat(dest, src, count);
 
@@ -207,7 +207,7 @@ static void strcmp()    // A0:17
 
 static void strncmp()    // A0:18
 {
-    V0 = ::strncmp(CharPtr(A0), CharPtr(A1), psxMu32(A2));
+    V0 = ::strncmp(CharPtr(A0), CharPtr(A1), u32M(A2));
     PC = RA;
 }
 
@@ -222,7 +222,7 @@ static void strcpy()    // A0:19
 static void strncpy()   // A0:1a
 {
     uint32_t a0 = A0;
-    ::strncpy(CharPtr(a0), CharPtr(A1), psxMu32(A2));
+    ::strncpy(CharPtr(a0), CharPtr(A1), u32M(A2));
     V0 = a0;
     PC = RA;
 }
@@ -505,9 +505,9 @@ static void StartRCnt() // B0:04
     uint32_t a0 = A0;
     a0 &= 0x3;
     if (a0 != 3) {
-        psxHu32ref(0x1074) |= BFLIP32(1<<(a0+4));
+        u32Href(0x1074) |= BFLIP32(1<<(a0+4));
     } else {
-        psxHu32ref(0x1074) |= BFLIP32(1);
+        u32Href(0x1074) |= BFLIP32(1);
     }
     // A0 = a0;
     V0 = 1;
@@ -519,9 +519,9 @@ static void StopRCnt()  // B0:05
     uint32_t a0 = A0;
     a0 &= 0x3;
     if (a0 != 3) {
-        psxHu32ref(0x1074) &= BFLIP32( ~(1<<(a0+4)) );
+        u32Href(0x1074) &= BFLIP32( ~(1<<(a0+4)) );
     } else {
-        psxHu32ref(0x1074) &= BFLIP32(~1);
+        u32Href(0x1074) &= BFLIP32(~1);
     }
     // A0 = a0;
     V0 = 1;
@@ -866,22 +866,22 @@ void Init()
     ::memset(Thread, 0, sizeof(Thread));
     Thread[0].status = BFLIP32(2);
 
-    psxMu32ref(0x0150) = BFLIP32(0x160);
-    psxMu32ref(0x0154) = BFLIP32(0x320);
-    psxMu32ref(0x0160) = BFLIP32(0x248);
+    u32Mref(0x0150) = BFLIP32(0x160);
+    u32Mref(0x0154) = BFLIP32(0x320);
+    u32Mref(0x0160) = BFLIP32(0x248);
     ::strcpy(pointer_cast<char*>(memUser) + 0x248, "bu");
 
     // OPCODE HLE!!
-    psxRu32ref(0x0000) = BFLIP32((OPCODE_HLECALL << 26) | 4);
-    psxMu32ref(0x0000) = BFLIP32((OPCODE_HLECALL << 26) | 0);
-    psxMu32ref(0x00a0) = BFLIP32((OPCODE_HLECALL << 26) | 1);
-    psxMu32ref(0x00b0) = BFLIP32((OPCODE_HLECALL << 26) | 2);
-    psxMu32ref(0x00c0) = BFLIP32((OPCODE_HLECALL << 26) | 3);
-    psxMu32ref(0x4c54) = BFLIP32((OPCODE_HLECALL << 26) | 0);
-    psxMu32ref(0x8000) = BFLIP32((OPCODE_HLECALL << 26) | 5);
-    psxMu32ref(0x07a0) = BFLIP32((OPCODE_HLECALL << 26) | 0);
-    psxMu32ref(0x0884) = BFLIP32((OPCODE_HLECALL << 26) | 0);
-    psxMu32ref(0x0894) = BFLIP32((OPCODE_HLECALL << 26) | 0);
+    u32Rref(0x0000) = BFLIP32((OPCODE_HLECALL << 26) | 4);
+    u32Mref(0x0000) = BFLIP32((OPCODE_HLECALL << 26) | 0);
+    u32Mref(0x00a0) = BFLIP32((OPCODE_HLECALL << 26) | 1);
+    u32Mref(0x00b0) = BFLIP32((OPCODE_HLECALL << 26) | 2);
+    u32Mref(0x00c0) = BFLIP32((OPCODE_HLECALL << 26) | 3);
+    u32Mref(0x4c54) = BFLIP32((OPCODE_HLECALL << 26) | 0);
+    u32Mref(0x8000) = BFLIP32((OPCODE_HLECALL << 26) | 5);
+    u32Mref(0x07a0) = BFLIP32((OPCODE_HLECALL << 26) | 0);
+    u32Mref(0x0884) = BFLIP32((OPCODE_HLECALL << 26) | 0);
+    u32Mref(0x0894) = BFLIP32((OPCODE_HLECALL << 26) | 0);
 }
 
 
@@ -890,15 +890,15 @@ void Shutdown() {}
 
 void Interrupt()
 {
-    if (BFLIP32(psxHu32(0x1070)) & 1) {
+    if (BFLIP32(u32H(0x1070)) & 1) {
         if (RcEV[3][1].status == BFLIP32(EVENT_STATUS_ACTIVE)) {
             softCall(BFLIP32(RcEV[3][1].fhandler));
         }
     }
 
-    if (BFLIP32(psxHu32(0x1070)) & 0x70) {
+    if (BFLIP32(u32H(0x1070)) & 0x70) {
         for (int i = 0; i < 3; i++) {
-            if (BFLIP32(psxHu32(0x1070)) & (1 << (i+4))) {
+            if (BFLIP32(u32H(0x1070)) & (1 << (i+4))) {
                 if (RcEV[i][1].status == BFLIP32(EVENT_STATUS_ACTIVE)) {
                     softCall(BFLIP32(RcEV[i][1].fhandler));
                     Hardware::Write32(0x1f801070, ~(1 << (i+4)));

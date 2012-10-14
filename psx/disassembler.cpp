@@ -318,7 +318,6 @@ void Disassembler::PrintChangedRegisters()
             ss.Write(strAddr, strAddr.size());
         } else {
             for (int i = 0; i < 35; i++) {
-                wxString s;
                 if (it->Cmp(regNames[i]) == 0) {
                     strAddr.Printf("%08x (i = %d)", R3000a.GPR.R[i], i);
                     ss.Write(strAddr, strAddr.size());
@@ -329,6 +328,22 @@ void Disassembler::PrintChangedRegisters()
         wxMessageOutputDebug().Printf(ss.GetString());
     }
 }
+
+
+void Disassembler::DumpRegisters()
+{
+    wxString line;
+    line.Printf("%s=0x%08x ", "$pc", R3000a.PC);
+    for (int i = 1; i < 34; i++) {
+        line.Printf("%s%s=0x%08x ", line.c_str(), regNames[i], R3000a.GPR.R[i]);
+        if (i % 4 == 3) {
+            wxMessageOutputDebug().Printf(line);
+            line.Clear();
+        }
+    }
+    wxMessageOutputDebug().Printf(line);
+}
+
 
 Disassembler& Disassembler::GetInstance()
 {

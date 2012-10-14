@@ -9,15 +9,17 @@ void PSF::Init()
 
 void PSF::Reset()
 {
-    PSX::R3000a.Reset();
+    PSX::R3000a.Init();
+//    PSX::Hardware::Reset();
+    PSX::RootCounter::Init();
 }
 
 
 bool PSF::Play()
 {
     wxMessageOutputDebug().Printf("initial PC = 0x%08x", m_header.pc0);
+    Reset();
     PSX::BIOS::Init();
-    PSX::RootCounter::Init();
     m_thread = PSX::Interpreter_.Execute();
 
     return true;

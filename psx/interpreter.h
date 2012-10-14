@@ -6,6 +6,7 @@
 
 
 namespace PSX {
+namespace R3000A {
 
 class InterpreterThread: public wxThread
 {
@@ -16,14 +17,14 @@ private:
     ExitCode Entry();
     void OnExit();
 
-    friend class InterpreterImpl;
+    friend class Interpreter;
 };
 
-class InterpreterImpl
+class Interpreter
 {
 private:
-    InterpreterImpl() {}
-    ~InterpreterImpl() {}
+    Interpreter() {}
+    ~Interpreter() {}
 
 public:
     void Init();
@@ -39,7 +40,7 @@ private:
     void ExecuteOpcode(uint32_t code);
 
 public:
-    static InterpreterImpl& GetInstance();
+    static Interpreter& GetInstance();
 
 private:
     static void delayRead(uint32_t code, uint32_t reg, uint32_t branch_pc);
@@ -182,29 +183,40 @@ private:
     static InterpreterThread* thread;
 };
 
-// an alias of InterpretImpl instance
-extern InterpreterImpl& Interpreter_;
 
-
-inline void InterpreterImpl::ExecuteOpcode(uint32_t code) {
+inline void Interpreter::ExecuteOpcode(uint32_t code) {
+    if (R3000a.PC == 0x80016608) {
+        Disasm.Parse(code);
+        Disasm.PrintCode();
+        //Disasm.DumpRegisters();
+    }
     //Disasm.Parse(code);
     //Disasm.PrintCode();
     OPCODES[opcode_(code)](code);
     //Disasm.PrintChangedRegisters();
+    if (R3000a.PC == 0x80016608) {
+        Disasm.PrintChangedRegisters();
+    }
 }
 
-inline void InterpreterImpl::ExecuteOnce()
+inline void Interpreter::ExecuteOnce()
 {
     uint32_t pc = R3000a.PC;
-    uint32_t code = psxMu32(pc);
-    //wxMessageOutputDebug().Printf("PC = 0x%08x", pc);
-    if ((pc & 0x3ffff) == 0) {
-        wxMessageOutputDebug().Printf("PC = 0, code = %02x", code);
-    }
+    uint32_t code = u32M(pc);
+//  wxMessageOutputDebug().Printf("PC = 0x%08x", pc);
+//    if (R3000a.GPR.A0 == 0x800678ec) {
+//        Disasm.DumpRegisters();
+//    }
     pc += 4;
     ++R3000a.Cycle;
     R3000a.PC = pc;
     //last_code = code;
     ExecuteOpcode(code);
 }
+
+}   // namespace Interpreter
+
+// an alias of InterpretImpl instance
+extern R3000A::Interpreter& Interpreter_;
+
 }   // namespace PSX

@@ -15,12 +15,13 @@ uint32_t& PC = PSX::R3000a.PC;
 
 
 namespace PSX {
+namespace R3000A {
 
 ////////////////////////////////////////////////////////////////
 // Delay Functions
 ////////////////////////////////////////////////////////////////
 
-void InterpreterImpl::delayRead(uint32_t code, uint32_t reg, uint32_t branch_pc)
+void Interpreter::delayRead(uint32_t code, uint32_t reg, uint32_t branch_pc)
 {
     wxASSERT(reg < 32);
 
@@ -40,7 +41,7 @@ void InterpreterImpl::delayRead(uint32_t code, uint32_t reg, uint32_t branch_pc)
     R3000a.LeaveDelaySlot();
 }
 
-void InterpreterImpl::delayWrite(uint32_t, uint32_t reg, uint32_t branch_pc)
+void Interpreter::delayWrite(uint32_t, uint32_t reg, uint32_t branch_pc)
 {
     wxASSERT(reg < 32);
     // OPCODES[code >> 26]();
@@ -49,7 +50,7 @@ void InterpreterImpl::delayWrite(uint32_t, uint32_t reg, uint32_t branch_pc)
     R3000a.BranchTest();
 }
 
-void InterpreterImpl::delayReadWrite(uint32_t, uint32_t reg, uint32_t branch_pc)
+void Interpreter::delayReadWrite(uint32_t, uint32_t reg, uint32_t branch_pc)
 {
     wxASSERT(reg < 32);
     R3000a.LeaveDelaySlot();
@@ -66,12 +67,12 @@ void InterpreterImpl::delayReadWrite(uint32_t, uint32_t reg, uint32_t branch_pc)
 // Reusable Functions
 ////////////////////////////////////////
 
-bool InterpreterImpl::delayNOP(uint32_t, uint32_t, uint32_t)
+bool Interpreter::delayNOP(uint32_t, uint32_t, uint32_t)
 {
     return false;
 }
 
-bool InterpreterImpl::delayRs(uint32_t code, uint32_t reg, uint32_t branch_pc)
+bool Interpreter::delayRs(uint32_t code, uint32_t reg, uint32_t branch_pc)
 {
     if (rs_(code) == reg) {
         delayRead(code, reg, branch_pc);
@@ -80,7 +81,7 @@ bool InterpreterImpl::delayRs(uint32_t code, uint32_t reg, uint32_t branch_pc)
     return false;
 }
 
-bool InterpreterImpl::delayWt(uint32_t code, uint32_t reg, uint32_t branch_pc)
+bool Interpreter::delayWt(uint32_t code, uint32_t reg, uint32_t branch_pc)
 {
     if (rt_(code) == reg) {
         delayWrite(code, reg, branch_pc);
@@ -89,7 +90,7 @@ bool InterpreterImpl::delayWt(uint32_t code, uint32_t reg, uint32_t branch_pc)
     return false;
 }
 
-bool InterpreterImpl::delayWd(uint32_t code, uint32_t reg, uint32_t branch_pc)
+bool Interpreter::delayWd(uint32_t code, uint32_t reg, uint32_t branch_pc)
 {
     if (rd_(code) == reg) {
         delayWrite(code, reg, branch_pc);
@@ -98,7 +99,7 @@ bool InterpreterImpl::delayWd(uint32_t code, uint32_t reg, uint32_t branch_pc)
     return false;
 }
 
-bool InterpreterImpl::delayRsRt(uint32_t code, uint32_t reg, uint32_t branch_pc)
+bool Interpreter::delayRsRt(uint32_t code, uint32_t reg, uint32_t branch_pc)
 {
     if (rs_(code) == reg || rt_(code) == reg) {
         delayRead(code, reg, branch_pc);
@@ -107,7 +108,7 @@ bool InterpreterImpl::delayRsRt(uint32_t code, uint32_t reg, uint32_t branch_pc)
     return false;
 }
 
-bool InterpreterImpl::delayRsWt(uint32_t code, uint32_t reg, uint32_t branch_pc)
+bool Interpreter::delayRsWt(uint32_t code, uint32_t reg, uint32_t branch_pc)
 {
     if (rs_(code) == reg) {
         if (rt_(code) == reg) {
@@ -124,7 +125,7 @@ bool InterpreterImpl::delayRsWt(uint32_t code, uint32_t reg, uint32_t branch_pc)
     return false;
 }
 
-bool InterpreterImpl::delayRsWd(uint32_t code, uint32_t reg, uint32_t branch_pc)
+bool Interpreter::delayRsWd(uint32_t code, uint32_t reg, uint32_t branch_pc)
 {
     if (rs_(code) == reg) {
         if (rd_(code) == reg) {
@@ -141,7 +142,7 @@ bool InterpreterImpl::delayRsWd(uint32_t code, uint32_t reg, uint32_t branch_pc)
     return false;
 }
 
-bool InterpreterImpl::delayRtWd(uint32_t code, uint32_t reg, uint32_t branch_pc)
+bool Interpreter::delayRtWd(uint32_t code, uint32_t reg, uint32_t branch_pc)
 {
     if (rt_(code) == reg) {
         if (rd_(code) == reg) {
@@ -158,7 +159,7 @@ bool InterpreterImpl::delayRtWd(uint32_t code, uint32_t reg, uint32_t branch_pc)
     return false;
 }
 
-bool InterpreterImpl::delayRsRtWd(uint32_t code, uint32_t reg, uint32_t branch_pc)
+bool Interpreter::delayRsRtWd(uint32_t code, uint32_t reg, uint32_t branch_pc)
 {
     if (rs_(code) == reg || rt_(code) == reg) {
         if (rd_(code) == reg) {
@@ -179,34 +180,34 @@ bool InterpreterImpl::delayRsRtWd(uint32_t code, uint32_t reg, uint32_t branch_p
 // SPECIAL functions
 ////////////////////////////////////////
 
-bool InterpreterImpl::delaySLL(uint32_t code, uint32_t reg, uint32_t branch_pc) {
+bool Interpreter::delaySLL(uint32_t code, uint32_t reg, uint32_t branch_pc) {
     if (code) {
         return delayRtWd(code, reg, branch_pc);
     }
     return false;   // delay nop
 }
 
-InterpreterImpl::DelayFunc InterpreterImpl::delaySRL = delayRtWd;
-InterpreterImpl::DelayFunc InterpreterImpl::delaySRA = delayRtWd;
+Interpreter::DelayFunc Interpreter::delaySRL = delayRtWd;
+Interpreter::DelayFunc Interpreter::delaySRA = delayRtWd;
 
-InterpreterImpl::DelayFunc InterpreterImpl::delayJR = delayRs;
+Interpreter::DelayFunc Interpreter::delayJR = delayRs;
 
-InterpreterImpl::DelayFunc InterpreterImpl::delayJALR = delayRsWd;
+Interpreter::DelayFunc Interpreter::delayJALR = delayRsWd;
 
-InterpreterImpl::DelayFunc InterpreterImpl::delayADD = delayRsRtWd;
-InterpreterImpl::DelayFunc InterpreterImpl::delayADDU = delayRsRtWd;
-InterpreterImpl::DelayFunc InterpreterImpl::delaySLLV = delayRsRtWd;
+Interpreter::DelayFunc Interpreter::delayADD = delayRsRtWd;
+Interpreter::DelayFunc Interpreter::delayADDU = delayRsRtWd;
+Interpreter::DelayFunc Interpreter::delaySLLV = delayRsRtWd;
 
-InterpreterImpl::DelayFunc InterpreterImpl::delayMFHI = delayWd;
-InterpreterImpl::DelayFunc InterpreterImpl::delayMFLO = delayWd;
-InterpreterImpl::DelayFunc InterpreterImpl::delayMTHI = delayRs;
-InterpreterImpl::DelayFunc InterpreterImpl::delayMTLO = delayRs;
+Interpreter::DelayFunc Interpreter::delayMFHI = delayWd;
+Interpreter::DelayFunc Interpreter::delayMFLO = delayWd;
+Interpreter::DelayFunc Interpreter::delayMTHI = delayRs;
+Interpreter::DelayFunc Interpreter::delayMTLO = delayRs;
 
-InterpreterImpl::DelayFunc InterpreterImpl::delayMULT = delayRsRt;
-InterpreterImpl::DelayFunc InterpreterImpl::delayDIV = delayRsRt;
+Interpreter::DelayFunc Interpreter::delayMULT = delayRsRt;
+Interpreter::DelayFunc Interpreter::delayDIV = delayRsRt;
 
 
-const InterpreterImpl::DelayFunc InterpreterImpl::delaySpecials[64] = {
+const Interpreter::DelayFunc Interpreter::delaySpecials[64] = {
     delaySLL, delayNOP, delaySRL, delaySRA, delaySLLV, delayNOP, delaySLLV, delaySLLV,
     delayJR, delayJALR, delayNOP, delayNOP, delayNOP, delayNOP, delayNOP, delayNOP,
     delayMFHI, delayMTHI, delayMFLO, delayMTLO, delayNOP, delayNOP, delayNOP, delayNOP,
@@ -217,14 +218,14 @@ const InterpreterImpl::DelayFunc InterpreterImpl::delaySpecials[64] = {
     delayNOP, delayNOP, delayNOP, delayNOP, delayNOP, delayNOP, delayNOP, delayNOP
 };
 
-bool InterpreterImpl::delaySPECIAL(uint32_t code, uint32_t reg, uint32_t branch_pc)
+bool Interpreter::delaySPECIAL(uint32_t code, uint32_t reg, uint32_t branch_pc)
 {
     return delaySpecials[funct_(code)](code, reg, branch_pc);
 }
 
-InterpreterImpl::DelayFunc InterpreterImpl::delayBCOND = delayRs;
+Interpreter::DelayFunc Interpreter::delayBCOND = delayRs;
 
-bool InterpreterImpl::delayJAL(uint32_t code, uint32_t reg, uint32_t branch_pc)
+bool Interpreter::delayJAL(uint32_t code, uint32_t reg, uint32_t branch_pc)
 {
     if (reg == R3000A::GPR_RA) {
         delayWrite(code, reg, branch_pc);
@@ -233,18 +234,18 @@ bool InterpreterImpl::delayJAL(uint32_t code, uint32_t reg, uint32_t branch_pc)
     return false;
 }
 
-InterpreterImpl::DelayFunc InterpreterImpl::delayBEQ = delayRsRt;
-InterpreterImpl::DelayFunc InterpreterImpl::delayBNE = delayRsRt;
+Interpreter::DelayFunc Interpreter::delayBEQ = delayRsRt;
+Interpreter::DelayFunc Interpreter::delayBNE = delayRsRt;
 
-InterpreterImpl::DelayFunc InterpreterImpl::delayBLEZ = delayRs;
-InterpreterImpl::DelayFunc InterpreterImpl::delayBGTZ = delayRs;
+Interpreter::DelayFunc Interpreter::delayBLEZ = delayRs;
+Interpreter::DelayFunc Interpreter::delayBGTZ = delayRs;
 
-InterpreterImpl::DelayFunc InterpreterImpl::delayADDI = delayRsWt;
-InterpreterImpl::DelayFunc InterpreterImpl::delayADDIU = delayRsWt;
+Interpreter::DelayFunc Interpreter::delayADDI = delayRsWt;
+Interpreter::DelayFunc Interpreter::delayADDIU = delayRsWt;
 
-InterpreterImpl::DelayFunc InterpreterImpl::delayLUI = delayWt;
+Interpreter::DelayFunc Interpreter::delayLUI = delayWt;
 
-bool InterpreterImpl::delayCOP0(uint32_t code, uint32_t reg, uint32_t branch_pc)
+bool Interpreter::delayCOP0(uint32_t code, uint32_t reg, uint32_t branch_pc)
 {
     switch (funct_(code) & ~0x03) {
     case 0x00:  // MFC0, CFC0
@@ -263,7 +264,7 @@ bool InterpreterImpl::delayCOP0(uint32_t code, uint32_t reg, uint32_t branch_pc)
     return false;
 }
 
-bool InterpreterImpl::delayLWL(uint32_t code, uint32_t reg, uint32_t branch_pc)
+bool Interpreter::delayLWL(uint32_t code, uint32_t reg, uint32_t branch_pc)
 {
     if (rt_(code) == reg) {
         delayReadWrite(code, reg, branch_pc);
@@ -275,25 +276,25 @@ bool InterpreterImpl::delayLWL(uint32_t code, uint32_t reg, uint32_t branch_pc)
     }
     return false;
 }
-InterpreterImpl::DelayFunc InterpreterImpl::delayLWR = delayLWL;
+Interpreter::DelayFunc Interpreter::delayLWR = delayLWL;
 
-InterpreterImpl::DelayFunc InterpreterImpl::delayLB = delayRsWt;
-InterpreterImpl::DelayFunc InterpreterImpl::delayLH = delayRsWt;
-InterpreterImpl::DelayFunc InterpreterImpl::delayLW = delayRsWt;
-InterpreterImpl::DelayFunc InterpreterImpl::delayLBU = delayRsWt;
-InterpreterImpl::DelayFunc InterpreterImpl::delayLHU = delayRsWt;
+Interpreter::DelayFunc Interpreter::delayLB = delayRsWt;
+Interpreter::DelayFunc Interpreter::delayLH = delayRsWt;
+Interpreter::DelayFunc Interpreter::delayLW = delayRsWt;
+Interpreter::DelayFunc Interpreter::delayLBU = delayRsWt;
+Interpreter::DelayFunc Interpreter::delayLHU = delayRsWt;
 
-InterpreterImpl::DelayFunc InterpreterImpl::delaySB = delayRsRt;
-InterpreterImpl::DelayFunc InterpreterImpl::delaySH = delayRsRt;
-InterpreterImpl::DelayFunc InterpreterImpl::delaySWL = delayRsRt;
-InterpreterImpl::DelayFunc InterpreterImpl::delaySW = delayRsRt;
-InterpreterImpl::DelayFunc InterpreterImpl::delaySWR = delayRsRt;
+Interpreter::DelayFunc Interpreter::delaySB = delayRsRt;
+Interpreter::DelayFunc Interpreter::delaySH = delayRsRt;
+Interpreter::DelayFunc Interpreter::delaySWL = delayRsRt;
+Interpreter::DelayFunc Interpreter::delaySW = delayRsRt;
+Interpreter::DelayFunc Interpreter::delaySWR = delayRsRt;
 
-InterpreterImpl::DelayFunc InterpreterImpl::delayLWC2 = delayRs;
-InterpreterImpl::DelayFunc InterpreterImpl::delaySWC2 = delayRs;
+Interpreter::DelayFunc Interpreter::delayLWC2 = delayRs;
+Interpreter::DelayFunc Interpreter::delaySWC2 = delayRs;
 
 
-const InterpreterImpl::DelayFunc InterpreterImpl::delayOpcodes[64] = {
+const Interpreter::DelayFunc Interpreter::delayOpcodes[64] = {
     delaySPECIAL, delayBCOND, delayNOP, delayJAL, delayBEQ, delayBNE, delayBLEZ, delayBGTZ,
     delayADDI, delayADDIU, delayADDI, delayADDI, delayADDI, delayADDI, delayADDI, delayLUI,
     delayCOP0, delayNOP, delayCOP0, delayNOP, delayNOP, delayNOP, delayNOP, delayNOP,
@@ -305,33 +306,37 @@ const InterpreterImpl::DelayFunc InterpreterImpl::delayOpcodes[64] = {
 };
 
 
-void InterpreterImpl::delayTest(uint32_t reg, uint32_t branch_pc)
+void Interpreter::delayTest(uint32_t reg, uint32_t branch_pc)
 {
-    uint32_t branch_code = psxMu32(branch_pc);
+    uint32_t branch_code = u32M(branch_pc);
     R3000a.EnterDelaySlot();
     uint32_t op = opcode_(branch_code);
     if (delayOpcodes[op](branch_code, reg, branch_pc)) {
         return;
     }
 
-    OPCODES[op](branch_code);
-    R3000a.LeaveDelaySlot();
     PC = branch_pc;
+#ifdef __WXDEBUG__
+    Interpreter_.ExecuteOpcode(branch_code);
+#else
+    OPCODES[op](branch_code);
+#endif
+    R3000a.LeaveDelaySlot();
     R3000a.BranchTest();
 }
 
 
-void InterpreterImpl::doBranch(uint32_t branch_pc)
+void Interpreter::doBranch(uint32_t branch_pc)
 {
     R3000a.doingBranch = true;
 
     uint32_t pc = PC;
-    uint32_t code = psxMu32(pc);
+    uint32_t code = u32M(pc);
     pc += 4;
     PC = pc;
     R3000a.Cycle++;
 
-    uint32_t op = opcode_(code >> 26);
+    const uint32_t op = opcode_(code);
     switch (op) {
     case 0x10:  // COP0
         if ((rs_(code) & 0x03) == rs_(code)) {  // MFC0, CFC0
@@ -343,14 +348,18 @@ void InterpreterImpl::doBranch(uint32_t branch_pc)
         delayTest(rt_(code), branch_pc);
         return;
     default:
-        if ((op & 0x27) == op) { // Load opcode
+        if (static_cast<uint32_t>(op - 0x20) < 8) { // Load opcode
             delayTest(rt_(code), branch_pc);
             return;
         }
         break;
     }
 
+#ifdef __WXDEBUG__
+    Interpreter_.ExecuteOpcode(code);
+#else
     OPCODES[op](code);
+#endif
 
     // branch itself & nop
     if (PC - 8 == branch_pc && !op) {
@@ -414,32 +423,32 @@ inline void DelayedLoad(uint32_t rt, uint32_t value) {
 ////////////////////////////////////////
 
 // Load Byte
-void InterpreterImpl::LB(uint32_t code) {
+void Interpreter::LB(uint32_t code) {
     Load(rt_(code), static_cast<int32_t>(Memory::Read<int8_t>(addr_(code))));
 }
 
 // Load Byte Unsigned
-void InterpreterImpl::LBU(uint32_t code) {
+void Interpreter::LBU(uint32_t code) {
     Load(rt_(code), static_cast<uint32_t>(Memory::Read<uint8_t>(addr_(code))));
 }
 
 // Load Halfword
-void InterpreterImpl::LH(uint32_t code) {
+void Interpreter::LH(uint32_t code) {
     Load(rt_(code), static_cast<int32_t>(Memory::Read<int16_t>(addr_(code))));
 }
 
 // Load Halfword Unsigned
-void InterpreterImpl::LHU(uint32_t code) {
+void Interpreter::LHU(uint32_t code) {
     Load(rt_(code), static_cast<uint32_t>(Memory::Read<uint16_t>(addr_(code))));
 }
 
 // Load Word
-void InterpreterImpl::LW(uint32_t code) {
+void Interpreter::LW(uint32_t code) {
     Load(rt_(code), Memory::Read<uint32_t>(addr_(code)));
 }
 
 // Load Word Left
-void InterpreterImpl::LWL(uint32_t code) {
+void Interpreter::LWL(uint32_t code) {
     static const uint32_t LWL_MASK[4] = { 0x00ffffff, 0x0000ffff, 0x000000ff, 0x00000000 };
     static const uint32_t LWL_SHIFT[4] = { 24, 16, 8, 0 };
     uint32_t rt = rt_(code);
@@ -450,7 +459,7 @@ void InterpreterImpl::LWL(uint32_t code) {
 }
 
 // Load Word Right
-void InterpreterImpl::LWR(uint32_t code) {
+void Interpreter::LWR(uint32_t code) {
     static const uint32_t LWR_MASK[4] = { 0xff000000, 0xffff0000, 0xffffff00, 0x00000000 };
     static const uint32_t LWR_SHIFT[4] = { 0, 8, 16, 24 };
     uint32_t rt = rt_(code);
@@ -461,22 +470,22 @@ void InterpreterImpl::LWR(uint32_t code) {
 }
 
 // Store Byte
-void InterpreterImpl::SB(uint32_t code) {
+void Interpreter::SB(uint32_t code) {
     Memory::Write(addr_(code), static_cast<uint8_t>(regTrg_(code)));
 }
 
 // Store Halfword
-void InterpreterImpl::SH(uint32_t code) {
+void Interpreter::SH(uint32_t code) {
     Memory::Write(addr_(code), static_cast<uint16_t>(regTrg_(code)));
 }
 
 // Store Word
-void InterpreterImpl::SW(uint32_t code) {
+void Interpreter::SW(uint32_t code) {
     Memory::Write(addr_(code), regTrg_(code));
 }
 
 // Store Word Left
-void InterpreterImpl::SWL(uint32_t code) {
+void Interpreter::SWL(uint32_t code) {
     static const uint32_t SWL_MASK[4] = { 0xffffff00, 0xffff0000, 0xff000000, 0x00000000 };
     static const uint32_t SWL_SHIFT[4] = { 24, 16, 8, 0 };
     uint32_t addr = addr_(code);
@@ -486,7 +495,7 @@ void InterpreterImpl::SWL(uint32_t code) {
 }
 
 // Store Word Right
-void InterpreterImpl::SWR(uint32_t code) {
+void Interpreter::SWR(uint32_t code) {
     static const uint32_t SWR_MASK[4] = { 0x00000000, 0x000000ff, 0x0000ffff, 0x00ffffff };
     static const uint32_t SWR_SHIFT[4] = { 0, 8, 16, 24 };
     uint32_t addr = addr_(code);
@@ -501,133 +510,133 @@ void InterpreterImpl::SWR(uint32_t code) {
 ////////////////////////////////////////
 
 // ADD Immediate
-void InterpreterImpl::ADDI(uint32_t code) {
+void Interpreter::ADDI(uint32_t code) {
     Load(rt_(code), regSrc_(code) + immediate_(code));
     // ? Trap on two's complement overflow.
 }
 
 // ADD Immediate Unsigned
-void InterpreterImpl::ADDIU(uint32_t code) {
+void Interpreter::ADDIU(uint32_t code) {
     Load(rt_(code), regSrc_(code) + immediate_(code));
 }
 
 // Set on Less Than Immediate
-void InterpreterImpl::SLTI(uint32_t code) {
+void Interpreter::SLTI(uint32_t code) {
     Load(rt_(code), (static_cast<int32_t>(regSrc_(code)) < immediate_(code)) ? 1 : 0);
 }
 
 // Set on Less Than Unsigned Immediate
-void InterpreterImpl::SLTIU(uint32_t code) {
+void Interpreter::SLTIU(uint32_t code) {
     Load(rt_(code), (regSrc_(code) < static_cast<uint32_t>(immediate_(code))) ? 1 : 0);
 }
 
 // AND Immediate
-void InterpreterImpl::ANDI(uint32_t code) {
+void Interpreter::ANDI(uint32_t code) {
     Load(rt_(code), regSrc_(code) & immediateU_(code));
 }
 
 // OR Immediate
-void InterpreterImpl::ORI(uint32_t code) {
+void Interpreter::ORI(uint32_t code) {
     Load(rt_(code), regSrc_(code) | immediateU_(code));
 }
 
 // eXclusive OR Immediate
-void InterpreterImpl::XORI(uint32_t code) {
+void Interpreter::XORI(uint32_t code) {
     Load(rt_(code), regSrc_(code) ^ immediateU_(code));
 }
 
 // Load Upper Immediate
-void InterpreterImpl::LUI(uint32_t code) {
+void Interpreter::LUI(uint32_t code) {
     Load(rt_(code), code << 16);
 }
 
 
 // ADD
-void InterpreterImpl::ADD(uint32_t code) {
+void Interpreter::ADD(uint32_t code) {
     Load(rd_(code), regSrc_(code) + regTrg_(code));
     // ? Trap on two's complement overflow.
 }
 
 // ADD Unsigned
-void InterpreterImpl::ADDU(uint32_t code) {
+void Interpreter::ADDU(uint32_t code) {
     Load(rd_(code), regSrc_(code) + regTrg_(code));
 }
 
 // SUBtract
-void InterpreterImpl::SUB(uint32_t code) {
+void Interpreter::SUB(uint32_t code) {
     Load(rd_(code), regSrc_(code) - regSrc_(code));
     // ? Trap on two's complement overflow.
 }
 
 // SUBtract Unsigned
-void InterpreterImpl::SUBU(uint32_t code) {
+void Interpreter::SUBU(uint32_t code) {
     Load(rd_(code), regSrc_(code) - regSrc_(code));
 }
 
 // Set on Less Than
-void InterpreterImpl::SLT(uint32_t code) {
+void Interpreter::SLT(uint32_t code) {
     Load(rd_(code), (static_cast<int32_t>(regSrc_(code)) < static_cast<int32_t>(regTrg_(code))) ? 1 : 0);
 }
 
 // Set on Less Than Unsigned
-void InterpreterImpl::SLTU(uint32_t code) {
+void Interpreter::SLTU(uint32_t code) {
     Load(rd_(code), (regSrc_(code) < regTrg_(code)) ? 1 : 0);
 }
 
 // AND
-void InterpreterImpl::AND(uint32_t code) {
+void Interpreter::AND(uint32_t code) {
     Load(rd_(code), regSrc_(code) & regTrg_(code));
 }
 
 // OR
-void InterpreterImpl::OR(uint32_t code) {
+void Interpreter::OR(uint32_t code) {
     Load(rd_(code), regSrc_(code) | regTrg_(code));
 }
 
 // eXclusive OR
-void InterpreterImpl::XOR(uint32_t code) {
+void Interpreter::XOR(uint32_t code) {
     Load(rd_(code), regSrc_(code) ^ regTrg_(code));
 }
 
 // NOR
-void InterpreterImpl::NOR(uint32_t code) {
+void Interpreter::NOR(uint32_t code) {
     Load(rd_(code), ~(regSrc_(code) | regTrg_(code)));
 }
 
 
 // Shift Left Logical
-void InterpreterImpl::SLL(uint32_t code) {
+void Interpreter::SLL(uint32_t code) {
     Load(rd_(code), regTrg_(code) << shamt_(code));
 }
 
 // Shift Right Logical
-void InterpreterImpl::SRL(uint32_t code) {
+void Interpreter::SRL(uint32_t code) {
     Load(rd_(code), regTrg_(code) >> shamt_(code));
 }
 
 // Shift Right Arithmetic
-void InterpreterImpl::SRA(uint32_t code) {
+void Interpreter::SRA(uint32_t code) {
     Load(rd_(code), static_cast<int32_t>(regTrg_(code)) >> shamt_(code));
 }
 
 // Shift Left Logical Variable
-void InterpreterImpl::SLLV(uint32_t code) {
+void Interpreter::SLLV(uint32_t code) {
     Load(rd_(code), regTrg_(code) << regSrc_(code));
 }
 
 // Shift Right Logical Variable
-void InterpreterImpl::SRLV(uint32_t code) {
+void Interpreter::SRLV(uint32_t code) {
     Load(rd_(code), regTrg_(code) >> regSrc_(code));
 }
 
 // Shift Right Arithmetic Variable
-void InterpreterImpl::SRAV(uint32_t code) {
+void Interpreter::SRAV(uint32_t code) {
     Load(rd_(code), static_cast<int32_t>(regTrg_(code)) >> regSrc_(code));
 }
 
 
 // MULTiply
-void InterpreterImpl::MULT(uint32_t code) {
+void Interpreter::MULT(uint32_t code) {
     int32_t rs = static_cast<int32_t>(regSrc_(code));
     int32_t rt = static_cast<int32_t>(regTrg_(code));
     // CommitDelayedLoad();
@@ -637,7 +646,7 @@ void InterpreterImpl::MULT(uint32_t code) {
 }
 
 // MULtiply Unsigned
-void InterpreterImpl::MULTU(uint32_t code) {
+void Interpreter::MULTU(uint32_t code) {
     uint32_t rs = regSrc_(code);
     uint32_t rt = regTrg_(code);
     // CommitDelayedLoad();
@@ -647,7 +656,7 @@ void InterpreterImpl::MULTU(uint32_t code) {
 }
 
 // Divide
-void InterpreterImpl::DIV(uint32_t code) {
+void Interpreter::DIV(uint32_t code) {
     int32_t rs = static_cast<int32_t>(regSrc_(code));
     int32_t rt = static_cast<int32_t>(regTrg_(code));
     // CommitDelayedLoad();
@@ -656,7 +665,7 @@ void InterpreterImpl::DIV(uint32_t code) {
 }
 
 // Divide Unsigned
-void InterpreterImpl::DIVU(uint32_t code) {
+void Interpreter::DIVU(uint32_t code) {
     uint32_t rs = regSrc_(code);
     uint32_t rt = regTrg_(code);
     // CommitDelayedLoad();
@@ -665,24 +674,24 @@ void InterpreterImpl::DIVU(uint32_t code) {
 }
 
 // Move From HI
-void InterpreterImpl::MFHI(uint32_t code) {
+void Interpreter::MFHI(uint32_t code) {
     Load(rd_(code), R3000a.GPR.HI);
 }
 
 // Move From LO
-void InterpreterImpl::MFLO(uint32_t code) {
+void Interpreter::MFLO(uint32_t code) {
     Load(rd_(code), R3000a.GPR.LO);
 }
 
 // Move To HI
-void InterpreterImpl::MTHI(uint32_t code) {
+void Interpreter::MTHI(uint32_t code) {
     uint32_t rd = regDst_(code);
     // CommitDelayedLoad();
     R3000a.GPR.HI = rd;
 }
 
 // Move To LO
-void InterpreterImpl::MTLO(uint32_t code) {
+void Interpreter::MTLO(uint32_t code) {
     uint32_t rd = regDst_(code);
     // CommitDelayedLoad();
     R3000a.GPR.LO = rd;
@@ -694,23 +703,27 @@ void InterpreterImpl::MTLO(uint32_t code) {
 ////////////////////////////////////////
 
 // Jump
-void InterpreterImpl::J(uint32_t code) {
+void Interpreter::J(uint32_t code) {
     Interpreter_.doBranch((target_(code) << 2) | (PC & 0xf0000000));
 }
 
 // Jump And Link
-void InterpreterImpl::JAL(uint32_t code) {
+void Interpreter::JAL(uint32_t code) {
+    if (PC == 0x80016604) {
+        Disasm.Parse(u32M(PC-4));
+        Disasm.PrintCode();
+    }
     R3000a.GPR.RA = PC + 4;
     Interpreter_.doBranch((target_(code) << 2) | (PC & 0xf0000000));
 }
 
 // Jump Register
-void InterpreterImpl::JR(uint32_t code) {
+void Interpreter::JR(uint32_t code) {
     Interpreter_.doBranch(regSrc_(code));
 }
 
 // Jump And Link Register
-void InterpreterImpl::JALR(uint32_t code) {
+void Interpreter::JALR(uint32_t code) {
     uint32_t rd = rd_(code);
     if (rd != 0) {
         R3000a.GPR.R[rd] = PC + 4;
@@ -720,49 +733,49 @@ void InterpreterImpl::JALR(uint32_t code) {
 
 
 // Branch on EQual
-void InterpreterImpl::BEQ(uint32_t code) {
+void Interpreter::BEQ(uint32_t code) {
     if (regSrc_(code) == regTrg_(code)) {
         Interpreter_.doBranch(PC + (static_cast<int32_t>(immediate_(code)) << 2));
     }
 }
 
 // Branch on Not Equal
-void InterpreterImpl::BNE(uint32_t code) {
+void Interpreter::BNE(uint32_t code) {
     if (regSrc_(code) != regTrg_(code)) {
         Interpreter_.doBranch(PC + (static_cast<int32_t>(immediate_(code)) << 2));
     }
 }
 
 // Branch on Less than or Equal Zero
-void InterpreterImpl::BLEZ(uint32_t code) {
+void Interpreter::BLEZ(uint32_t code) {
     if (static_cast<int32_t>(regSrc_(code)) <= 0) {
         Interpreter_.doBranch(PC + (static_cast<int32_t>(immediate_(code)) << 2));
     }
 }
 
 // Branch on Greate Than Zero
-void InterpreterImpl::BGTZ(uint32_t code) {
+void Interpreter::BGTZ(uint32_t code) {
     if (static_cast<int32_t>(regSrc_(code)) > 0) {
         Interpreter_.doBranch(PC + (static_cast<int32_t>(immediate_(code)) << 2));
     }
 }
 
 // Branch on Less Than Zero
-void InterpreterImpl::BLTZ(uint32_t code) {
+void Interpreter::BLTZ(uint32_t code) {
     if (static_cast<int32_t>(regSrc_(code)) < 0) {
         Interpreter_.doBranch(PC + (static_cast<int32_t>(immediate_(code)) << 2));
     }
 }
 
 // Branch on Greater than or Equal Zero
-void InterpreterImpl::BGEZ(uint32_t code) {
+void Interpreter::BGEZ(uint32_t code) {
     if (static_cast<int32_t>(regSrc_(code)) >= 0) {
         Interpreter_.doBranch(PC + (static_cast<int32_t>(immediate_(code)) << 2));
     }
 }
 
 // Branch on Less Than Zero And Link
-void InterpreterImpl::BLTZAL(uint32_t code) {
+void Interpreter::BLTZAL(uint32_t code) {
     if (static_cast<int32_t>(regSrc_(code)) < 0) {
         uint32_t pc = PC;
         R3000a.GPR.RA = pc + 4;
@@ -771,7 +784,7 @@ void InterpreterImpl::BLTZAL(uint32_t code) {
 }
 
 // Branch on Greater than or Equal Zero And Link
-void InterpreterImpl::BGEZAL(uint32_t code) {
+void Interpreter::BGEZAL(uint32_t code) {
     if (static_cast<int32_t>(regSrc_(code)) >= 0) {
         uint32_t pc = PC;
         R3000a.GPR.RA = pc + 4;
@@ -780,7 +793,7 @@ void InterpreterImpl::BGEZAL(uint32_t code) {
 }
 
 // Branch Condition
-void InterpreterImpl::BCOND(uint32_t code) {
+void Interpreter::BCOND(uint32_t code) {
     BCONDS[rt_(code)](code);
 }
 
@@ -790,13 +803,13 @@ void InterpreterImpl::BCOND(uint32_t code) {
 // Special Instructions
 ////////////////////////////////////////
 
-void InterpreterImpl::SYSCALL(uint32_t) {
+void Interpreter::SYSCALL(uint32_t) {
     PC -= 4;
     R3000a.Exception(0x20, R3000a.IsInDelaySlot());
 }
-void InterpreterImpl::BREAK(uint32_t) {}
+void Interpreter::BREAK(uint32_t) {}
 
-void InterpreterImpl::SPECIAL(uint32_t code) {
+void Interpreter::SPECIAL(uint32_t code) {
     SPECIALS[funct_(code)](code);
 }
 
@@ -805,38 +818,38 @@ void InterpreterImpl::SPECIAL(uint32_t code) {
 // Co-processor Instructions
 ////////////////////////////////////////
 
-void InterpreterImpl::LWC0(uint32_t) {
+void Interpreter::LWC0(uint32_t) {
 
 }
-void InterpreterImpl::LWC1(uint32_t) {
+void Interpreter::LWC1(uint32_t) {
     wxMessageOutputDebug().Printf("WARNING: LWC1 is not supported.");
 }
-void InterpreterImpl::LWC2(uint32_t) {}
-void InterpreterImpl::LWC3(uint32_t) {
+void Interpreter::LWC2(uint32_t) {}
+void Interpreter::LWC3(uint32_t) {
     wxMessageOutputDebug().Printf("WARNING: LWC3 is not supported.");
 }
 
-void InterpreterImpl::SWC0(uint32_t) {}
-void InterpreterImpl::SWC1(uint32_t) {
+void Interpreter::SWC0(uint32_t) {}
+void Interpreter::SWC1(uint32_t) {
     wxMessageOutputDebug().Printf("WARNING: SWC1 is not supported.");
 }
 
-void InterpreterImpl::SWC2(uint32_t) {}
-void InterpreterImpl::SWC3(uint32_t) {
+void Interpreter::SWC2(uint32_t) {}
+void Interpreter::SWC3(uint32_t) {
     // HLE?
     wxMessageOutputDebug().Printf("WARNING: SWC3 is not supported.");
 }
 
 
 
-void InterpreterImpl::COP0(uint32_t) {}
-void InterpreterImpl::COP1(uint32_t) {
+void Interpreter::COP0(uint32_t) {}
+void Interpreter::COP1(uint32_t) {
     wxMessageOutputDebug().Printf("WARNING: COP1 is not supported.");
 }
-void InterpreterImpl::COP2(uint32_t) {
+void Interpreter::COP2(uint32_t) {
     // Cop2 is not supported.
 }
-void InterpreterImpl::COP3(uint32_t) {
+void Interpreter::COP3(uint32_t) {
     wxMessageOutputDebug().Printf("WARNING: COP3 is not supported.");
 }
 
@@ -902,7 +915,10 @@ void (*const HLEt[])() = {
 };
 
 
-void InterpreterImpl::HLECALL(uint32_t code) {
+void Interpreter::HLECALL(uint32_t code) {
+    if ((uint32_t)((code & 0xff) -1) < 3) {
+        wxMessageOutputDebug().Printf("HLECALL %c0:%02x", 'A' + (code & 0xff)-1, R3000a.GPR.T1 & 0xff);
+    }
     HLEt[code & 0xff]();
 }
 
@@ -933,9 +949,9 @@ void InterpreterThread::OnExit()
 // Main Loop
 ////////////////////////////////////////////////////////////////
 
-InterpreterThread *InterpreterImpl::thread = 0;
+InterpreterThread *Interpreter::thread = 0;
 
-InterpreterThread *InterpreterImpl::Execute()
+InterpreterThread *Interpreter::Execute()
 {
     if (thread != 0) {
         Shutdown();
@@ -947,7 +963,7 @@ InterpreterThread *InterpreterImpl::Execute()
     return thread;
 }
 
-void InterpreterImpl::Shutdown()
+void Interpreter::Shutdown()
 {
     if (thread == 0) return;
     if (thread->IsRunning() == false) return;
@@ -956,7 +972,7 @@ void InterpreterImpl::Shutdown()
 }
 
 
-void (*InterpreterImpl::OPCODES[64])(uint32_t) = {
+void (*Interpreter::OPCODES[64])(uint32_t) = {
         SPECIAL, BCOND, J, JAL, BEQ, BNE, BLEZ, BGTZ,
         ADDI, ADDIU, SLTI, SLTIU, ANDI, ORI, XORI, LUI,
         COP0, COP1, COP2, COP3, OPNULL, OPNULL, OPNULL, OPNULL,
@@ -967,7 +983,7 @@ void (*InterpreterImpl::OPCODES[64])(uint32_t) = {
         SWC0, SWC1, SWC2, HLECALL, OPNULL, OPNULL, OPNULL, OPNULL
 };
 
-void (*InterpreterImpl::SPECIALS[64])(uint32_t) = {
+void (*Interpreter::SPECIALS[64])(uint32_t) = {
         SLL, OPNULL, SRL, SRA, SLLV, OPNULL, SRLV, SRAV,
         JR, JALR, OPNULL, HLECALL, SYSCALL, BREAK, OPNULL, OPNULL,
         MFHI, MTHI, MFLO, MTLO, OPNULL, OPNULL, OPNULL, OPNULL,
@@ -978,34 +994,32 @@ void (*InterpreterImpl::SPECIALS[64])(uint32_t) = {
         OPNULL, OPNULL, OPNULL, OPNULL, OPNULL, OPNULL, OPNULL, OPNULL
 };
 
-void (*InterpreterImpl::BCONDS[24])(uint32_t) = {
+void (*Interpreter::BCONDS[24])(uint32_t) = {
         BLTZ, BGEZ, OPNULL, OPNULL, OPNULL, OPNULL, OPNULL, OPNULL,
         OPNULL, OPNULL, OPNULL, OPNULL, OPNULL, OPNULL, OPNULL, OPNULL,
         BLTZAL, BGEZAL, OPNULL, OPNULL, OPNULL, OPNULL, OPNULL, OPNULL
 };
 
 
-void InterpreterImpl::Init()
+void Interpreter::Init()
 {
-    ////////////////////////////////
-    // create Opcode LUT
-    ////////////////////////////////
-
 }
 
-void InterpreterImpl::ExecuteBlock() {
+void Interpreter::ExecuteBlock() {
     R3000a.doingBranch = false;
     do {
         ExecuteOnce();
     } while (!R3000a.doingBranch);
 }
 
-InterpreterImpl& InterpreterImpl::GetInstance()
+Interpreter& Interpreter::GetInstance()
 {
-    static InterpreterImpl instance;
+    static Interpreter instance;
     return instance;
 }
 
-InterpreterImpl& Interpreter_ = InterpreterImpl::GetInstance();
+}   // namespace R3000A
+
+R3000A::Interpreter& Interpreter_ = R3000A::Interpreter::GetInstance();
 
 }   // namespace PSX

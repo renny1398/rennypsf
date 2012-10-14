@@ -16,6 +16,8 @@ public:
     void PrintCode();
     void PrintChangedRegisters();
 
+    void DumpRegisters();
+
     static Disassembler& GetInstance();
 
 private:

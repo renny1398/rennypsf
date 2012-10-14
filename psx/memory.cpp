@@ -30,7 +30,7 @@ void Init()
     SegmentLUT[0x1f80] = memHardware;
     SegmentLUT[0xbfc0] = memBIOS;
 
-    wxMessageOutputDebug().Printf("Initialized PSX Memory.");
+    wxMessageOutputDebug().Printf("Initialized PSX memory.");
 }
 
 
@@ -38,7 +38,7 @@ void Reset()
 {
     memset(memUser, 0, 0x00200000);
     memset(memParallelPort, 0, 0x00010000);
-    wxMessageOutputDebug().Printf("Reset PSX Memory.");
+    wxMessageOutputDebug().Printf("Reset PSX memory.");
 }
 
 
@@ -51,7 +51,7 @@ void Load(uint32_t address, int32_t length, char *data)
 
     uint32_t offset = address & 0xffff;
     if (offset) {
-        uint32_t len = (0x10000 - offset) > length ? static_cast<uint32_t>(length) : 0x10000 - offset;
+        uint32_t len = (0x10000 - offset) > static_cast<uint32_t>(length) ? length : 0x10000 - offset;
         memcpy(SegmentLUT[address << 16] + offset, data, len);
         address += len;
         data += len;
