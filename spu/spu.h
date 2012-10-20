@@ -1,8 +1,42 @@
 #pragma once
 #include <stdint.h>
+#include <wx/debug.h>
+
+#include "reverb.h"
 
 namespace SPU
 {
+
+class Volume
+{
+    int32_t volume;
+public:
+    uint16_t Int15() const {
+        return volume & 0x3fff;
+    }
+    void Int15(uint16_t vol) {
+        wxASSERT(vol < 0x8000);
+        if (vol > 0x3fff) {
+            volume = vol - 0x8000;
+            wxASSERT(volume < 0);
+        } else {
+            volume = vol;
+        }
+    }
+};
+
+class Pitch
+{
+    uint32_t pitch;
+public:
+    uint16_t Uint14() const {
+        return pitch;
+    }
+    void Uint14(uint16_t p) {
+        pitch = p;
+    }
+};
+
 
 struct ADSRInfo
 {
@@ -59,14 +93,14 @@ struct ChannelInfo
     bool            hasReverb;                            // can we do reverb on this channel? must have ctrl register bit, to get active
     int             iActFreq;                           // current psx pitch
     int             iUsedFreq;                          // current pc pitch
-    int             iLeftVolume;                        // left volume
+    int             iLeftVolume;                        // left volume (s15)
     bool            isLeftSweep;
     bool            isLeftExpSlope;
     bool            isLeftDecreased;
     //int             iLeftVolRaw;                        // left psx volume value
     bool            ignoresLoop;                        // ignore loop bit, if an external loop address is used
     int             iMute;                              // mute mode
-    int             iRightVolume;                       // right volume
+    int             iRightVolume;                       // right volume (s15)
     //int             iRightVolRaw;                       // right psx volume value
     bool            isRightSweep;
     bool            isRightExpSlope;
@@ -79,58 +113,11 @@ struct ChannelInfo
     int             iRVBOffset;                         // reverb offset
     int             iRVBRepeat;                         // reverb repeat
     bool            bNoise;                             // noise active flag
-    bool            bFMod;                              // freq mod (0=off, 1=sound channel, 2=freq channel)
+    int            bFMod;                              // freq mod (0=off, 1=sound channel, 2=freq channel)
     int             iRVBNum;                            // another reverb helper
     int             iOldNoise;                          // old noise val for this channel
     ADSRInfo        ADSR;                               // active ADSR settings
     ADSRInfoEx      ADSRX;                              // next ADSR settings (will be moved to active on sample start)
-};
-
-struct REVERBInfo
-{
-    int iStartAddr;      // reverb area start addr in samples
-    int iCurrAddr;       // reverb area curr addr in samples
-
-    int VolLeft;
-    int VolRight;
-    int iLastRVBLeft;
-    int iLastRVBRight;
-    int iRVBLeft;
-    int iRVBRight;
-
-
-    int FB_SRC_A;       // (offset)
-    int FB_SRC_B;       // (offset)
-    int IIR_ALPHA;      // (coef.)
-    int ACC_COEF_A;     // (coef.)
-    int ACC_COEF_B;     // (coef.)
-    int ACC_COEF_C;     // (coef.)
-    int ACC_COEF_D;     // (coef.)
-    int IIR_COEF;       // (coef.)
-    int FB_ALPHA;       // (coef.)
-    int FB_X;           // (coef.)
-    int IIR_DEST_A0;    // (offset)
-    int IIR_DEST_A1;    // (offset)
-    int ACC_SRC_A0;     // (offset)
-    int ACC_SRC_A1;     // (offset)
-    int ACC_SRC_B0;     // (offset)
-    int ACC_SRC_B1;     // (offset)
-    int IIR_SRC_A0;     // (offset)
-    int IIR_SRC_A1;     // (offset)
-    int IIR_DEST_B0;    // (offset)
-    int IIR_DEST_B1;    // (offset)
-    int ACC_SRC_C0;     // (offset)
-    int ACC_SRC_C1;     // (offset)
-    int ACC_SRC_D0;     // (offset)
-    int ACC_SRC_D1;     // (offset)
-    int IIR_SRC_B1;     // (offset)
-    int IIR_SRC_B0;     // (offset)
-    int MIX_DEST_A0;    // (offset)
-    int MIX_DEST_A1;    // (offset)
-    int MIX_DEST_B0;    // (offset)
-    int MIX_DEST_B1;    // (offset)
-    int IN_COEF_L;      // (coef.)
-    int IN_COEF_R;      // (coef.)
 };
 
 
@@ -162,9 +149,12 @@ public:
     void StartReverb(ChannelInfo& ch);
     void StoreReverb(ChannelInfo& ch, int ns);
 
+    void SetReverbDepthLeft(int depth);
+    void SetReverbDepthRight(int depth);
+
     // Register
-    unsigned short ReadRegister(unsigned long reg);
-    void WriteRegister(unsigned long reg, unsigned short val);
+    unsigned short ReadRegister(uint32_t reg);
+    void WriteRegister(uint32_t reg, uint16_t val);
 
     // DMA
     uint16_t ReadDMA(void);
@@ -172,6 +162,9 @@ public:
     void WriteDMA(uint16_t);
     void WriteDMAMemory(uint32_t psxAddr, uint32_t size);
 
+    // IRQ
+    uint32_t GetIRQAddress() const;
+    void SetIRQAddress(uint32_t addr);
 
     // substance
     static SPU Spu;
@@ -194,7 +187,9 @@ private:
     // PSX Buffer & Addresses
     unsigned short m_regArea[10000];
     unsigned short m_spuMem[256*1024];
-    unsigned char* m_spuMemC;   // uchar* version of spuMem
+public:
+    uint8_t* const Memory;   // uchar* version of spuMem
+private:
     unsigned char* m_pSpuIrq;
     unsigned char* m_pSpuBuffer;
     unsigned char* m_pMixIrq;
@@ -214,14 +209,18 @@ private:
 
     // MAIN infos struct for each channel
     ChannelInfo channels[25];
-    REVERBInfo m_reverbInfo;
+public:
+    REVERBInfo Reverb;
 
+private:
     unsigned long m_noiseVal;
 
-    unsigned short m_spuCtrl;
-    unsigned short m_spuState;
-    unsigned short m_spuIrq;
-    unsigned long m_spuAddr;
+public:
+    unsigned short Sp0;
+    unsigned short Status;
+    uint32_t IrqAddr;
+    unsigned int Addr;
+private:
     bool m_bEndThread;
     bool m_bThreadEnded;
     bool m_bSpuInit;
@@ -256,14 +255,29 @@ private:
 };
 
 
-inline ChannelInfo& SPU::GetChannelInfo(int ch)
-{
+inline ChannelInfo& SPU::GetChannelInfo(int ch) {
     return channels[ch];
 }
 
-inline unsigned char* SPU::GetSoundBuffer() const
-{
-    return m_spuMemC;
+inline unsigned char* SPU::GetSoundBuffer() const {
+    return Memory;
+}
+
+inline void SPU::SetReverbDepthLeft(int depth) {
+    Reverb.VolLeft = depth;
+}
+
+inline void SPU::SetReverbDepthRight(int depth) {
+    Reverb.VolRight = depth;
+}
+
+inline uint32_t SPU::GetIRQAddress() const {
+    return IrqAddr;
+}
+
+inline void SPU::SetIRQAddress(uint32_t addr) {
+    IrqAddr = addr;
+    m_pSpuIrq = GetSoundBuffer() + addr;
 }
 
 

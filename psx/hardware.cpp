@@ -1,6 +1,7 @@
 #include "hardware.h"
 #include "rcnt.h"
 #include "dma.h"
+#include "../spu/spu.h"
 #include <wx/msgout.h>
 
 
@@ -30,7 +31,7 @@ uint16_t Read16(uint32_t addr)
         return 0;
     }
     if ((addr & 0xfffffe00) == 0x1f801c00) {    // SPU
-        wxMessageOutputDebug().Printf("TODO: implement SPUreadRegister");
+        Spu.ReadRegister(addr);
         return 0;
     }
     return u16H(addr);
@@ -88,7 +89,7 @@ void Write16(uint32_t addr, uint16_t value)
         }
     }
     if ((addr & 0xfffffe00) == 0x1f801c00) {    // SPU
-        wxMessageOutputDebug().Printf("TODO: implement SPUwriteRegister");
+        Spu.WriteRegister(addr, value);
         return;
     }
     u16Href(addr) = BFLIP16(value);
@@ -102,7 +103,6 @@ void Write32(uint32_t addr, uint32_t value)
         return;
     }
     if (addr == 0x1f8010c8) {
-        // wxMessageOutputDebug().Printf("TODO: implement DMA4 chcr");
         DMA::Write(4, value);
         return;
     }

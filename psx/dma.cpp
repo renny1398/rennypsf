@@ -18,7 +18,7 @@ void execSPU(uint32_t madr, uint32_t bcr, uint32_t chcr)
         bcr = (bcr >> 16) * (bcr & 0xffff) * sizeof(uint32_t);
         Spu.WriteDMAMemory(madr, bcr);
         return;
-    case 0x01000200:    // DMA4 to CPOU transfer
+    case 0x01000200:    // DMA4 to CPU transfer
         bcr = (bcr >> 16) * (bcr & 0xffff) * sizeof(uint32_t);
         Spu.ReadDMAMemory(madr, bcr);
         return;
