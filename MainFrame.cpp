@@ -21,7 +21,9 @@ EVT_MENU(wxID_ABOUT, MainFrame::OnAbout)
 
 EVT_BUTTON(ID_PLAY, MainFrame::OnPlay)
 EVT_BUTTON(ID_STOP, MainFrame::OnStop)
-
+#ifdef __WXDEBUG__
+EVT_BUTTON(ID_DEBUG, MainFrame::OnDebug)
+#endif
 wxEND_EVENT_TABLE()
 
 
@@ -56,10 +58,16 @@ MainFrame::MainFrame(const wxString& title, const wxPoint& pos, const wxSize& si
     wxButton *play_button = new wxButton(this, ID_PLAY, _("Play"), wxDefaultPosition);
     wxButton *pause_button = new wxButton(this, ID_PAUSE, _("Pause"), wxDefaultPosition);
     wxButton *stop_button = new wxButton(this, ID_STOP, _("Stop"), wxDefaultPosition);
+#ifdef __WXDEBUG__
+    wxButton* debugButton = new wxButton(this, ID_DEBUG, _("Debug"), wxDefaultPosition);
+#endif
 
 	playbuttons_sizer->Add(play_button, 1, wxEXPAND);
 	playbuttons_sizer->Add(pause_button, 1, wxEXPAND);
 	playbuttons_sizer->Add(stop_button, 1, wxEXPAND);
+#ifdef __WXDEBUG__
+    playbuttons_sizer->Add(debugButton, 1, wxEXPAND);
+#endif
 
     playcontrol_sizer->Add(new wxSlider(this, ID_SEEKBAR, 0, 0, 1023), 1, wxEXPAND);
 	playcontrol_sizer->Add(playbuttons_sizer, 1, wxEXPAND);
@@ -95,7 +103,7 @@ MainFrame::MainFrame(const wxString& title, const wxPoint& pos, const wxSize& si
 
 
 
-void MainFrame::OnOpen(wxCommandEvent &event)
+void MainFrame::OnOpen(wxCommandEvent& WXUNUSED(event))
 {
     wxFileDialog file_dialog(this, _("Open PSF file"), "", "", "PSF files (*.psf)|*.psf", wxFD_OPEN | wxFD_FILE_MUST_EXIST);
     if (file_dialog.ShowModal() == wxID_CANCEL) {
@@ -106,30 +114,48 @@ void MainFrame::OnOpen(wxCommandEvent &event)
     file_treectrl->Append(path);
 }
 
-void MainFrame::OnExit(wxCommandEvent &event)
+void MainFrame::OnExit(wxCommandEvent& WXUNUSED(event))
 {
 	Close(true);
 }
 
-void MainFrame::OnAbout(wxCommandEvent &event)
+void MainFrame::OnAbout(wxCommandEvent& WXUNUSED(event))
 {
 	wxMessageBox(wxT("rennypsf v1.0"), wxT("About rennypsf"), wxOK | wxICON_INFORMATION);
 }
 
 
 
-void MainFrame::OnPlay(wxCommandEvent &event)
+void MainFrame::OnPlay(wxCommandEvent& WXUNUSED(event))
 {
     PSFPlaylistItem *item = file_treectrl->GetSelectedItem();
     if (item == 0) return;
 
-    SoundFormat *sound = item->LoadSound();
-    if (sound == 0) return;
+    SoundFormat *sound = item->GetSound();
+    wxASSERT(sound);
+    //if (sound->Load() == false) return;
 
     wxGetApp().Play(sound);
 }
 
-void MainFrame::OnStop(wxCommandEvent &event)
+void MainFrame::OnStop(wxCommandEvent& WXUNUSED(event))
 {
     wxGetApp().Stop();
 }
+
+
+////////////////////////////////////////////////////////////////
+// for Debug mode
+////////////////////////////////////////////////////////////////
+
+#ifdef __WXDEBUG__
+#include "debugframe.h"
+
+void MainFrame::OnDebug(wxCommandEvent& WXUNUSED(event))
+{
+    // DebugFrame
+    DebugFrame* debugFrame = new DebugFrame(this, 0);
+    debugFrame->Show(true);
+}
+
+#endif

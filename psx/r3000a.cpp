@@ -2,6 +2,7 @@
 #include "memory.h"
 #include "bios.h"
 #include "rcnt.h"
+#include "disassembler.h"
 
 #include <wx/debug.h>
 #include <cstring>
@@ -48,7 +49,7 @@ void Processor::Init()
 {
     CP0.R[12] = 0x10900000; // COP0_ENABLED | BEV | TS
     CP0.R[15] = 0x00000002; // PRevId = Revision Id, same as R3000A
-    wxMessageOutputDebug().Printf("Initialized R3000A processor.");
+    wxMessageOutputDebug().Printf(wxT("Initialized R3000A processor."));
 }
 
 
@@ -63,7 +64,7 @@ void Processor::Reset()
     CP0.R[15] = 0x00000002; // PRevId = Revision Id, same as R3000A
 //    delayed_load_target = 0;
 //    delayed_load_value = 0;
-    wxMessageOutputDebug().Printf("R3000A processor is reset.");
+    wxMessageOutputDebug().Printf(wxT("R3000A processor is reset."));
 }
 
 
@@ -72,6 +73,8 @@ void Processor::Reset()
 
 void Processor::Exception(uint32_t code, bool branch_delay)
 {
+    wxMessageOutputDebug().Printf(wxT("R3000A Exception: 0x%x"), code);
+
     CP0.CAUSE = code;
 
     uint32_t pc = GPR.PC;
@@ -111,7 +114,10 @@ void Processor::BranchTest()
     // interrupt mask register ($1f801074)
     if (u32H(0x1070) & u32H(0x1074)) {
         if ((CP0.SR & 0x401) == 0x401) {
+            //wxMessageOutputDebug().Printf("WARNING: skip branch exception.");
+            Disasm.DumpRegisters();
             Exception(0x400, false);
+            Disasm.DumpRegisters();
         }
     }
 }

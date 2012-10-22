@@ -1,6 +1,7 @@
 #include "stdwx.h"
 #include "app.h"
 #include "MainFrame.h"
+#include "channelframe.h"
 #include "SoundManager.h"
 
 
@@ -25,7 +26,9 @@ bool RennypsfApp::OnInit()
 #else
     MainFrame *frame = new MainFrame("Rennypsf", wxPoint(50,50), wxSize(640,480));
 #endif
+    ChannelFrame* ch_frame = new ChannelFrame(frame);
     frame->Show(true);
+    ch_frame->Show(true);
 	return true;
 }
 

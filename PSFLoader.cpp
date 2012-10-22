@@ -9,9 +9,6 @@
 
 PSFLoader::~PSFLoader()
 {
-    if (m_preloaded_psf) {
-        delete m_preloaded_psf;
-    }
 }
 
 const wxString &PSFLoader::GetPath() const {
@@ -20,7 +17,7 @@ const wxString &PSFLoader::GetPath() const {
 
 
 
-SoundFormat *PSFLoader::Preload(const wxString& path)
+SoundFormat *PSFLoader::LoadInfo(const wxString& path)
 {
     wxFile file(path);
     if (file.IsOpened() == false) {
@@ -35,65 +32,43 @@ SoundFormat *PSFLoader::Preload(const wxString& path)
         return 0;
     }
 
-    PreloadedPSF *preloaded_psf = new PreloadedPSF();
-    preloaded_psf->m_version = signature[3];
+    PSF *psf = new PSF1();	// TODO
+    psf->m_version = signature[3];
 
-    file.Read(&preloaded_psf->m_lenReservedArea, 4);
-    file.Read(&preloaded_psf->m_lenBinary, 4);
-    file.Read(&preloaded_psf->m_crc32Binary, 4);
+    file.Read(&psf->m_lenReservedArea, 4);
+    file.Read(&psf->m_lenBinary, 4);
+    file.Read(&psf->m_crc32Binary, 4);
 
-    preloaded_psf->m_ofsReservedArea = file.Tell();
-    file.Seek(preloaded_psf->m_lenReservedArea, wxFromCurrent);
+    psf->m_ofsReservedArea = file.Tell();
+    file.Seek(psf->m_lenReservedArea, wxFromCurrent);
 
-    preloaded_psf->m_ofsBinary = file.Tell();
-    file.Seek(preloaded_psf->m_lenBinary, wxFromCurrent);
+    psf->m_ofsBinary = file.Tell();
+    file.Seek(psf->m_lenBinary, wxFromCurrent);
 
     if (file.Eof() == false) {
         char strTAG[5];
         file.Read(strTAG, 5);
         if (memcmp(strTAG, "[TAG]", 5) == 0) {
 
-                wxFileOffset len = file.Length() - file.Tell();
-                char *tags = new char[len+1];
-                len = file.Read(tags, len);
-                tags[len] = 0;
+            wxFileOffset len = file.Length() - file.Tell();
+            char *tags = new char[len+1];
+            len = file.Read(tags, len);
+            tags[len] = 0;
 
-                AddTags(preloaded_psf, tags);
+            AddTags(psf, tags);
 
- /*               wxStringTokenizer tokenizer_lf(tags, wxT('\n'));
-                wxRegEx regex_tag(wxT("(\\s*)\\w+(\\s*)=(\\s*)\\w*"), wxRE_ICASE | wxRE_NOSUB);
-                wxString comment;
-
-                delete [] tags;
-
-                while (tokenizer_lf.HasMoreTokens())
-                {
-                    wxString token = tokenizer_lf.GetNextToken();
-                    wxMessageOutputDebug().Printf(token);
-                    wxString tag = regex_tag.GetMatch(token);
-                    wxMessageOutputDebug().Printf(tag);
-                    wxStringTokenizer tokenizer_eq(tag, wxT('='));
-                    wxString key = tokenizer_eq.NextToken();
-                    if (key.IsEmpty()) continue;
-                    wxString value = tokenizer_eq.NextToken();
-                    if (key.CmpNoCase(wxT("comment")) == 0) {
-                        comment += value + '\n';
-                    } else {
-                        preloaded_psf->SetTag(key, value);
-                    }
-                }
-                */
         }
     }
 
-    file.Close();
-    m_preloaded_psf = preloaded_psf;
-    m_path = path;
-    return preloaded_psf;
+    int fd = file.fd();
+    file.Detach();
+    psf->file_.Attach(fd);
+    psf->path_ = path;
+    return psf;
 }
 
 
-void PSFLoader::AddTags(PreloadedPSF *psf, char *buff)
+void PSFLoader::AddTags(PSF *psf, char *buff)
 {
     char *p;
     const char *q;
@@ -148,3 +123,30 @@ void PSFLoader::AddTags(PreloadedPSF *psf, char *buff)
     } while (*buff != 0);
     psf->SetTag(wxT("comment"), comment);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+namespace R3000A = PSX::R3000A;
+
+
+PSF1Loader::~PSF1Loader()
+{
+}
+
+
+
+SoundLoader *PSF1Loader::GetInstance()
+{
+    return new PSF1Loader();
+}
+

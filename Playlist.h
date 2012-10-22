@@ -48,6 +48,7 @@ public:
     PSFPlaylistItem(const wxString& fullpath, const wxString& name, const wxString& ext);
     ~PSFPlaylistItem();
 
+    SoundFormat* GetSound() const;
 	const wxString& GetFullPath() const;
 	const wxString& GetFileName() const;
 	const wxString& GetExt() const;
@@ -59,7 +60,7 @@ public:
     friend class PSFPlaylist;
 
 protected:
-    bool PreloadSound(const wxString& path, const wxString& m_ext);
+    bool LoadSound(const wxString& path, const wxString& m_ext);
 
 private:
     SoundLoader *m_loader;
@@ -85,4 +86,9 @@ public:
 inline wxTreeItemId PSFPlaylist::AppendItem(const wxString &text, int image, int selImage, PSFPlaylistItem *data)
 {
     return wxTreeCtrl::AppendItem(rootId, text, image, selImage, data);
+}
+
+
+inline SoundFormat* PSFPlaylistItem::GetSound() const {
+    return m_sound;
 }

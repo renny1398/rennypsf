@@ -236,7 +236,7 @@ T PSX::Memory::Read(uint32_t addr)
     uint8_t *base_addr = SegmentLUT[segment];
     uint32_t offset = addr & 0xffff;
     if (base_addr == 0) {
-        wxMessageOutputDebug().Printf("PSX::Memory::Read : bad segment: %04x", segment);
+        wxMessageOutputDebug().Printf(wxT("PSX::Memory::Read : bad segment: %04x"), segment);
         //PSX::Disasm.DumpRegisters();
         return 0;
     }
@@ -258,7 +258,7 @@ void PSX::Memory::Write(uint32_t addr, T value)
     uint8_t *base_addr = SegmentLUT[segment];
     uint32_t offset = addr & 0xffff;
     if (base_addr == 0) {
-        wxMessageOutputDebug().Printf("PSX::Memory::Write : bad segment: %04x", segment);
+        wxMessageOutputDebug().Printf(wxT("PSX::Memory::Write : bad segment: %04x"), segment);
         return;
     }
     *pointer_cast<T*>(base_addr + offset) = BFLIP(value);

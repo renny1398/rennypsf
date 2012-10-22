@@ -372,7 +372,7 @@ void Interpreter::doBranch(uint32_t branch_pc)
 
 
 void OPNULL(uint32_t code) {
-    wxMessageOutputDebug().Printf("WARNING: Unknown Opcode (0x%02x) is executed!", code >> 26);
+    wxMessageOutputDebug().Printf(wxT("WARNING: Unknown Opcode (0x%02x) is executed!"), code >> 26);
 }
 
 
@@ -822,35 +822,35 @@ void Interpreter::LWC0(uint32_t) {
 
 }
 void Interpreter::LWC1(uint32_t) {
-    wxMessageOutputDebug().Printf("WARNING: LWC1 is not supported.");
+    wxMessageOutputDebug().Printf(wxT("WARNING: LWC1 is not supported."));
 }
 void Interpreter::LWC2(uint32_t) {}
 void Interpreter::LWC3(uint32_t) {
-    wxMessageOutputDebug().Printf("WARNING: LWC3 is not supported.");
+    wxMessageOutputDebug().Printf(wxT("WARNING: LWC3 is not supported."));
 }
 
 void Interpreter::SWC0(uint32_t) {}
 void Interpreter::SWC1(uint32_t) {
-    wxMessageOutputDebug().Printf("WARNING: SWC1 is not supported.");
+    wxMessageOutputDebug().Printf(wxT("WARNING: SWC1 is not supported."));
 }
 
 void Interpreter::SWC2(uint32_t) {}
 void Interpreter::SWC3(uint32_t) {
     // HLE?
-    wxMessageOutputDebug().Printf("WARNING: SWC3 is not supported.");
+    wxMessageOutputDebug().Printf(wxT("WARNING: SWC3 is not supported."));
 }
 
 
 
 void Interpreter::COP0(uint32_t) {}
 void Interpreter::COP1(uint32_t) {
-    wxMessageOutputDebug().Printf("WARNING: COP1 is not supported.");
+    wxMessageOutputDebug().Printf(wxT("WARNING: COP1 is not supported."));
 }
 void Interpreter::COP2(uint32_t) {
     // Cop2 is not supported.
 }
 void Interpreter::COP3(uint32_t) {
-    wxMessageOutputDebug().Printf("WARNING: COP3 is not supported.");
+    wxMessageOutputDebug().Printf(wxT("WARNING: COP3 is not supported."));
 }
 
 
@@ -916,9 +916,11 @@ void (*const HLEt[])() = {
 
 
 void Interpreter::HLECALL(uint32_t code) {
+/*
     if ((uint32_t)((code & 0xff) -1) < 3) {
         wxMessageOutputDebug().Printf("HLECALL %c0:%02x", 'A' + (code & 0xff)-1, R3000a.GPR.T1 & 0xff);
     }
+*/
     HLEt[code & 0xff]();
 }
 
@@ -930,9 +932,11 @@ void Interpreter::HLECALL(uint32_t code) {
 
 wxThread::ExitCode InterpreterThread::Entry()
 {
+    wxMessageOutputDebug().Printf(wxT("PSX Threads is started."));
+
     do {
         if (RootCounter::SPURun() == 0) break;
-#warning PSX::Interpreter::Thread don't call SPUendflush
+//#warning PSX::Interpreter::Thread don't call SPUendflush
         Interpreter_.ExecuteOnce();
     } while (TestDestroy() == false);
     return 0;
@@ -940,7 +944,7 @@ wxThread::ExitCode InterpreterThread::Entry()
 
 void InterpreterThread::OnExit()
 {
-    wxMessageOutputDebug().Printf("PSX Thread is ended.");
+    wxMessageOutputDebug().Printf(wxT("PSX Thread is ended."));
 }
 
 
@@ -959,7 +963,6 @@ InterpreterThread *Interpreter::Execute()
     thread = new InterpreterThread();
     thread->Create();
     thread->Run();
-    wxMessageOutputDebug().Printf("PSX Threads is started.");
     return thread;
 }
 

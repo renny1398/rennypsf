@@ -185,32 +185,21 @@ private:
 
 
 inline void Interpreter::ExecuteOpcode(uint32_t code) {
-    if (R3000a.PC == 0x80016608) {
-        Disasm.Parse(code);
-        Disasm.PrintCode();
-        //Disasm.DumpRegisters();
-    }
-    //Disasm.Parse(code);
-    //Disasm.PrintCode();
     OPCODES[opcode_(code)](code);
-    //Disasm.PrintChangedRegisters();
-    if (R3000a.PC == 0x80016608) {
-        Disasm.PrintChangedRegisters();
-    }
 }
 
 inline void Interpreter::ExecuteOnce()
 {
     uint32_t pc = R3000a.PC;
     uint32_t code = u32M(pc);
-//  wxMessageOutputDebug().Printf("PC = 0x%08x", pc);
-//    if (R3000a.GPR.A0 == 0x800678ec) {
-//        Disasm.DumpRegisters();
-//    }
     pc += 4;
     ++R3000a.Cycle;
     R3000a.PC = pc;
     //last_code = code;
+    if (pc == 0x800176FC - 4) {
+        // wxMessageOutputDebug().Printf("DMA write");
+        Disasm.DumpRegisters();
+    }
     ExecuteOpcode(code);
 }
 

@@ -1,11 +1,43 @@
 #pragma once
 #include <stdint.h>
-#include <wx/debug.h>
+#include <wx/ptr_scpd.h>
 
 #include "reverb.h"
+#include "interpolation.h"
 
 namespace SPU
 {
+/*
+class Volume
+{
+    int32_t volume;
+public:
+    uint16_t Int15() const {
+        return volume & 0x3fff;
+    }
+    void Int15(uint16_t vol) {
+        wxASSERT(vol < 0x8000);
+        if (vol > 0x3fff) {
+            volume = vol - 0x8000;
+            wxASSERT(volume < 0);
+        } else {
+            volume = vol;
+        }
+    }
+};
+
+class Pitch
+{
+    uint32_t pitch;
+public:
+    uint16_t Uint14() const {
+        return pitch;
+    }
+    void Uint14(uint16_t p) {
+        pitch = p;
+    }
+};
+*/
 
 class Volume
 {
@@ -36,7 +68,7 @@ public:
         pitch = p;
     }
 };
-
+*/
 
 struct ADSRInfo
 {
@@ -56,8 +88,12 @@ struct ADSRInfo
     long           lVolume; // from -1024 to 1023
 };
 
-struct ADSRInfoEx
+class ADSRInfoEx
 {
+public:
+    void Start();
+
+public:
     int            State;
     bool           AttackModeExp;
     int            AttackRate;
@@ -74,14 +110,35 @@ struct ADSRInfoEx
     long           lDummy2;
 };
 
-struct ChannelInfo
+class AbstractInterpolation;
+
+wxDECLARE_SCOPED_PTR(AbstractInterpolation, InterpolationPtr)
+
+class ChannelInfo
 {
+public:
+    ChannelInfo();
+    void StartSound();
+    static void InitADSR();
+    int MixADSR();
+
+    void Update();
+protected:
+    void VoiceChangeFrequency();
+    void ADPCM2LPCM();
+
+public:
+    int ch;
+
     bool            bNew;                               // start flag
 
     int             iSBPos;                             // mixing stuff
-    int             spos;
-    int             sinc;
-    int             SB[32+32];                          // sound bank
+    //int             spos;
+    //int             sinc;
+    //int             SB[32+32];                          // sound bank
+    InterpolationPtr pInterpolation;
+    int32_t         LPCM[28];
+
     int             sval;
 
     unsigned char*  pStart;                             // start ptr into sound mem
@@ -118,30 +175,120 @@ struct ChannelInfo
     int             iOldNoise;                          // old noise val for this channel
     ADSRInfo        ADSR;                               // active ADSR settings
     ADSRInfoEx      ADSRX;                              // next ADSR settings (will be moved to active on sample start)
+
+private:
+    static uint32_t rateTable[160];
+};
+
+
+
+class IChannelArray
+{
+public:
+    virtual ~IChannelArray() {}
+
+    virtual int GetChannelNumber() const = 0;
+};
+
+class ChannelArray: public IChannelArray
+{
+public:
+    ChannelArray();
+
+    int GetChannelNumber() const {
+        return 24;
+    }
+
+    bool ExistsNew() const;
+    void SoundNew(uint32_t flags);
+
+    ChannelInfo& operator[](int i);
+
+private:
+    ChannelInfo channels[25];
+    uint32_t newChannelFlags;
+
+    friend class ChannelInfo;
+};
+
+
+inline ChannelArray::ChannelArray()
+{
+    for (int i = 0; i < 25; i++) {
+        channels[i].ch = i;
+    }
+}
+
+
+inline bool ChannelArray::ExistsNew() const {
+    return (newChannelFlags != 0);
+}
+
+
+inline void ChannelArray::SoundNew(uint32_t flags)
+{
+    wxASSERT(flags < 0x01000000);
+    newChannelFlags |= flags;
+    for (int i = 0; flags != 0; i++, flags >>= 1) {
+        if (!(flags & 1) || (channels[i].pStart == 0)) continue;
+        channels[i].ignoresLoop = false;
+        channels[i].bNew = true;
+    }
+}
+
+inline ChannelInfo& ChannelArray::operator [](int i) {
+    wxASSERT(0 <= i && i < 24);
+    return channels[i];
+}
+
+
+////////////////////////////////////////////////////////////////////////
+// Enums
+////////////////////////////////////////////////////////////////////////
+
+
+////////////////////////////////////////////////////////////////////////
+// SPU interface (experimental)
+////////////////////////////////////////////////////////////////////////
+
+class ISPU
+{
+public:
+    virtual ~ISPU() {}
+    virtual uint32_t GetDefaultSamplingRate() const = 0;
 };
 
 
 class PSF;
 class PSF1;
 
-class SPU
+class SPU: public ISPU
 {
 public:
     SPU();
 
     void Init();
-    bool Open();
+    void Open();
     void SetLength(int stop, int fade);
-    bool Close();
+    void Close();
     void Flush();
+
+protected:
+    void SetupStreams();
+    void RemoveStreams();
+
+public:
+    void Async(uint32_t);
+
+    uint32_t GetDefaultSamplingRate() const { return 44100; }
 
     ChannelInfo& GetChannelInfo(int ch);
     unsigned char* GetSoundBuffer() const;
 
     // ADSR
-    void InitADSR();
-    void StartADSR(ChannelInfo& ch);
-    int MixADSR(ChannelInfo& ch);
+    // void InitADSR();
+    // void StartADSR(ChannelInfo& ch);
+    // int MixADSR(ChannelInfo& ch);
 
     // Reverb
     void InitReverb();
@@ -185,7 +332,7 @@ private:
 
 
     // PSX Buffer & Addresses
-    unsigned short m_regArea[10000];
+    // unsigned short m_regArea[10000];
     unsigned short m_spuMem[256*1024];
 public:
     uint8_t* const Memory;   // uchar* version of spuMem
@@ -203,13 +350,13 @@ private:
     int m_iDebugMode;
     int m_iRecordMode;
     int m_iUseReverb;
-    int m_iUseInterpolation;
+    InterpolationType useInterpolation;
     int m_iDisStereo;
     int m_iUseDBufIrq;
 
     // MAIN infos struct for each channel
-    ChannelInfo channels[25];
 public:
+    ChannelArray Channels;
     REVERBInfo Reverb;
 
 private:
@@ -242,7 +389,7 @@ private:
 
 
     // ADSR
-    unsigned long m_RateTable[160];
+    // unsigned long m_RateTable[160];
 
     // Reverb
     int *sReverbPlay;
@@ -252,11 +399,12 @@ private:
     int  iReverbRepeat;
     int  iReverbNum;
 
+    friend class ChannelInfo;
 };
 
 
 inline ChannelInfo& SPU::GetChannelInfo(int ch) {
-    return channels[ch];
+    return Channels[ch];
 }
 
 inline unsigned char* SPU::GetSoundBuffer() const {

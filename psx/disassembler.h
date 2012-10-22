@@ -1,9 +1,7 @@
 #pragma once
 #include <wx/string.h>
 #include <wx/vector.h>
-//#include <wx/hashmap.h>
-
-//WX_DECLARE_HASH_MAP(uint32_t, uint32_t, wxIntegerHash, wxIntegerEqual, RegValueMap);
+#include <stdint.h>
 
 namespace PSX {
 

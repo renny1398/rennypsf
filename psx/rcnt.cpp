@@ -1,6 +1,7 @@
 #include "rcnt.h"
 #include "r3000a.h"
 #include "memory.h"
+#include "../spu/spu.h"
 #include <cstring>
 #include <wx/msgout.h>
 
@@ -99,17 +100,17 @@ void Init()
 void Update()
 {
     uint32_t cycle = R3000a.Cycle;
-    if ( (cycle- counters[3].sCycle) >= counters[3].Cycle ) {
+    if ( (cycle - counters[3].sCycle) >= counters[3].Cycle ) {
         update(3);
         u32Href(0x1070) |= BFLIP32(1);
     }
-    if ( (cycle- counters[0].sCycle) >= counters[0].Cycle ) {
+    if ( (cycle - counters[0].sCycle) >= counters[0].Cycle ) {
         Reset(0);
     }
-    if ( (cycle- counters[1].sCycle) >= counters[1].Cycle ) {
+    if ( (cycle - counters[1].sCycle) >= counters[1].Cycle ) {
         Reset(1);
     }
-    if ( (cycle- counters[2].sCycle) >= counters[2].Cycle ) {
+    if ( (cycle - counters[2].sCycle) >= counters[2].Cycle ) {
         Reset(2);
     }
 
@@ -187,17 +188,16 @@ unsigned long ReadCount(unsigned long index)
 
 unsigned long SPURun()
 {
-    unsigned long cycles;
+    uint32_t cycles;
     if (R3000a.Cycle < last) {
-        cycles = UINT_FAST32_MAX - last;
+        cycles = 0xffffffff - last;
         cycles += R3000a.Cycle + 1;
     } else {
         cycles = R3000a.Cycle - last;
     }
 
     if (cycles >= 16) {
-        // wxMessageOutputDebug().Printf("TODO: implement SPUasync");
-        // wxMessageOutputDebug().Printf("PC = 0x%08x", R3000a.PC);
+        Spu.Async(cycles);
         last = R3000a.Cycle;
     }
     return 1;
@@ -205,7 +205,7 @@ unsigned long SPURun()
 
 void DeadLoopSkip()
 {
-    wxMessageOutputDebug().Printf("CounterDeadLoopSkip");
+    wxMessageOutputDebug().Printf(wxT("CounterDeadLoopSkip"));
 
     long min, lmin;
     uint32_t cycle = R3000a.Cycle;

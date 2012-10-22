@@ -2,7 +2,7 @@
 #include "stdwx.h"
 #include <wx/string.h>
 
-#include "PSF1Loader.h"
+#include "PSFLoader.h"
 
 
 SoundLoader *SoundLoaderFactory::LoaderTable::operator [](const wxString &ext)
@@ -20,5 +20,3 @@ SoundLoaderFactory::SoundLoaderFactory()
     table.Append(wxT("psf"), PSF1Loader::GetInstance());
     table.Append(wxT("minipsf"), PSF1Loader::GetInstance());
 }
-
-

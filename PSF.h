@@ -3,9 +3,30 @@
 #include "SoundFormat.h"
 #include "psx/psx.h"
 #include <stdint.h>
+#include <wx/file.h>
 
 class PSF: public SoundFormat
 {
+public:
+    virtual ~PSF();
+
+    static void Init();
+    static void Reset();
+
+    bool Play();
+    // bool Pause();
+    bool Stop();
+    // bool Seek();
+    // bool Tell();
+
+    friend class PSFLoader;
+    friend class PSF1Loader;
+
+protected:
+    virtual PSF *LoadLib(const wxString &path) = 0;
+
+
+protected:
     struct PSXEXEHeader {
         char signature[8];
         uint32_t text;
@@ -29,43 +50,32 @@ class PSF: public SoundFormat
         char marker[0xB4];
     };
 
-public:
-    virtual ~PSF() {}
+    virtual bool LoadBinary() = 0;
 
-    static void Init();
-    static void Reset();
-
-    bool Play();
-    // bool Pause();
-    bool Stop();
-    // bool Seek();
-    // bool Tell();
-
-    friend class PSFLoader;
-    friend class PSF1Loader;
-
-private:
     PSXEXEHeader m_header;
     void *m_memory;
     PSX::R3000A::InterpreterThread *m_thread;
-};
 
-#include <wx/file.h>
-
-class PreloadedPSF: public PreloadedSoundFormat
-{
-public:
-    virtual ~PreloadedPSF() {}
-
-    friend class PSFLoader;
-    friend class PSF1Loader;
-
-protected:
-    wxString m_path;
+    //wxString m_path;
     uint32_t m_version;
     wxFileOffset m_ofsReservedArea;
     wxFileOffset m_ofsBinary;
     uint32_t m_lenReservedArea;
     uint32_t m_lenBinary;
     uint32_t m_crc32Binary;
+
+    wxVector<PSF*> m_libs;
+};
+
+
+class PSF1: public PSF
+{
+public:
+    PSF1();
+
+    friend class PSF1Loader;
+
+protected:
+    bool LoadBinary();
+    PSF *LoadLib(const wxString &path);
 };

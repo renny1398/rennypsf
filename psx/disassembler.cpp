@@ -11,45 +11,49 @@ namespace {
 
 const uint32_t& PC = PSX::R3000a.PC;
 
-const char *opcodeLowerList[64] = {
-    "SPECIAL", "BCOND", "j", "jal", "beq", "bne", "blez", "bgtz",
-    "addi", "addiu", "slti", "sltiu", "andi", "ori", "xori", "lui",
-    "cop0", "cop1", "cop2", "cop3", "unk", "unk", "unk", "unk",
-    "unk", "unk", "unk", "unk", "unk", "unk", "unk", "unk",
-    "lb", "lh", "lwl", "lw", "lbu", "lhu", "lwr", "unk",
-    "sb", "sh", "swl", "sw", "unk", "unk", "swr", "unk",
-    "lwc0", "lwc1", "lwc2", "lwc3", "unk", "unk", "unk", "unk",
-    "swc0", "swc1", "swc2", "swc3", "unk", "unk", "unk", "unk"
+const wxChar strSPECIAL[] = wxT("_SPECIAL");
+const wxChar strBCOND[] = wxT("_BCOND");
+const wxChar strUNKNOWN[] = wxT("_unk");
+
+const wxChar *opcodeLowerList[64] = {
+    strSPECIAL, strBCOND, wxT("j"), wxT("jal"), wxT("beq"), wxT("bne"), wxT("blez"), wxT("bgtz"),
+    wxT("addi"), wxT("addiu"), wxT("slti"), wxT("sltiu"), wxT("andi"), wxT("ori"), wxT("xori"), wxT("lui"),
+    wxT("cop0"), wxT("cop1"), wxT("cop2"), wxT("cop3"), strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN,
+    strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN,
+    wxT("lb"), wxT("lh"), wxT("lwl"), wxT("lw"), wxT("lbu"), wxT("lhu"), wxT("lwr"), strUNKNOWN,
+    wxT("sb"), wxT("sh"), wxT("swl"), wxT("sw"), strUNKNOWN, strUNKNOWN, wxT("swr"), strUNKNOWN,
+    wxT("lwc0"), wxT("lwc1"), wxT("lwc2"), wxT("lwc3"), strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN,
+    wxT("swc0"), wxT("swc1"), wxT("swc2"), wxT("swc3"), strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN
 };
 
-const char *specialLowerList[64] = {
-    "sll", "unk", "srl", "sra", "sllv", "unk", "srlv", "srav",
-    "jr", "jalr", "unk", "unk", "syscall", "break", "unk", "unk",
-    "mfhi", "mthi", "mflo", "mtlo", "unk", "unk", "unk", "unk",
-    "mult", "multu", "div", "divu", "unk", "unk", "unk", "unk",
-    "add", "addu", "sub", "subu", "and", "or", "xor", "nor",
-    "unk", "unk", "slt", "sltu", "unk", "unk", "unk", "unk",
-    "unk", "unk", "unk", "unk", "unk", "unk", "unk", "unk",
-    "unk", "unk", "unk", "unk", "unk", "unk", "unk", "unk"
+const wxChar *specialLowerList[64] = {
+    wxT("sll"), strUNKNOWN, wxT("srl"), wxT("sra"), wxT("sllv"), strUNKNOWN, wxT("srlv"), wxT("srav"),
+    wxT("jr"), wxT("jalr"), strUNKNOWN, strUNKNOWN, wxT("syscall"), wxT("break"), strUNKNOWN, strUNKNOWN,
+    wxT("mfhi"), wxT("mthi"), wxT("mflo"), wxT("mtlo"), strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN,
+    wxT("mult"), wxT("multu"), wxT("div"), wxT("divu"), strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN,
+    wxT("add"), wxT("addu"), wxT("sub"), wxT("subu"), wxT("and"), wxT("or"), wxT("xor"), wxT("nor"),
+    strUNKNOWN, strUNKNOWN, wxT("slt"), wxT("sltu"), strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN,
+    strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN,
+    strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN
 };
 
-const char *bcondLowerList[24] = {
-    "bltz", "bgez", "unk", "unk", "unk", "unk", "unk", "unk",
-    "unk", "unk", "unk", "unk", "unk", "unk", "unk", "unk",
-    "bltzal", "bgezal", "unk", "unk", "unk", "unk", "unk", "unk"
+const wxChar *bcondLowerList[24] = {
+    wxT("bltz"), wxT("bgez"), strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN,
+    strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN,
+    wxT("bltzal"), wxT("bgezal"), strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN
 };
 
-const char *copzLowerList[16] = {
-    "mfc", "unk", "cfc", "unk", "mtc", "unk", "ctc", "unk",
-    "bcc", "unk", "unk", "unk", "unk", "unk", "unk", "unk"
+const wxChar *copzLowerList[16] = {
+    wxT("mfc"), strUNKNOWN, wxT("cfc"), strUNKNOWN, wxT("mtc"), strUNKNOWN, wxT("ctc"), strUNKNOWN,
+    wxT("bcc"), strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN
 };
 
-const char *regNames[] = {
-    "$zr", "$at", "$v0", "$v1", "$a0", "$a1", "$a2", "$a3",
-    "$t0", "$t1", "$t2", "$t3", "$t4", "$t5", "$t6", "$t7",
-    "$s0", "$s1", "$s2", "$s3", "$s4", "$s5", "$s6", "$s7",
-    "$t8", "$t9", "$k0", "$k1", "$gp", "$sp", "$fp", "$ra",
-    "$hi", "$lo", "$pc"
+const wxChar *regNames[] = {
+    wxT("zr"), wxT("at"), wxT("v0"), wxT("v1"), wxT("a0"), wxT("a1"), wxT("a2"), wxT("a3"),
+    wxT("t0"), wxT("t1"), wxT("t2"), wxT("t3"), wxT("t4"), wxT("t5"), wxT("t6"), wxT("t7"),
+    wxT("s0"), wxT("s1"), wxT("s2"), wxT("s3"), wxT("s4"), wxT("s5"), wxT("s6"), wxT("s7"),
+    wxT("t8"), wxT("t9"), wxT("k0"), wxT("k1"), wxT("gp"), wxT("sp"), wxT("fp"), wxT("ra"),
+    wxT("hi"), wxT("lo"), wxT("pc")
 };
 
 
@@ -70,7 +74,7 @@ bool Disassembler::parseLoad(uint32_t code)
     wxString strRt = regNames[rt_(code)];
     operands.push_back(strRt);
     wxString addr;
-    addr.Printf("%04x(%s)", immediate_(code), regNames[rs_(code)]);
+    addr.Printf(wxT("0x%04x($%s)"), immediate_(code), regNames[rs_(code)]);
     operands.push_back(addr);
     changedRegisters.push_back(strRt);
     return true;
@@ -81,11 +85,11 @@ bool Disassembler::parseStore(uint32_t code)
     wxString strRt = regNames[rt_(code)];
     operands.push_back(strRt);
     wxString addr;
-    addr.Printf("%04x(%s)", immediate_(code), regNames[rs_(code)]);
+    addr.Printf(wxT("0x%04x($%s)"), immediate_(code), regNames[rs_(code)]);
     operands.push_back(addr);
 
     wxString dest_addr;
-    dest_addr.Printf("$%08x", immediate_(code) + regSrc_(code));
+    dest_addr.Printf(wxT("0x%08x"), immediate_(code) + regSrc_(code));
     changedRegisters.push_back(dest_addr);
     return true;
 }
@@ -96,7 +100,7 @@ bool Disassembler::parseALUI(uint32_t code)
     operands.push_back(strRt);
     operands.push_back(regNames[rs_(code)]);
     wxString imm;
-    imm.Printf("%04x", static_cast<int32_t>(immediate_(code)));
+    imm.Printf(wxT("0x%04x"), static_cast<int32_t>(immediate_(code)));
     operands.push_back(imm);
     changedRegisters.push_back(strRt);
     return true;
@@ -118,7 +122,7 @@ bool Disassembler::parseShift(uint32_t code)
     operands.push_back(strRd);
     operands.push_back(regNames[rt_(code)]);
     wxString strShift;
-    strShift.Printf("%d", shamt_(code));
+    strShift.Printf(wxT("0x%x"), shamt_(code));
     operands.push_back(strShift);
     changedRegisters.push_back(strRd);
     return true;
@@ -138,8 +142,8 @@ bool Disassembler::parseMulDiv(uint32_t code)
 {
     operands.push_back(regNames[rs_(code)]);
     operands.push_back(regNames[rt_(code)]);
-    changedRegisters.push_back("$hi");
-    changedRegisters.push_back("$lo");
+    changedRegisters.push_back(regNames[R3000A::GPR_HI]);
+    changedRegisters.push_back(regNames[R3000A::GPR_LO]);
     return true;
 }
 
@@ -154,23 +158,23 @@ bool Disassembler::parseHILO(uint32_t code)
 bool Disassembler::parseJ(uint32_t code)
 {
     wxString addr;
-    addr.Printf("%08x", target_(code) << 2 | ((R3000a.PC-4) & 0xf0000000));
+    addr.Printf(wxT("0x%08x"), target_(code) << 2 | ((R3000a.PC-4) & 0xf0000000));
     operands.push_back(addr);
-    changedRegisters.push_back("$pc");
+    changedRegisters.push_back(regNames[R3000A::GPR_PC]);
     return true;
 }
 
 bool Disassembler::parseJAL(uint32_t code)
 {
     bool ret = parseJ(code);
-    changedRegisters.push_back("$ra");
+    changedRegisters.push_back(regNames[R3000A::GPR_RA]);
     return ret;
 }
 
 bool Disassembler::parseJR(uint32_t code)
 {
     operands.push_back(regNames[rs_(code)]);
-    changedRegisters.push_back("$pc");
+    changedRegisters.push_back(regNames[R3000A::GPR_PC]);
     return true;
 }
 
@@ -189,11 +193,11 @@ bool Disassembler::parseBranch(uint32_t code)
     wxString strRt = regNames[rt_(code)];
     uint32_t addr = (PC-4) + (static_cast<int32_t>(immediate_(code)) << 2);
     wxString strAddr;
-    strAddr.Printf("$%08x", addr);
+    strAddr.Printf(wxT("0x%08x"), addr);
     operands.push_back(strRs);
     operands.push_back(strRt);
     operands.push_back(strAddr);
-    changedRegisters.push_back("$pc");
+    changedRegisters.push_back(regNames[R3000A::GPR_PC]);
     return true;
 }
 
@@ -202,17 +206,17 @@ bool Disassembler::parseBranchZ(uint32_t code)
     wxString strRs = regNames[rs_(code)];
     uint32_t addr = (PC-4) + (static_cast<int32_t>(immediate_(code)) << 2);
     wxString strAddr;
-    strAddr.Printf("$%08x", addr);
+    strAddr.Printf(wxT("0x%08x"), addr);
     operands.push_back(strRs);
     operands.push_back(strAddr);
-    changedRegisters.push_back("$pc");
+    changedRegisters.push_back(regNames[R3000A::GPR_PC]);
     return true;
 }
 
 bool Disassembler::parseBranchZAL(uint32_t code)
 {
     bool ret = parseBranchZ(code);
-    operands.push_back("$ra");
+    operands.push_back(regNames[R3000A::GPR_RA]);
     return ret;
 }
 
@@ -273,13 +277,13 @@ bool Disassembler::Parse(uint32_t code)
     changedRegisters.clear();
 
     opcodeName = opcodeLowerList[opcode_(code)];
-    if (opcodeName == "SPECIAL") {
+    if (opcodeName == strSPECIAL) {
         return parseSpecial(code);
     }
-    if (opcodeName == "BCOND") {
+    if (opcodeName == strBCOND) {
         return parseBcond(code);
     }
-    if (opcodeName == "unk") {
+    if (opcodeName == strUNKNOWN) {
         return false;
     }
 
@@ -289,7 +293,7 @@ bool Disassembler::Parse(uint32_t code)
 void Disassembler::PrintCode()
 {
     wxString addr;
-    addr.Printf("%08X:  ", PC-4);
+    addr.Printf(wxT("%08X:  "), PC-4);
     wxStringOutputStream ss;
     ss.Write(addr, addr.size());
     ss.Write(opcodeName, opcodeName.size());
@@ -307,19 +311,19 @@ void Disassembler::PrintChangedRegisters()
 {
     for (wxVector<wxString>::const_iterator it = changedRegisters.begin(), it_end = changedRegisters.end(); it != it_end; ++it) {
         wxStringOutputStream ss;
+        ss.Write("$", 1);
         ss.Write(*it, it->size());
-        ss.Write(" <= ", 4);
-        const char *str = it->c_str();
-        char *endptr;
-        uint32_t addr = static_cast<uint32_t>(strtol(str+1, &endptr, 16));
+        ss.Write(" := ", 4);
         wxString strAddr;
-        if (addr != 0L && *endptr == 0) {
-            strAddr.Printf("%08x", Memory::Read<uint32_t>(addr));
+        if ((*it)[0] == _T('0') && (*it)[1] == _T('x')) {
+            unsigned long addr;
+            it->ToULong(&addr);  // warning: this code may be wrong
+            strAddr.Printf(wxT("0x%08x"), Memory::Read<uint32_t>(addr));
             ss.Write(strAddr, strAddr.size());
         } else {
             for (int i = 0; i < 35; i++) {
                 if (it->Cmp(regNames[i]) == 0) {
-                    strAddr.Printf("%08x (i = %d)", R3000a.GPR.R[i], i);
+                    strAddr.Printf(wxT("0x%08x"), R3000a.GPR.R[i]);
                     ss.Write(strAddr, strAddr.size());
                     break;
                 }
@@ -333,9 +337,9 @@ void Disassembler::PrintChangedRegisters()
 void Disassembler::DumpRegisters()
 {
     wxString line;
-    line.Printf("%s=0x%08x ", "$pc", R3000a.PC);
+    line.Printf(wxT("%s=0x%08x "), regNames[R3000A::GPR_PC], R3000a.PC);
     for (int i = 1; i < 34; i++) {
-        line.Printf("%s%s=0x%08x ", line.c_str(), regNames[i], R3000a.GPR.R[i]);
+        line.Printf(wxT("%s%s=0x%08x "), line.c_str(), regNames[i], R3000a.GPR.R[i]);
         if (i % 4 == 3) {
             wxMessageOutputDebug().Printf(line);
             line.Clear();

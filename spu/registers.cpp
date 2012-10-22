@@ -3,7 +3,6 @@
 
 
 
-
 namespace SPU {
 
 namespace ChannelRegEnum {
@@ -15,7 +14,6 @@ enum {
     SustainReleaseRate,
     CurrentADSRVolume,
     RepeatAddress
-
 };
 }
 
@@ -39,7 +37,7 @@ uint16_t read1xx0(const ChannelInfo& channelInfo)
     uint16_t ret = 0;
     int volume = channelInfo.iLeftVolume;
     if (channelInfo.isLeftSweep) {
-        wxMessageOutputDebug().Printf("WARNING: Sweep mode is experimental.");
+        wxMessageOutputDebug().Printf(wxT("WARNING: Sweep mode is experimental."));
         ret |= 0x8000;
         if (channelInfo.isLeftExpSlope) ret |= 0x4000;
         if (channelInfo.isLeftDecreased) ret |= 0x2000;
@@ -129,13 +127,13 @@ uint16_t readGlobalNOP() { return 0; }
 
 // Get main volume left
 uint16_t read1d80() {
-    wxMessageOutputDebug().Printf("WARNING: SPU::GetMainVolumeLeft is not implemented.");
+    wxMessageOutputDebug().Printf(wxT("WARNING: SPU::GetMainVolumeLeft is not implemented."));
     return 0;
 }
 
 // Get main volume right
 uint16_t read1d82() {
-    wxMessageOutputDebug().Printf("WARNING: SPU::GetMainVolumeRight is not implemeted.");
+    wxMessageOutputDebug().Printf(wxT("WARNING: SPU::GetMainVolumeRight is not implemeted."));
     return 0;
 }
 
@@ -218,10 +216,16 @@ uint16_t (*const readGlobalRegisterLUT[])() = {
 };
 
 
+////////////////////////////////////////////////////////////////
+// SPUreadRegister
+////////////////////////////////////////////////////////////////
+
 uint16_t SPU::ReadRegister(uint32_t reg)
 {
     wxASSERT((reg & 0xfffffe00) == 0x1f801c00);
     // TODO: mutex lock
+
+    // wxMessageOutputDebug().Printf("SPUreadRegister at 0x%08x", reg);
 
     uint32_t ch = (reg & 0x3ff) >> 4;
 
@@ -361,11 +365,11 @@ void writeGlobalNOP(uint16_t) {}
 
 // Set main volume left
 void write1d80(uint16_t) {
-    wxMessageOutputDebug().Printf("WARNING: SPU::SetMainVolumeLeft is not implemented.");
+    wxMessageOutputDebug().Printf(wxT("WARNING: SPU::SetMainVolumeLeft is not implemented."));
 }
 // Set main volume right
 void write1d82(uint16_t) {
-    wxMessageOutputDebug().Printf("WARNING: SPU::SetMainVolumeRight is not implemented.");
+    wxMessageOutputDebug().Printf(wxT("WARNING: SPU::SetMainVolumeRight is not implemented."));
 }
 
 // Set reverberation depth left
@@ -381,6 +385,7 @@ void write1d86(uint16_t depth)
 }
 
 // Voice ON (inline func)
+/*
 void voiceON(int start, int end, uint16_t flag)
 {
     for (int i = start; i < end; i++, flag>>=1) {
@@ -392,17 +397,22 @@ void voiceON(int start, int end, uint16_t flag)
         // dwNewChannel |= (1<<ch);
     }
 }
+*/
 
 // Voice ON (0-15)
-void write1d88(uint16_t flag)
+void write1d88(uint16_t flags)
 {
-    voiceON(0, 16, flag);
+//    voiceON(0, 16, flag);
+    wxMessageOutputDebug().Printf(wxT("Voice ON (0-15)"));
+    Spu.Channels.SoundNew(flags);
 }
 
 // Voice ON (16-23)
-void write1d8a(uint16_t flag)
+void write1d8a(uint16_t flags)
 {
-    voiceON(16, 24, flag);
+//    voiceON(16, 24, flag);
+    wxMessageOutputDebug().Printf(wxT("Voice ON (16-23)"));
+    Spu.Channels.SoundNew(static_cast<uint32_t>(flags) << 16);
 }
 
 // Voice OFF (inline func)
@@ -418,12 +428,14 @@ inline void voiceOFF(int start, int end, uint16_t flag)
 // Voice OFF (0-15)
 void write1d8c(uint16_t flag)
 {
+    wxMessageOutputDebug().Printf(wxT("Voice OFF (0-15)"));
     voiceOFF(0, 16, flag);
 }
 
 // Voice 0FF (16-23)
 void write1d8e(uint16_t flag)
 {
+    wxMessageOutputDebug().Printf(wxT("Voice OFF (16-23)"));
     voiceOFF(16, 24, flag);
 }
 
@@ -556,13 +568,13 @@ void write1dae(uint16_t val)
 // Set CD volume left
 void write1db0(uint16_t)
 {
-    wxMessageOutputDebug().Printf("WARNING: SPU::SetCDVolumeLeft is not implemented.");
+    wxMessageOutputDebug().Printf(wxT("WARNING: SPU::SetCDVolumeLeft is not implemented."));
 }
 
 // Set CD volume right
 void write1db2(uint16_t)
 {
-    wxMessageOutputDebug().Printf("WARNING: SPU::SetCDVolumeRight is not implemented.");
+    wxMessageOutputDebug().Printf(wxT("WARNING: SPU::SetCDVolumeRight is not implemented."));
 }
 
 // Set extern volumes
@@ -577,10 +589,17 @@ void (*const writeGlobalRegisterLUT[])(uint16_t) = {
     write1db0, write1db2, write1db4, write1db6
 };
 
+
+////////////////////////////////////////////////////////////////
+// SPUwriteRegister
+////////////////////////////////////////////////////////////////
+
 void SPU::WriteRegister(uint32_t reg, uint16_t val)
 {
     wxASSERT((reg & 0xfffffe00) == 0x1f801c00);
     // TODO: mutex lock
+
+    //wxMessageOutputDebug().Printf("SPUwriteRegister at 0x%08x", reg);
 
     uint32_t ch = (reg & 0x3ff) >> 4;
 

@@ -890,13 +890,14 @@ void Shutdown() {}
 
 void Interrupt()
 {
-    if (BFLIP32(u32H(0x1070)) & 1) {
+    wxMessageOutputDebug().Printf(wxT("Interrupt (PC = 0x%08x)"), R3000a.PC-4);
+    if ( BFLIP32(u32H(0x1070)) & 1 ) {
         if (RcEV[3][1].status == BFLIP32(EVENT_STATUS_ACTIVE)) {
             softCall(BFLIP32(RcEV[3][1].fhandler));
         }
     }
 
-    if (BFLIP32(u32H(0x1070)) & 0x70) {
+    if ( BFLIP32(u32H(0x1070)) & 0x70 ) {
         for (int i = 0; i < 3; i++) {
             if (BFLIP32(u32H(0x1070)) & (1 << (i+4))) {
                 if (RcEV[i][1].status == BFLIP32(EVENT_STATUS_ACTIVE)) {
@@ -954,7 +955,7 @@ void Exception()
         CP0.SR = (status & 0xfffffff0) | ((status & 0x3c) >> 2);
         return;
     default:
-        wxMessageOutputDebug().Printf("Unknown BIOS Exception (0x%02x)", CP0.CAUSE & 0x3c);
+        wxMessageOutputDebug().Printf(wxT("Unknown BIOS Exception (0x%02x)"), CP0.CAUSE & 0x3c);
     }
 
    uint32_t pc = CP0.EPC;

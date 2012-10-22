@@ -74,14 +74,14 @@ void PSFPlaylist::Selected(wxTreeEvent &event)
 }
 
 
-void PSFPlaylist::Activated(wxTreeEvent& event)
+void PSFPlaylist::Activated(wxTreeEvent& WXUNUSED(event))
 {
     wxCommandEvent play_event(wxEVT_COMMAND_BUTTON_CLICKED, ID_PLAY);
     wxPostEvent(this, play_event);
 }
 
 
-void PSFPlaylist::OnDropFiles(wxDropFilesEvent &event)
+void PSFPlaylist::OnDropFiles(wxDropFilesEvent& WXUNUSED(event))
 {
     wxMessageOutputDebug().Printf("OnDropFiles");
 }
@@ -92,7 +92,7 @@ PSFPlaylistItem::PSFPlaylistItem(const wxString& fullpath, const wxString& filen
 {
     m_filename = filename;
     m_ext = filename.Mid(filename.Find(wxT('.'), true)+1);
-    PreloadSound(fullpath, m_ext);
+    LoadSound(fullpath, m_ext);
 }
 
 PSFPlaylistItem::PSFPlaylistItem(const wxString& fullpath, const wxString& name, const wxString& ext)
@@ -100,7 +100,7 @@ PSFPlaylistItem::PSFPlaylistItem(const wxString& fullpath, const wxString& name,
 {
     m_filename = name + wxT('.') + ext;
     m_ext = ext;
-    PreloadSound(fullpath, ext);
+    LoadSound(fullpath, ext);
 }
 
 PSFPlaylistItem::~PSFPlaylistItem()
@@ -133,16 +133,8 @@ inline bool PSFPlaylistItem::IsAvailable() const {
 }
 
 
-SoundFormat* PSFPlaylistItem::LoadSound()
-{
-    SoundFormat *sound = m_loader->Load();
-    m_sound = sound;
-    return sound;
-}
 
-
-
-bool PSFPlaylistItem::PreloadSound(const wxString &path, const wxString &ext)
+bool PSFPlaylistItem::LoadSound(const wxString &path, const wxString &ext)
 {
     SoundLoader *loader = m_loader;
     SoundFormat *sound = m_sound;
@@ -157,7 +149,7 @@ bool PSFPlaylistItem::PreloadSound(const wxString &path, const wxString &ext)
     m_loader = loader;
 
     if (sound == 0) {
-        sound = loader->Preload(path);
+        sound = loader->LoadInfo(path);
         if (sound == 0) {
             return false;
         }
@@ -189,7 +181,7 @@ bool PSFFileDropTarget::OnDropFiles(wxCoord x, wxCoord y, const wxArrayString& f
                 delete item;
             }
 		}
-	} while ((++i) < filenames.GetCount());
+	} while ((++i) < (int)filenames.GetCount());
 	return true;
 }
 

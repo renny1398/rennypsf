@@ -1,12 +1,4 @@
-/*
- * MainFrame.h
- *
- *  Created on: 2012/08/27
- *      Author: Renya
- */
-
-#ifndef MAINFRAME_H_
-#define MAINFRAME_H_
+#pragma once
 
 #include "stdwx.h"
 
@@ -31,8 +23,12 @@ private:
     void OnPlay(wxCommandEvent& event);
     void OnStop(wxCommandEvent& event);
 
-    PSFPlaylist *file_treectrl;
+    // for Debug mode
+#ifdef __WXDEBUG__
+    void OnDebug(wxCommandEvent& event);
+#endif
 
+    PSFPlaylist *file_treectrl;
 
 	wxDECLARE_EVENT_TABLE();
 };
@@ -44,6 +40,7 @@ enum {
 	ID_PLAY = 201,
 	ID_PAUSE,
 	ID_STOP,
+    ID_DEBUG,
 
 	ID_SEEKBAR = 501,
 	ID_PLAYLIST,
@@ -58,6 +55,3 @@ enum {
 	ID_INFO_COMMENT,
 	ID_INFO_COPYRIGHT
 };
-
-
-#endif /* MAINFRAME_H_ */

@@ -27,7 +27,7 @@ uint16_t Read16(uint32_t addr)
         case 2:
             return static_cast<uint16_t>(RootCounter::counters[index].target);
         }
-        wxMessageOutputStderr().Printf("ERROR: invalid PSX memory address (0x%08x)", addr);
+        wxMessageOutputStderr().Printf(wxT("ERROR: invalid PSX memory address (0x%08x)"), addr);
         return 0;
     }
     if ((addr & 0xfffffe00) == 0x1f801c00) {    // SPU
@@ -51,7 +51,7 @@ uint32_t Read32(uint32_t addr)
         case 2:
             return RootCounter::counters[index].target;
         }
-        wxMessageOutputStderr().Printf("ERROR: invalid PSX memory address (0x%08x)", addr);
+        wxMessageOutputStderr().Printf(wxT("ERROR: invalid PSX memory address (0x%08x)"), addr);
         return 0;
     }
     return u32H(addr);
@@ -84,7 +84,7 @@ void Write16(uint32_t addr, uint16_t value)
             RootCounter::WriteTarget(index, value);
             return;
         default:
-            wxMessageOutputStderr().Printf("ERROR: invalid PSX memory address (0x%08x)", addr);
+            wxMessageOutputStderr().Printf(wxT("ERROR: invalid PSX memory address (0x%08x)"), addr);
             return;
         }
     }
@@ -120,14 +120,14 @@ void Write32(uint32_t addr, uint32_t value)
             RootCounter::WriteTarget(index, value);
             return;
         default:
-            wxMessageOutputStderr().Printf("ERROR: invalid PSX memory address (0x%08x)", addr);
+            wxMessageOutputStderr().Printf(wxT("ERROR: invalid PSX memory address (0x%08x)"), addr);
             return;
         }
     }
-    if ((addr & 0xfffffe00) == 0x1f801c00) {    // SPU
-        wxMessageOutputDebug().Printf("TODO: implement SPUwriteRegister");
-        return;
-    }
+//    if ((addr & 0xfffffe00) == 0x1f801c00) {    // SPU
+//        wxMessageOutputDebug().Printf(wxT("WARNING: SPUwriteRegister won't' be run."));
+//        return;
+//    }
     u32Href(addr) = BFLIP32(value);
 }
 

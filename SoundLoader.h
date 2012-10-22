@@ -13,8 +13,8 @@ public:
 
     virtual const wxString &GetPath() const = 0;
 
-    virtual SoundFormat *Preload(const wxString &path) = 0;
-    virtual SoundFormat *Load() = 0;
+    virtual SoundFormat *LoadInfo(const wxString &path) = 0;
+    //virtual SoundFormat *Load() = 0;
 
 
 // private: inherited class must have PreloadedSoundFormat class
