@@ -324,6 +324,13 @@ protected:
     int MixReverbLeft(int ns);
     int MixReverbRight();
 
+    //
+    // Utilities
+    //
+public:
+    int GetPCMNumber() const;
+    int GetPCM(int index, void* pcm, int* loop) const;
+
 private:
 
     static const int NSSIZE = 45;
@@ -400,6 +407,16 @@ private:
     int  iReverbNum;
 
     friend class ChannelInfo;
+
+    // Utilities
+    struct PCMInfo {
+        int addr;
+        int loop;
+        int end;
+        bool muted;
+    };
+    PCMInfo pcmInfo_[256];
+    int nPCM_;
 };
 
 

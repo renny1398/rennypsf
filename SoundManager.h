@@ -9,66 +9,102 @@
 #include <wx/vector.h>
 
 
-
 class SoundFormat;
 
-class SoundManager
+class SoundDevice
 {
 public:
-    SoundManager();
+    SoundDevice(int channelNumber);
+    virtual ~SoundDevice();
 
-    bool Play(SoundFormat*);
-    bool Stop();
+    virtual bool Play(SoundFormat*);
+    virtual bool Stop();
 
     // void WriteBuffer(unsigned char * pSound, int lBytes);
-    void WriteStereo(int ch, int left, int right);
+    // virtual void Write(int left, int right) = 0;
+    void WriteStereo(int ch, short left, short right);
+    void WriteStereo(int ch, short samples[2]);
 
-    int GetEnvelopeVolume(int ch) const;
-    void SetEnvelopeVolume(int ch, int vol);
+    void Flush();
 
-private:
-    class SoundSource {
-    public:
-        SoundSource();
-        ~SoundSource();
-        // void Write(int mono);
-        void WriteStereo(int left, int right);
-        void Stop();
-    protected:
-        void write();
+    // int GetChannelNumber() const;
 
-    public:
-        int GetEnvelopeVolume() const;
-        void SetEnvelopeVolume(int);
+    // virtual int GetEnvelopeVolume(int ch) const;
+    // virtual void SetEnvelopeVolume(int ch, int vol);
 
-    private:
-        ALuint source, buffer;
-        short lpcm[4096*2];
-        int cursor;
-        int envVolume;
-    };
+    virtual void GetEnvelopeVolume(int ch, int* left, int* right) const;
+    virtual void SetEnvelopeVolume(int ch, int left, int right);
 
+protected:
+    void setChannelNumber(int number);
+    void setBufferSize(int size);
+    virtual void writeToDevice(short* buffer, int size) = 0;
+
+protected:
     SoundFormat *m_sound;
 
-    ALCdevice *device;
-    ALCcontext *context;
-    //ALuint buffer, source;
-    wxVector<SoundSource> sources;
+private:
+    int leftSample_, rightSample_;
+    Sample* chSample_;
+    int *chEnvelopeLeft_, *chEnvelopeRight_;
+    int channelNumber_;
+    Sample* buffer_;
+    int bufferSize_;
+    int bufferIndex_;
 };
 
 
-inline int SoundManager::SoundSource::GetEnvelopeVolume() const {
-    return envVolume;
-}
+class WaveOutAL: public SoundDevice
+{
+public:
+    WaveOutAL(int channelNumber);
+    ~WaveOutAL();
 
-inline void SoundManager::SoundSource::SetEnvelopeVolume(int vol) {
-    envVolume = vol;
-}
+    bool Stop();
 
-inline int SoundManager::GetEnvelopeVolume(int ch) const {
-    return sources.at(ch).GetEnvelopeVolume();
-}
+    // int GetEnvelopeVolume(int ch) const;
+    // void SetEnvelopeVolume(int ch, int vol);
 
-inline void SoundManager::SetEnvelopeVolume(int ch, int vol) {
-    sources.at(ch).SetEnvelopeVolume(vol);
-}
+protected:
+    void writeToDevice(short *data, int size);
+
+private:
+    ALCdevice *device_;
+    ALCcontext *context_;
+    ALuint buffer_, source_;
+};
+
+
+#include <wx/file.h>
+
+class WaveOutDisk: public SoundDevice
+{
+public:
+    WaveOutDisk(int channelNumber);
+
+    bool Play(SoundFormat *);
+    bool Stop();
+
+private:
+    struct WaveOutFormat
+    {
+        WaveOutFormat();
+        char RIFF[4];
+        int size;
+        char WAVE[4];
+        char fmt[4];
+        int fmtSize;
+        short formatId;
+        short channelNumber;
+        int samplingRate;
+        int dataRate;
+        short blockSize;
+        short bitNumber;
+        char DATA[4];
+        int dataSize;
+    };
+
+    wxString fileName_;
+    wxFile file_;
+    WaveOutFormat format_;
+};

@@ -54,7 +54,7 @@ void ChannelInfo::VoiceChangeFrequency()
 {
     wxASSERT(iActFreq != iUsedFreq);
     iUsedFreq = iActFreq;
-    pInterpolation->SetSinc(iRawPitch << 4);
+    pInterpolation->SetSinc(iRawPitch);
 }
 
 // FModChangeFrequency
@@ -100,6 +100,7 @@ void ChannelInfo::ADPCM2LPCM()
 
         LPCM[i++] = fa;
     }
+    wxASSERT(start == pCurr+16);
 
     if (Spu.Sp0 & 0x40) {
         if ( (start-16 < Spu.m_pSpuIrq && Spu.m_pSpuIrq <= start) || ((flags & 1) && (pLoop-16 < Spu.m_pSpuIrq && Spu.m_pSpuIrq <= pLoop)) ) {
@@ -114,7 +115,7 @@ void ChannelInfo::ADPCM2LPCM()
 
     if (flags & 1) {
         if (flags != 3 || pLoop == 0) { // DQ4
-            wxMessageOutputDebug().Printf(wxT("flags = %02x"), flags);
+            // wxMessageOutputDebug().Printf(wxT("flags = %02x"), flags);
             start = (uint8_t*)0xffffffff;
         } else {
             wxASSERT( (flags & 4) == 0 );
@@ -170,10 +171,14 @@ void ChannelInfo::Update()
         if (iMute) sval = 0;
         else {
             // Spu.m_SSumL[]
-            *(Spu.m_pS+0) += (sval * iLeftVolume) / 0x4000;
-            *(Spu.m_pS+1) += (sval * iRightVolume) / 0x4000;
-            wxGetApp().GetSoundManager().SetEnvelopeVolume(ch, ADSRX.lVolume);
-            wxGetApp().GetSoundManager().WriteStereo(ch, *(Spu.m_pS+0), *(Spu.m_pS+1));
+            short left = (sval * iLeftVolume) / 0x4000;
+            short right = (sval * iRightVolume) / 0x4000;
+            //*(Spu.m_pS+0) += left;
+            //*(Spu.m_pS+1) += right;
+            int leftEnvelope = ADSRX.lVolume * iLeftVolume;
+            int rightEnvelope = ADSRX.lVolume * iRightVolume;
+            wxGetApp().GetSoundManager()->SetEnvelopeVolume(ch, leftEnvelope, rightEnvelope);
+            wxGetApp().GetSoundManager()->WriteStereo(ch, left, right);
         }
     }
     pInterpolation->spos += pInterpolation->GetSinc();
@@ -223,6 +228,10 @@ void SPU::Init()
     //::memset(&Channels, 0, sizeof(Channels));
     ::memset(&Reverb, 0, sizeof(Reverb));
     ChannelInfo::InitADSR();
+
+    nPCM_ = 0;
+
+    wxMessageOutputDebug().Printf(wxT("Initialized SPU."));
 }
 
 void SPU::Open()
@@ -243,6 +252,10 @@ void SPU::Open()
 
     poo = 0;
     m_pS = (short*)m_pSpuBuffer;
+
+    nPCM_ = 0;
+
+    wxMessageOutputDebug().Printf(wxT("Reset SPU."));
 }
 
 void SPU::Close()
@@ -262,16 +275,17 @@ void SPU::Async(uint32_t cycles)
 
     while (do_samples) {
         do_samples--;
-        *(m_pS+0) = 0;
-        *(m_pS+1) = 0;
+        //*(m_pS+0) = 0;
+        //*(m_pS+1) = 0;
         for (int ch = 0; ch < 24; ch++) {
             Channels[ch].Update();
         }
-        m_pS += 2;
-        if (((unsigned char*)m_pS - m_pSpuBuffer) >= NSSIZE*2) {
+        wxGetApp().GetSoundManager()->Flush();
+        //m_pS += 2;
+        //if (((unsigned char*)m_pS - m_pSpuBuffer) >= NSSIZE*2) {
             // wxGetApp().GetSoundManager().WriteBuffer(m_pSpuBuffer, NSSIZE*4);
-            m_pS = (short*)m_pSpuBuffer;
-        }
+        //    m_pS = (short*)m_pSpuBuffer;
+        //}
     }
 }
 

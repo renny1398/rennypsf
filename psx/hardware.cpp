@@ -31,8 +31,7 @@ uint16_t Read16(uint32_t addr)
         return 0;
     }
     if ((addr & 0xfffffe00) == 0x1f801c00) {    // SPU
-        Spu.ReadRegister(addr);
-        return 0;
+        return Spu.ReadRegister(addr);
     }
     return u16H(addr);
 }
@@ -104,6 +103,11 @@ void Write32(uint32_t addr, uint32_t value)
     }
     if (addr == 0x1f8010c8) {
         DMA::Write(4, value);
+        return;
+    }
+    if (addr == 0x1f8010f4) {   // DICR
+        uint32_t tmp = (~value) & BFLIP32(DMA::DICR);
+        DMA::DICR = BFLIP32(((tmp ^ value) & 0xffffff) ^ tmp);
         return;
     }
     if ((addr & 0xffffffc0) == 0x1f801100) { // root counters

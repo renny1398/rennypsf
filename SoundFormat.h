@@ -18,6 +18,8 @@ public:
     virtual bool Play() = 0;
     virtual bool Stop() = 0;
 
+    const wxString& GetFileName() const;
+
 protected:
     wxFile file_;
     wxString path_;
@@ -30,4 +32,8 @@ private:
 
 inline bool SoundFormat::IsLoaded() const {
 	return infoLoaded_;
+}
+
+inline const wxString& SoundFormat::GetFileName() const {
+    return path_;
 }

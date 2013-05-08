@@ -60,6 +60,69 @@ union Cop0Registers {
 };
 
 
+////////////////////////////////////////////////
+// Instruction class
+////////////////////////////////////////////////
+
+
+enum OPCODE_ENUM {
+    OPCODE_SPECIAL, OPCODE_BCOND, OPCODE_J, OPCODE_JAL, OPCODE_BEQ, OPCODE_BNE, OPCODE_BLEZ, OPCODE_BGTZ,
+    OPCODE_ADDI, OPCODE_ADDIU, OPCODE_SLTI, OPCODE_SLTIU, OPCODE_ANDI, OPCODE_ORI, OPCODE_XORI, OPCODE_LUI,
+    OPCODE_COP0, OPCODE_COP1, OPCODE_COP2, OPCODE_COP3,
+    OPCODE_LB = 0x20, OPCODE_LH, OPCODE_LWL, OPCODE_LW, OPCODE_LBU, OPCODE_LHU, OPCODE_LWR,
+    OPCODE_SB = 0x28, OPCODE_SH, OPCODE_SWL, OPCODE_SW, OPCODE_SWR = 0x2e,
+    OPCODE_LWC0 = 0x30, OPCODE_LWC1, OPCODE_LWC2, OPCODE_LWC3,
+    OPCODE_SWC0 = 0x38, OPCODE_SWC1, OPCODE_SWC2, OPCODE_SWC3, OPCODE_HLECALL = 0x3b
+};
+
+enum SPECIAL_ENUM {
+    SPECIAL_SLL, SPECIAL_SRL = 0x02, SPECIAL_SRA, SPECIAL_SLLV, SPECIAL_SRLV = 0x06, SPECIAL_SRAV,
+    SPECIAL_JR, SPECIAL_JALR, SPECIAL_SYSCALL = 0x0c, SPECIAL_BREAK,
+    SPECIAL_MFHI = 0x10, SPECIAL_MTHI, SPECIAL_MFLO, SPECIAL_MTLO,
+    SPECIAL_MULT = 0x18, SPECIAL_MULTU, SPECIAL_DIV, SPECIAL_DIVU,
+    SPECIAL_ADD = 0x20, SPECIAL_ADDU, SPECIAL_SUB, SPECIAL_SUBU, SPECIAL_AND, SPECIAL_OR, SPECIAL_XOR, SPECIAL_NOR
+};
+
+enum BCOND_ENUM {
+    BCOND_BLTZ, BCOND_BGEZ, BCOND_BLTZAL = 0x10, BCOND_BGEZAL
+};
+
+
+class Instruction
+{
+public:
+    Instruction(uint32_t);
+
+    uint32_t Opcode() const;
+    uint32_t Rs() const;
+    uint32_t Rt() const;
+    uint32_t Rd() const;
+    int32_t Imm() const;
+    uint32_t ImmU() const;
+    uint32_t Target() const;
+    uint32_t Shamt() const;
+    uint32_t Funct() const;
+
+    uint32_t& RsVal() const;
+    uint32_t& RtVal() const;
+    uint32_t& RdVal() const;
+
+    uint32_t Addr() const;
+
+    operator uint32_t() const;
+
+private:
+    uint32_t code_;
+};
+
+
+inline Instruction::Instruction(uint32_t code) : code_(code) {}
+
+inline Instruction::operator uint32_t() const {
+    return code_;
+}
+
+
 ////////////////////////////////////////////////////////////////////////
 // implement of R3000A processor
 ////////////////////////////////////////////////////////////////////////
@@ -81,7 +144,7 @@ public:
     static Processor& GetInstance();
 
     void BranchTest();
-    void Exception(uint32_t code, bool branch_delay);
+    void Exception(Instruction code, bool branch_delay);
 
     bool IsInDelaySlot() const;
     void EnterDelaySlot();
@@ -133,81 +196,64 @@ extern R3000A::Processor& R3000a;
 // Instruction Macros
 ////////////////////////////////
 
-inline uint32_t opcode_(uint32_t code) {
-    return code >> 26;
+
+namespace R3000A {
+
+inline uint32_t Instruction::Opcode() const {
+    return code_ >> 26;
 }
 
-inline uint32_t rs_(uint32_t code) {
-    return (code >> 21) & 0x01f;
+inline uint32_t Instruction::Rs() const {
+    return (code_ >> 21) & 0x01f;
 }
 
-inline uint32_t rt_(uint32_t code) {
-    return (code >> 16) & 0x001f;
+inline uint32_t Instruction::Rt() const {
+    return (code_ >> 16) & 0x001f;
 }
 
-inline uint32_t rd_(uint32_t code) {
-    return (code >> 11) & 0x0001f;
-}
-
-
-inline uint32_t& regSrc_(uint32_t code) {
-    return R3000a.GPR.R[rs_(code)];
-}
-
-inline uint32_t& regTrg_(uint32_t code) {
-    return R3000a.GPR.R[rt_(code)];
-}
-
-inline uint32_t& regDst_(uint32_t code) {
-    return R3000a.GPR.R[rd_(code)];
+inline uint32_t Instruction::Rd() const {
+    return (code_ >> 11) & 0x0001f;
 }
 
 
-inline int16_t immediate_(uint32_t code) {
-    return code & 0xffff;
+inline uint32_t& Instruction::RsVal() const {
+    return R3000a.GPR.R[Rs()];
 }
 
-inline uint16_t immediateU_(uint32_t code) {
-    return code & 0xffff;
+inline uint32_t& Instruction::RtVal() const {
+    return R3000a.GPR.R[Rt()];
 }
 
-inline uint32_t target_(uint32_t code) {
-    return code & 0x03ffffff;
-}
-
-inline uint32_t shamt_(uint32_t code) {
-    return (code >> 6) & 0x1f;
-}
-
-inline uint32_t funct_(uint32_t code) {
-    return code & 0x3f;
-}
-
-inline uint32_t addr_(uint32_t code) {
-    return regSrc_(code) + immediate_(code);
+inline uint32_t& Instruction::RdVal() const {
+    return R3000a.GPR.R[Rd()];
 }
 
 
-enum OPCODE_ENUM {
-    OPCODE_SPECIAL, OPCODE_BCOND, OPCODE_J, OPCODE_JAL, OPCODE_BEQ, OPCODE_BNE, OPCODE_BLEZ, OPCODE_BGTZ,
-    OPCODE_ADDI, OPCODE_ADDIU, OPCODE_SLTI, OPCODE_SLTIU, OPCODE_ANDI, OPCODE_ORI, OPCODE_XORI, OPCODE_LUI,
-    OPCODE_COP0, OPCODE_COP1, OPCODE_COP2, OPCODE_COP3,
-    OPCODE_LB = 0x20, OPCODE_LH, OPCODE_LWL, OPCODE_LW, OPCODE_LBU, OPCODE_LHU, OPCODE_LWR,
-    OPCODE_SB = 0x28, OPCODE_SH, OPCODE_SWL, OPCODE_SW, OPCODE_SWR = 0x2e,
-    OPCODE_LWC0 = 0x30, OPCODE_LWC1, OPCODE_LWC2, OPCODE_LWC3,
-    OPCODE_SWC0 = 0x38, OPCODE_SWC1, OPCODE_SWC2, OPCODE_SWC3, OPCODE_HLECALL = 0x3b
-};
+inline int32_t Instruction::Imm() const {
+    return static_cast<int32_t>( static_cast<int16_t>(code_ & 0xffff) );
+}
 
-enum SPECIAL_ENUM {
-    SPECIAL_SLL, SPECIAL_SRL = 0x02, SPECIAL_SRA, SPECIAL_SLLV, SPECIAL_SRLV = 0x06, SPECIAL_SRAV,
-    SPECIAL_JR, SPECIAL_JALR, SPECIAL_SYSCALL = 0x0c, SPECIAL_BREAK,
-    SPECIAL_MFHI = 0x10, SPECIAL_MTHI, SPECIAL_MFLO, SPECIAL_MTLO,
-    SPECIAL_MULT = 0x18, SPECIAL_MULTU, SPECIAL_DIV, SPECIAL_DIVU,
-    SPECIAL_ADD = 0x20, SPECIAL_ADDU, SPECIAL_SUB, SPECIAL_SUBU, SPECIAL_AND, SPECIAL_OR, SPECIAL_XOR, SPECIAL_NOR
-};
+inline uint32_t Instruction::ImmU() const {
+    return code_ & 0xffff;
+}
 
-enum BCOND_ENUM {
-    BCOND_BLTZ, BCOND_BGEZ, BCOND_BLTZAL = 0x10, BCOND_BGEZAL
-};
+inline uint32_t Instruction::Target() const {
+    return code_ & 0x03ffffff;
+}
+
+inline uint32_t Instruction::Shamt() const {
+    return (code_ >> 6) & 0x1f;
+}
+
+inline uint32_t Instruction::Funct() const {
+    return code_ & 0x3f;
+}
+
+inline uint32_t Instruction::Addr() const {
+    return RsVal() + Imm();
+}
+
+
+}   // namespace R3000A
 
 }   // namespace PSX

@@ -8,20 +8,27 @@ class SoundFormat;
 class RennypsfApp: public wxApp
 {
 public:
-	bool OnInit();
+    bool OnInit();
 
     bool Play(SoundFormat*);
     bool Stop();
 
-    SoundManager& GetSoundManager();
+    SoundDevice* GetSoundManager() const;
+    void SetSoundDevice(SoundDevice*);
 
 private:
-    SoundManager m_soundManager;
+    SoundDevice* soundDevice_;
 };
 
 // allow wxAppGet() to be called
 DECLARE_APP(RennypsfApp)
 
-inline SoundManager& RennypsfApp::GetSoundManager() {
-    return m_soundManager;
+
+inline SoundDevice* RennypsfApp::GetSoundManager() const {
+    wxASSERT(soundDevice_ != 0);
+    return soundDevice_;
+}
+
+inline void RennypsfApp::SetSoundDevice(SoundDevice* device) {
+    soundDevice_ = device;
 }

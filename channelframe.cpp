@@ -6,7 +6,11 @@ ChannelFrame::ChannelFrame(wxWindow* parent): wxFrame(parent, wxID_ANY, _("Chann
 {
     ChannelPanel* panel = new ChannelPanel(this);
     wxSizer* sizer = new wxBoxSizer(wxVERTICAL);
-    //panel->SetSizer(sizer);
-    //SetAutoLayout(true);
+
+    SetBackgroundColour(*wxBLACK);
+    ClearBackground();
+
+    panel->SetSizer(sizer);
+    SetAutoLayout(true);
     //sizer->Fit(this);
 }

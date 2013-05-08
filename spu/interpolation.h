@@ -86,14 +86,26 @@ public:
     uint32_t gpos;
 
 private:
-    int samples[8];
+    int samples[4];
+};
+
+class CubicInterpolation: public AbstractInterpolation
+{
+public:
+    CubicInterpolation(ChannelInfo& channelInfo): AbstractInterpolation(channelInfo) {}
+    void Start();
+
+    InterpolationType GetInterpolationType() const { return CUBIC_INTERPOLATION; }
+
+private:
+    void storeVal(int fa);
+    int getVal() const;
+
+public:
+    uint32_t gpos;
+
+private:
+    int samples[4];
 };
 
 }   // namespace SPU
-
-
-class Interpolation
-{
-public:
-    Interpolation();
-};

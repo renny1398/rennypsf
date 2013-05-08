@@ -18,6 +18,7 @@ const char *strGPR[35] = {
     "HI", "LO", "PC"
 };
 
+
 namespace R3000A {
 
 GeneralPurposeRegisters Processor::GPR;
@@ -47,9 +48,46 @@ uint_fast32_t interrupt;
 
 void Processor::Init()
 {
+    /*
+    GPR.AT = 0xffffff8e;
+    GPR.V0 = 0x00000000;
+    GPR.V1 = 0xa000e00c;
+    GPR.A0 = 0xa000b1e0;
+    GPR.A1 = 0x00006cc8;
+    GPR.A2 = 0x00006cb8;
+    GPR.A3 = 0xa000e1f4;
+    GPR.T0 = 0x000014f8;
+    GPR.T1 = 0x00000000;
+    GPR.T2 = 0x000000c0;
+    GPR.T3 = 0x00000304;
+    GPR.T4 = 0x000000c1;
+    GPR.T5 = 0x00000304;
+    GPR.T6 = 0xa000e004;
+    GPR.T7 = 0x00000008;
+    GPR.S0 = 0x00000000;
+    GPR.S1 = 0x00000000;
+    GPR.S2 = 0x00000000;
+    GPR.S3 = 0x00000000;
+    GPR.S4 = 0x00000000;
+    GPR.S5 = 0x00000000;
+    GPR.S6 = 0x00000000;
+    GPR.S7 = 0x00000000;
+    GPR.T8 = 0x00000004;
+    GPR.T9 = 0x00000300;
+    GPR.K0 = 0x00000f0c;
+    GPR.K1 = 0x00000f0c;
+    GPR.FP = 0x801fff00;
+    GPR.RA = 0xbfc52350;
+    */
+
+    for (int i = 0; i < 32; i++) {
+        R3000a.GPR.R[i] = 0;
+    }
+
     CP0.R[12] = 0x10900000; // COP0_ENABLED | BEV | TS
     CP0.R[15] = 0x00000002; // PRevId = Revision Id, same as R3000A
     wxMessageOutputDebug().Printf(wxT("Initialized R3000A processor."));
+
 }
 
 
@@ -58,9 +96,10 @@ void Processor::Reset()
     inDelaySlot = doingBranch = false;
     memset(&GPR, 0, sizeof(GPR));
     memset(&CP0, 0, sizeof(CP0));
-    PC = 0xbfc00000;
+    PC = 0xbfc00000;    // start in bootstrap
     /*last_code = */Cycle = Interrupt = 0;
     CP0.R[12] = 0x10900000; // COP0_ENABLED | BEV | TS
+    // CP0.R[15] = 0x0000001f
     CP0.R[15] = 0x00000002; // PRevId = Revision Id, same as R3000A
 //    delayed_load_target = 0;
 //    delayed_load_value = 0;
@@ -71,9 +110,9 @@ void Processor::Reset()
 
 
 
-void Processor::Exception(uint32_t code, bool branch_delay)
+void Processor::Exception(Instruction code, bool branch_delay)
 {
-    wxMessageOutputDebug().Printf(wxT("R3000A Exception: 0x%x"), code);
+//    wxMessageOutputDebug().Printf(wxT("R3000A Exception: 0x%x"), (uint32_t)code);
 
     CP0.CAUSE = code;
 
@@ -114,10 +153,7 @@ void Processor::BranchTest()
     // interrupt mask register ($1f801074)
     if (u32H(0x1070) & u32H(0x1074)) {
         if ((CP0.SR & 0x401) == 0x401) {
-            //wxMessageOutputDebug().Printf("WARNING: skip branch exception.");
-            Disasm.DumpRegisters();
             Exception(0x400, false);
-            Disasm.DumpRegisters();
         }
     }
 }

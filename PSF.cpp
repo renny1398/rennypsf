@@ -12,7 +12,7 @@
 
 PSF::~PSF()
 {
-	while (m_libs.empty()) {
+    while (!m_libs.empty()) {
 		PSF* psf = m_libs.back();
 		delete psf;
 		m_libs.pop_back();
@@ -35,7 +35,6 @@ void PSF::Reset()
 bool PSF::Play()
 {
 	LoadBinary();
-    wxMessageOutputDebug().Printf("initial PC = 0x%08x", m_header.pc0);
     Reset();
     PSX::BIOS::Init();
     m_thread = PSX::Interpreter_.Execute();
@@ -48,7 +47,6 @@ bool PSF::Stop()
 {
     PSX::Interpreter_.Shutdown();
     m_thread = 0;
-    Spu.Close();
     PSX::Memory::Reset();
     return true;
 }
@@ -85,7 +83,6 @@ bool PSF1::LoadBinary()
         wxMessageOutputStderr().Printf(wxT("Uncompressed binary is not PS-X EXE!"));
         return 0;
     }
-    wxMessageOutputDebug().Printf(header.marker);
 
     wxString directory, filename, ext;
     wxFileName::SplitPath(path_, &directory, &filename, &ext);
@@ -107,6 +104,7 @@ bool PSF1::LoadBinary()
     PSX::R3000a.GPR.PC = header.pc0;
     PSX::R3000a.GPR.GP = header.gp0;
     PSX::R3000a.GPR.SP = header.sp0;
+    // wxMessageOutputDebug().Printf("PC0 = 0x%08x, GP0 = 0x%08x, SP0 = 0x%08x", header.pc0, header.gp0, header.sp0);
 
     for (IntStrHash::iterator it = libname_hash.begin(), it_end = libname_hash.end(); it != it_end; ++it) {
         PSF *psflib = LoadLib(it->second);

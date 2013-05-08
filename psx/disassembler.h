@@ -4,13 +4,16 @@
 #include <stdint.h>
 
 namespace PSX {
+namespace R3000A {
+
+class Instruction;
 
 class Disassembler /*: public Processor*/
 {
 public:
     Disassembler();
 
-    bool Parse(uint32_t code);
+    bool Parse(Instruction code);
     void PrintCode();
     void PrintChangedRegisters();
 
@@ -19,28 +22,28 @@ public:
     static Disassembler& GetInstance();
 
 private:
-    bool parseNop(uint32_t);
-    bool parseLoad(uint32_t code);
-    bool parseStore(uint32_t code);
-    bool parseALUI(uint32_t code);
-    bool parse3OpReg(uint32_t code);
-    bool parseShift(uint32_t code);
-    bool parseShiftVar(uint32_t code);
-    bool parseMulDiv(uint32_t code);
-    bool parseHILO(uint32_t code);
-    bool parseJ(uint32_t code);
-    bool parseJAL(uint32_t code);
-    bool parseJR(uint32_t code);
-    bool parseJALR(uint32_t code);
-    bool parseJumpReg(uint32_t code);
-    bool parseBranch(uint32_t code);
-    bool parseBranchZ(uint32_t code);
-    bool parseBranchZAL(uint32_t code);
-    bool parseCopz(uint32_t code);
+    bool parseNop(Instruction);
+    bool parseLoad(Instruction code);
+    bool parseStore(Instruction code);
+    bool parseALUI(Instruction code);
+    bool parse3OpReg(Instruction code);
+    bool parseShift(Instruction code);
+    bool parseShiftVar(Instruction code);
+    bool parseMulDiv(Instruction code);
+    bool parseHILO(Instruction code);
+    bool parseJ(Instruction code);
+    bool parseJAL(Instruction code);
+    bool parseJR(Instruction code);
+    bool parseJALR(Instruction code);
+    bool parseJumpReg(Instruction code);
+    bool parseBranch(Instruction code);
+    bool parseBranchZ(Instruction code);
+    bool parseBranchZAL(Instruction code);
+    bool parseCopz(Instruction code);
 
-    bool parseSpecial(uint32_t code);
-    bool parseBcond(uint32_t code);
-    // void HLECALL(uint32_t);
+    bool parseSpecial(Instruction code);
+    bool parseBcond(Instruction code);
+    // void HLECALL(Instruction);
 
 private:
     uint32_t pc0;
@@ -48,12 +51,15 @@ private:
     wxVector<wxString> operands;
     wxVector<wxString> changedRegisters;
 
-    static bool (Disassembler::*const OPCODES[64])(uint32_t);
-    static bool (Disassembler::*const SPECIALS[64])(uint32_t);
-    //static bool (*const BCONDS[64])(uint32_t);
-    //static bool (*const COPz[64])(uint32_t);
+protected:
+    static bool (Disassembler::*const OPCODES[64])(Instruction);
+    static bool (Disassembler::*const SPECIALS[64])(Instruction);
+    //static bool (*const BCONDS[64])(Instruction);
+    //static bool (*const COPz[64])(Instruction);
 };
 
-extern Disassembler& Disasm;
+}   // namespace R3000A
+
+extern R3000A::Disassembler& Disasm;
 
 }   // namespace PSX

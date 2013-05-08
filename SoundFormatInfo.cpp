@@ -14,5 +14,5 @@ void SoundFormatInfo::GetTag(const wxString &key, wxString *value) const
 void SoundFormatInfo::SetTag(const wxString &key, const wxString &value)
 {
     tags.insert(StrStrHash_wxImplementation_Pair(key, value));
-    wxMessageOutputDebug().Printf("Add tag: %s = %s", key, value);
+    // wxMessageOutputDebug().Printf("Add tag: %s = %s", key, value);
 }

@@ -16,14 +16,14 @@ namespace RootCounter {
 
 
 Counter counters[5];
-unsigned long nextCounter;
-unsigned long nextsCounter;
+unsigned int nextCounter;
+unsigned int nextsCounter;
 
-unsigned long &g_nextCounter = nextCounter;
-unsigned long &g_nextsCounter = nextsCounter;
+unsigned int &g_nextCounter = nextCounter;
+unsigned int &g_nextsCounter = nextsCounter;
 
 
-void update(unsigned long index)
+void update(unsigned int index)
 {
     counters[index].sCycle = R3000a.Cycle;
     if ( (!(counters[index].mode & 1) || (index != 2)) && counters[index].mode & 0x30 ) {
@@ -33,37 +33,39 @@ void update(unsigned long index)
             counters[index].Cycle = (0xffff - counters[index].count) * counters[index].rate / BIAS;
         }
     } else {
-        counters[index].Cycle = ULONG_MAX;
+        counters[index].Cycle = 0xffffffff;
     }
 
 }
 
-void Reset(unsigned long index)
+void Reset(unsigned int index)
 {
+    wxASSERT(0 <= index && index < 4);
+
     counters[index].count = 0;
     update(index);
 
     u32Href(0x1070) |= BFLIP32(counters[index].interrupt);
     if ( (counters[index].mode & 0x40) == 0 ) { // only 1 interrupt
-        counters[index].Cycle = ULONG_MAX;
+        counters[index].Cycle = 0xffffffff;
     }
 }
 
 void set()
 {
-    g_nextCounter = LONG_MAX;
+    g_nextCounter = 0x7fffffff;
     g_nextsCounter = R3000a.Cycle;
 
     for (int i = 0; i < counter_num; i++) {
-        long count;
-        if (counters[i].Cycle == ULONG_MAX) continue;
+        int count;
+        if (counters[i].Cycle == 0xffffffff) continue;
 
         count = counters[i].Cycle - (R3000a.Cycle - counters[i].sCycle);
         if (count < 0) {
             g_nextCounter = 0;
             break;
         }
-        if (count < static_cast<long>(g_nextCounter)) {
+        if (count < static_cast<int>(g_nextCounter)) {
             g_nextCounter = count;
         }
     }
@@ -82,7 +84,7 @@ void Init()
 
     counters[0].rate = 1; counters[0].interrupt = 0x10;
     counters[1].rate = 1; counters[1].interrupt = 0x20;
-    counters[2].rate = 1; counters[1].interrupt = 0x40;
+    counters[2].rate = 1; counters[2].interrupt = 0x40;
 
     counters[3].interrupt = 1;
     counters[3].mode = 0x58;    // the VSync counter mode
@@ -94,6 +96,8 @@ void Init()
     update(0); update(1); update(2); update(3);
     set();
     last = 0;
+
+    wxMessageOutputDebug().Printf(wxT("Initialized PSX root counter."));
 }
 
 
@@ -118,7 +122,7 @@ void Update()
 }
 
 
-void WriteCount(unsigned long index, unsigned long value)
+void WriteCount(unsigned int index, unsigned int value)
 {
     counters[index].count = value;
     update(index);
@@ -126,7 +130,7 @@ void WriteCount(unsigned long index, unsigned long value)
 }
 
 
-void WriteMode(unsigned long index, unsigned long value)
+void WriteMode(unsigned int index, unsigned int value)
 {
     counters[index].mode = value;
     counters[index].count = 0;
@@ -164,7 +168,7 @@ void WriteMode(unsigned long index, unsigned long value)
 }
 
 
-void WriteTarget(unsigned long index, unsigned long value)
+void WriteTarget(unsigned int index, unsigned int value)
 {
     counters[index].target = value;
     update(index);
@@ -172,9 +176,9 @@ void WriteTarget(unsigned long index, unsigned long value)
 }
 
 
-unsigned long ReadCount(unsigned long index)
+unsigned int ReadCount(unsigned int index)
 {
-    unsigned long ret;
+    unsigned int ret;
 
     if (counters[index].mode & 0x08) {  // count to value in target
         ret = counters[index].count + BIAS*((R3000a.Cycle - counters[index].sCycle) / counters[index].rate);
@@ -186,7 +190,7 @@ unsigned long ReadCount(unsigned long index)
 }
 
 
-unsigned long SPURun()
+unsigned int SPURun()
 {
     uint32_t cycles;
     if (R3000a.Cycle < last) {
@@ -205,18 +209,18 @@ unsigned long SPURun()
 
 void DeadLoopSkip()
 {
-    wxMessageOutputDebug().Printf(wxT("CounterDeadLoopSkip"));
+    // wxMessageOutputDebug().Printf(wxT("CounterDeadLoopSkip"));
 
-    long min, lmin;
+    int32_t min, lmin;
     uint32_t cycle = R3000a.Cycle;
 
-    lmin = LONG_MAX;
+    lmin = 0x7fffffff;
 
     for (int i = 0; i < 4; i++) {
-        if (counters[i].Cycle != ULONG_MAX) {
+        if (counters[i].Cycle != 0xffffffff) {
             min = counters[i].Cycle;
             min -= cycle - counters[i].sCycle;
-            wxASSERT(min >= 0);
+            // wxASSERT(min >= 0);
             if (min < lmin) {
                 lmin = min;
             }

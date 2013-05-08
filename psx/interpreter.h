@@ -37,29 +37,29 @@ public:
     InterpreterThread* Execute();
     void Shutdown();
 private:
-    void ExecuteOpcode(uint32_t code);
+    void ExecuteOpcode(Instruction code);
 
 public:
     static Interpreter& GetInstance();
 
 private:
-    static void delayRead(uint32_t code, uint32_t reg, uint32_t branch_pc);
-    static void delayWrite(uint32_t code, uint32_t reg, uint32_t branch_pc);
-    static void delayReadWrite(uint32_t code, uint32_t reg, uint32_t branch_pc);
+    static void delayRead(Instruction code, uint32_t reg, uint32_t branch_pc);
+    static void delayWrite(Instruction code, uint32_t reg, uint32_t branch_pc);
+    static void delayReadWrite(Instruction code, uint32_t reg, uint32_t branch_pc);
 
-    static bool delayNOP(uint32_t code, uint32_t reg, uint32_t branch_pc);
-    static bool delayRs(uint32_t code, uint32_t reg, uint32_t branch_pc);
-    static bool delayWt(uint32_t code, uint32_t reg, uint32_t branch_pc);
-    static bool delayWd(uint32_t code, uint32_t reg, uint32_t branch_pc);
-    static bool delayRsRt(uint32_t code, uint32_t reg, uint32_t branch_pc);
-    static bool delayRsWt(uint32_t code, uint32_t reg, uint32_t branch_pc);
-    static bool delayRsWd(uint32_t code, uint32_t reg, uint32_t branch_pc);
-    static bool delayRtWd(uint32_t code, uint32_t reg, uint32_t branch_pc);
-    static bool delayRsRtWd(uint32_t code, uint32_t reg, uint32_t branch_pc);
+    static bool delayNOP(Instruction code, uint32_t reg, uint32_t branch_pc);
+    static bool delayRs(Instruction code, uint32_t reg, uint32_t branch_pc);
+    static bool delayWt(Instruction code, uint32_t reg, uint32_t branch_pc);
+    static bool delayWd(Instruction code, uint32_t reg, uint32_t branch_pc);
+    static bool delayRsRt(Instruction code, uint32_t reg, uint32_t branch_pc);
+    static bool delayRsWt(Instruction code, uint32_t reg, uint32_t branch_pc);
+    static bool delayRsWd(Instruction code, uint32_t reg, uint32_t branch_pc);
+    static bool delayRtWd(Instruction code, uint32_t reg, uint32_t branch_pc);
+    static bool delayRsRtWd(Instruction code, uint32_t reg, uint32_t branch_pc);
 
-    typedef bool (*const DelayFunc)(uint32_t, uint32_t, uint32_t);
+    typedef bool (*const DelayFunc)(Instruction, uint32_t, uint32_t);
 
-    static bool delaySLL(uint32_t code, uint32_t reg, uint32_t branch_pc);
+    static bool delaySLL(Instruction code, uint32_t reg, uint32_t branch_pc);
     static DelayFunc delaySRL, delaySRA;
     static DelayFunc delayJR, delayJALR;
     static DelayFunc delayADD, delayADDU;
@@ -68,17 +68,17 @@ private:
     static DelayFunc delayMTHI, delayMTLO;
     static DelayFunc delayMULT, delayDIV;
 
-    static bool delaySPECIAL(uint32_t, uint32_t, uint32_t);
+    static bool delaySPECIAL(Instruction, uint32_t, uint32_t);
     static DelayFunc delayBCOND;
 
-    static bool delayJAL(uint32_t, uint32_t, uint32_t);
+    static bool delayJAL(Instruction, uint32_t, uint32_t);
     static DelayFunc delayBEQ, delayBNE;
     static DelayFunc delayBLEZ, delayBGTZ;
     static DelayFunc delayADDI, delayADDIU;
     static DelayFunc delayLUI;
 
-    static bool delayCOP0(uint32_t, uint32_t, uint32_t);
-    static bool delayLWL(uint32_t, uint32_t, uint32_t);
+    static bool delayCOP0(Instruction, uint32_t, uint32_t);
+    static bool delayLWL(Instruction, uint32_t, uint32_t);
     static DelayFunc delayLWR;
     static DelayFunc delayLB, delayLH, delayLW, delayLBU, delayLHU;
     static DelayFunc delaySB, delaySH, delaySWL, delaySW, delaySWR;
@@ -88,118 +88,117 @@ private:
     static void doBranch(uint32_t branch_pc);
 
     // Opcodes
-    static void LB(uint32_t);
-    static void LBU(uint32_t);
-    static void LH(uint32_t);
-    static void LHU(uint32_t);
-    static void LW(uint32_t);
-    static void LWL(uint32_t);
-    static void LWR(uint32_t);
+    static void LB(Instruction);
+    static void LBU(Instruction);
+    static void LH(Instruction);
+    static void LHU(Instruction);
+    static void LW(Instruction);
+    static void LWL(Instruction);
+    static void LWR(Instruction);
 
-    static void SB(uint32_t);
-    static void SH(uint32_t);
-    static void SW(uint32_t);
-    static void SWL(uint32_t);
-    static void SWR(uint32_t);
+    static void SB(Instruction);
+    static void SH(Instruction);
+    static void SW(Instruction);
+    static void SWL(Instruction);
+    static void SWR(Instruction);
 
-    static void ADDI(uint32_t);
-    static void ADDIU(uint32_t);
-    static void SLTI(uint32_t);
-    static void SLTIU(uint32_t);
-    static void ANDI(uint32_t);
-    static void ORI(uint32_t);
-    static void XORI(uint32_t);
-    static void LUI(uint32_t);
+    static void ADDI(Instruction);
+    static void ADDIU(Instruction);
+    static void SLTI(Instruction);
+    static void SLTIU(Instruction);
+    static void ANDI(Instruction);
+    static void ORI(Instruction);
+    static void XORI(Instruction);
+    static void LUI(Instruction);
 
-    static void ADD(uint32_t);
-    static void ADDU(uint32_t);
-    static void SUB(uint32_t);
-    static void SUBU(uint32_t);
-    static void SLT(uint32_t);
-    static void SLTU(uint32_t);
-    static void AND(uint32_t);
-    static void OR(uint32_t);
-    static void XOR(uint32_t);
-    static void NOR(uint32_t);
+    static void ADD(Instruction);
+    static void ADDU(Instruction);
+    static void SUB(Instruction);
+    static void SUBU(Instruction);
+    static void SLT(Instruction);
+    static void SLTU(Instruction);
+    static void AND(Instruction);
+    static void OR(Instruction);
+    static void XOR(Instruction);
+    static void NOR(Instruction);
 
-    static void SLL(uint32_t);
-    static void SRL(uint32_t);
-    static void SRA(uint32_t);
-    static void SLLV(uint32_t);
-    static void SRLV(uint32_t);
-    static void SRAV(uint32_t);
+    static void SLL(Instruction);
+    static void SRL(Instruction);
+    static void SRA(Instruction);
+    static void SLLV(Instruction);
+    static void SRLV(Instruction);
+    static void SRAV(Instruction);
 
-    static void MULT(uint32_t);
-    static void MULTU(uint32_t);
-    static void DIV(uint32_t);
-    static void DIVU(uint32_t);
-    static void MFHI(uint32_t);
-    static void MFLO(uint32_t);
-    static void MTHI(uint32_t);
-    static void MTLO(uint32_t);
+    static void MULT(Instruction);
+    static void MULTU(Instruction);
+    static void DIV(Instruction);
+    static void DIVU(Instruction);
+    static void MFHI(Instruction);
+    static void MFLO(Instruction);
+    static void MTHI(Instruction);
+    static void MTLO(Instruction);
 
-    static void J(uint32_t);
-    static void JAL(uint32_t);
-    static void JR(uint32_t);
-    static void JALR(uint32_t);
-    static void BEQ(uint32_t);
-    static void BNE(uint32_t);
-    static void BLEZ(uint32_t);
-    static void BGTZ(uint32_t);
-    static void BLTZ(uint32_t);
-    static void BGEZ(uint32_t);
-    static void BLTZAL(uint32_t);
-    static void BGEZAL(uint32_t);
+    static void J(Instruction);
+    static void JAL(Instruction);
+    static void JR(Instruction);
+    static void JALR(Instruction);
+    static void BEQ(Instruction);
+    static void BNE(Instruction);
+    static void BLEZ(Instruction);
+    static void BGTZ(Instruction);
+    static void BLTZ(Instruction);
+    static void BGEZ(Instruction);
+    static void BLTZAL(Instruction);
+    static void BGEZAL(Instruction);
 
-    static void BCOND(uint32_t);
-    static void SYSCALL(uint32_t);
-    static void BREAK(uint32_t);
-    static void SPECIAL(uint32_t);
+    static void BCOND(Instruction);
+    static void SYSCALL(Instruction);
+    static void BREAK(Instruction);
+    static void SPECIAL(Instruction);
 
-    static void LWC0(uint32_t);
-    static void LWC1(uint32_t);
-    static void LWC2(uint32_t);
-    static void LWC3(uint32_t);
-    static void SWC0(uint32_t);
-    static void SWC1(uint32_t);
-    static void SWC2(uint32_t);
-    static void SWC3(uint32_t);
-    static void COP0(uint32_t);
-    static void COP1(uint32_t);
-    static void COP2(uint32_t);
-    static void COP3(uint32_t);
+    static void LWC0(Instruction);
+    static void LWC1(Instruction);
+    static void LWC2(Instruction);
+    static void LWC3(Instruction);
+    static void SWC0(Instruction);
+    static void SWC1(Instruction);
+    static void SWC2(Instruction);
+    static void SWC3(Instruction);
+    static void COP0(Instruction);
+    static void COP1(Instruction);
+    static void COP2(Instruction);
+    static void COP3(Instruction);
 
-    static void HLECALL(uint32_t);
+    static void HLECALL(Instruction);
 
 private:
     static const DelayFunc delaySpecials[64];
     static const DelayFunc delayOpcodes[64];
 
-    static void (*OPCODES[64])(uint32_t);
-    static void (*SPECIALS[64])(uint32_t);
-    static void (*BCONDS[24])(uint32_t);
-    static void (*COPz[16])(uint32_t);
+    static void (*OPCODES[64])(Instruction);
+    static void (*SPECIALS[64])(Instruction);
+    static void (*BCONDS[24])(Instruction);
+    static void (*COPz[16])(Instruction);
 
     static InterpreterThread* thread;
 };
 
 
-inline void Interpreter::ExecuteOpcode(uint32_t code) {
-    OPCODES[opcode_(code)](code);
+inline void Interpreter::ExecuteOpcode(Instruction code) {
+    OPCODES[code.Opcode()](code);
 }
 
 inline void Interpreter::ExecuteOnce()
 {
     uint32_t pc = R3000a.PC;
-    uint32_t code = u32M(pc);
+    Instruction code(u32M(pc));
     pc += 4;
     ++R3000a.Cycle;
     R3000a.PC = pc;
     //last_code = code;
-    if (pc == 0x800176FC - 4) {
-        // wxMessageOutputDebug().Printf("DMA write");
-        Disasm.DumpRegisters();
-    }
+    //if (pc == 0x00001e94 - 4) {
+    //    wxMessageOutputDebug().Printf("Int8");
+    //}
     ExecuteOpcode(code);
 }
 

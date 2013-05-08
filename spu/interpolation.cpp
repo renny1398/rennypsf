@@ -182,6 +182,9 @@ void GaussianInterpolation::Start()
     AbstractInterpolation::Start();
     spos = 0x30000;
     gpos = 0;
+    for (int i = 0; i < 4; i++) {
+        samples[i] = 0;
+    }
 }
 
 
@@ -195,29 +198,50 @@ void GaussianInterpolation::storeVal(int fa)
 int GaussianInterpolation::getVal() const
 {
     const int gval0 = samples[gpos];
-    const int gval1 = samples[gpos+1];
-    const int gval2 = samples[gpos+2];
-    const int gval3 = samples[gpos+3];
+    const int gval1 = samples[(gpos+1)&3];
+    const int gval2 = samples[(gpos+2)&3];
+    const int gval3 = samples[(gpos+3)&3];
     int vl = (spos >> 6) & ~3;
-    int vr = (gauss_table[vl] * gval0) & ~2047;
-    vr += (gauss_table[vl+1] * gval1) & ~2047;
-    vr += (gauss_table[vl+2] * gval2) & ~2047;
-    vr += (gauss_table[vl+3] * gval3) & ~2047;
-    return vr >> 11;
+    int vr = (gauss_table[vl] * gval0) >> 9;
+    vr += (gauss_table[vl+1] * gval1) >> 9;
+    vr += (gauss_table[vl+2] * gval2) >> 9;
+    vr += (gauss_table[vl+3] * gval3) >> 9;
+    return vr >> 2;
+    // int vr = (gauss_table[vl] * gval0) & ~2047;
+    // vr += (gauss_table[vl+1] * gval1) & ~2047;
+    // vr += (gauss_table[vl+2] * gval2) & ~2047;
+    // vr += (gauss_table[vl+3] * gval3) & ~2047;
+    // return vr >> 11;
 }
 
 
+void CubicInterpolation::Start()
+{
+    AbstractInterpolation::Start();
+    spos = 0x30000;
+    gpos = 0;
+    for (int i = 0; i < 4; i++) {
+        samples[i] = 0;
+    }
+}
 
-/*
+
+void CubicInterpolation::storeVal(int fa)
+{
+    samples[gpos] = fa;
+    gpos = (gpos+1) & 3;
+}
+
+
 int CubicInterpolation::getVal() const
 {
     const int gval0 = samples[gpos];
-    const int gval1 = samples[gpos+1];
-    const int gval2 = samples[gpos+2];
-    const int gval3 = samples[gpos+3];
+    const int gval1 = samples[(gpos+1)&3];
+    const int gval2 = samples[(gpos+2)&3];
+    const int gval3 = samples[(gpos+3)&3];
     const int xd = (spos >> 1) + 1;
 
-    fa = gval3 - 3*gval2 + 3*gval1 - gval0;
+    int fa = gval3 - 3*gval2 + 3*gval1 - gval0;
     fa *= (xd - (2<<15)) / 6;
     fa >>= 15;
     fa += gval2 - 2*gval1 + gval0;
@@ -230,6 +254,6 @@ int CubicInterpolation::getVal() const
 
     return fa;
 }
-*/
+
 
 }   // namespace SPU

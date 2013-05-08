@@ -8,22 +8,22 @@ namespace RootCounter {
 void Init();
 void Update();
 void UpdateVSyncRate();
-void WriteCount(unsigned long index, unsigned long value);
-void WriteMode(unsigned long index, unsigned long value);
-void WriteTarget(unsigned long index, unsigned long value);
-unsigned long ReadCount(unsigned long index);
+void WriteCount(unsigned int index, unsigned int value);
+void WriteMode(unsigned int index, unsigned int value);
+void WriteTarget(unsigned int index, unsigned int value);
+unsigned int ReadCount(unsigned int index);
 
 struct Counter
 {
-    unsigned long count, mode, target;
-    unsigned long sCycle, Cycle;    // sCycle: start of cycle, Cycle: end_cycle - start_cycle
-    unsigned long rate, interrupt;
+    unsigned int count, mode, target;
+    unsigned int sCycle, Cycle;    // sCycle: start of cycle, Cycle: end_cycle - start_cycle
+    unsigned int rate, interrupt;
 };
 extern Counter counters[5];
-extern unsigned long nextCounter, nextsCounter;
+extern unsigned int nextCounter, nextsCounter;
 
 
-unsigned long SPURun();
+unsigned int SPURun();
 void DeadLoopSkip();
 
 }   // namespace RootCounter

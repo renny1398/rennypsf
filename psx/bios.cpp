@@ -65,7 +65,8 @@ struct TCB {
 
 static uint32_t *jmp_int;
 
-static uint32_t regs[35];
+//static uint32_t regs[35];
+static GeneralPurposeRegisters savedGPR;
 static EvCB *Event;
 
 //static EvCB *HwEV; // 0xf0
@@ -82,6 +83,7 @@ static uint32_t CurThread;
 
 
 static inline void softCall(uint32_t pc) {
+    wxASSERT(pc != 0x80001000);
     PC = pc;
     RA = 0x80001000;
     do {
@@ -156,6 +158,7 @@ static void setjmp()    // A0:13
     for (int i = 0; i < 8; i++) {
         jmp_buf[3+i] = BFLIP32(GPR.S[i]);
     }
+    jmp_buf[11] = BFLIP32(GP);
     V0 = 0;
     PC = RA;
 }
@@ -689,9 +692,10 @@ static void ChangeTh()  // B0:10
 
 static void ReturnFromException()   // B0:17
 {
-    ::memcpy(GPR.R, regs, 32*sizeof(uint32_t));
-    GPR.LO = regs[32];
-    GPR.HI = regs[33];
+//    ::memcpy(GPR.R, regs, 32*sizeof(uint32_t));
+//    GPR.LO = regs[32];
+//    GPR.HI = regs[33];
+    GPR = savedGPR;
     uint32_t pc = CP0.EPC;
     if (CP0.CAUSE & 0x80000000) {
         pc += 4;
@@ -890,7 +894,7 @@ void Shutdown() {}
 
 void Interrupt()
 {
-    wxMessageOutputDebug().Printf(wxT("Interrupt (PC = 0x%08x)"), R3000a.PC-4);
+    // wxMessageOutputDebug().Printf(wxT("Interrupt (PC = 0x%08x)"), R3000a.PC-4);
     if ( BFLIP32(u32H(0x1070)) & 1 ) {
         if (RcEV[3][1].status == BFLIP32(EVENT_STATUS_ACTIVE)) {
             softCall(BFLIP32(RcEV[3][1].fhandler));
@@ -909,8 +913,6 @@ void Interrupt()
     }
 }
 
-
-static GeneralPurposeRegisters savedGPR;
 
 void Exception()
 {

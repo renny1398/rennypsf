@@ -21,7 +21,7 @@ void SPU::ReadDMAMemory(uint32_t psxAddr, uint32_t size)
 {
     uint32_t spuAddr = Addr;
     uint16_t* p = u16Mptr(psxAddr);
-    wxMessageOutputDebug().Printf(wxT("Transfer Sound Buffer from SPU(0x%08x) to PSX(0x%08x) by 0x%05x bytes"), spuAddr, psxAddr, size);
+    // wxMessageOutputDebug().Printf(wxT("Transfer Sound Buffer from SPU(0x%08x) to PSX(0x%08x) by 0x%05x bytes"), spuAddr, psxAddr, size);
 
 #ifdef MSB_FIRST    // for big-endian architecture
     size /= 2;
@@ -62,7 +62,8 @@ void SPU::WriteDMAMemory(uint32_t psxAddr, uint32_t size)
     wxASSERT(size < 0x80000);
     uint32_t spuAddr = Addr;
     uint16_t* p = u16Mptr(psxAddr);
-    wxMessageOutputDebug().Printf(wxT("Transfer Sound Buffer from PSX(0x%08x) to SPU(0x%08x) by 0x%05x bytes"), psxAddr, spuAddr, size);
+
+    // wxMessageOutputDebug().Printf(wxT("Transfer Sound Buffer from PSX(0x%08x) to SPU(0x%08x) by 0x%05x bytes"), psxAddr, spuAddr, size);
 
 #ifdef MSB_FIRST    // for big-endian architecture
     size /= 2;

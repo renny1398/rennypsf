@@ -305,7 +305,7 @@ void write1xx2(ChannelInfo& channelInfo, uint16_t volume)
             volume = 0x3fff - (volume&0x3fff);
         }
     }
-    channelInfo.iLeftVolume = volume;
+    channelInfo.iRightVolume = volume;
 }
 
 // Set pitch
@@ -403,7 +403,7 @@ void voiceON(int start, int end, uint16_t flag)
 void write1d88(uint16_t flags)
 {
 //    voiceON(0, 16, flag);
-    wxMessageOutputDebug().Printf(wxT("Voice ON (0-15)"));
+    // wxMessageOutputDebug().Printf(wxT("Voice ON (0-15)"));
     Spu.Channels.SoundNew(flags);
 }
 
@@ -411,7 +411,7 @@ void write1d88(uint16_t flags)
 void write1d8a(uint16_t flags)
 {
 //    voiceON(16, 24, flag);
-    wxMessageOutputDebug().Printf(wxT("Voice ON (16-23)"));
+    // wxMessageOutputDebug().Printf(wxT("Voice ON (16-23)"));
     Spu.Channels.SoundNew(static_cast<uint32_t>(flags) << 16);
 }
 
@@ -428,14 +428,14 @@ inline void voiceOFF(int start, int end, uint16_t flag)
 // Voice OFF (0-15)
 void write1d8c(uint16_t flag)
 {
-    wxMessageOutputDebug().Printf(wxT("Voice OFF (0-15)"));
+    // wxMessageOutputDebug().Printf(wxT("Voice OFF (0-15)"));
     voiceOFF(0, 16, flag);
 }
 
 // Voice 0FF (16-23)
 void write1d8e(uint16_t flag)
 {
-    wxMessageOutputDebug().Printf(wxT("Voice OFF (16-23)"));
+    // wxMessageOutputDebug().Printf(wxT("Voice OFF (16-23)"));
     voiceOFF(16, 24, flag);
 }
 
