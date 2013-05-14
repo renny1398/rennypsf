@@ -1,6 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include <wx/ptr_scpd.h>
+#include <wx/thread.h>
 
 #include "reverb.h"
 #include "interpolation.h"
@@ -39,36 +40,13 @@ public:
 };
 */
 
-class Volume
-{
-    int32_t volume;
-public:
-    uint16_t Int15() const {
-        return volume & 0x3fff;
-    }
-    void Int15(uint16_t vol) {
-        wxASSERT(vol < 0x8000);
-        if (vol > 0x3fff) {
-            volume = vol - 0x8000;
-            wxASSERT(volume < 0);
-        } else {
-            volume = vol;
-        }
-    }
+enum ADSR_STATE {
+    ADSR_STATE_ATTACK,
+    ADSR_STATE_DECAY,
+    ADSR_STATE_SUSTAIN,
+    ADSR_STATE_RELEASE
 };
 
-class Pitch
-{
-    uint32_t pitch;
-public:
-    uint16_t Uint14() const {
-        return pitch;
-    }
-    void Uint14(uint16_t p) {
-        pitch = p;
-    }
-};
-*/
 
 struct ADSRInfo
 {
@@ -88,13 +66,15 @@ struct ADSRInfo
     long           lVolume; // from -1024 to 1023
 };
 
+
 class ADSRInfoEx
 {
 public:
     void Start();
 
 public:
-    int            State;
+
+    ADSR_STATE     State;
     bool           AttackModeExp;
     int            AttackRate;
     int            DecayRate;
@@ -247,6 +227,30 @@ inline ChannelInfo& ChannelArray::operator [](int i) {
 ////////////////////////////////////////////////////////////////////////
 
 
+
+////////////////////////////////////////////////////////////////////////
+// SPU Thread
+////////////////////////////////////////////////////////////////////////
+
+class SPU;
+
+class SPUThread : public wxThread
+{
+public:
+    SPUThread(SPU* pSPU);
+
+protected:
+    virtual void* Entry();
+
+private:
+    SPU* pSPU_;
+    int numSamples_;
+
+    friend class SPU;
+};
+
+
+
 ////////////////////////////////////////////////////////////////////////
 // SPU interface (experimental)
 ////////////////////////////////////////////////////////////////////////
@@ -272,6 +276,8 @@ public:
     void SetLength(int stop, int fade);
     void Close();
     void Flush();
+
+    bool IsRunning() const;
 
 protected:
     void SetupStreams();
@@ -331,12 +337,19 @@ public:
     int GetPCMNumber() const;
     int GetPCM(int index, void* pcm, int* loop) const;
 
+
+    // Multiprocess
+    void GetReadyToSync();
+    void ProcessSamples(int numSamples);
+    friend class SPUThread;
+
 private:
 
     static const int NSSIZE = 45;
 
     PSF *m_psf;
 
+    bool isPlaying_;    // only used on multithread mode??
 
     // PSX Buffer & Addresses
     // unsigned short m_regArea[10000];
@@ -406,6 +419,18 @@ private:
     int  iReverbRepeat;
     int  iReverbNum;
 
+    // DMA
+    wxCriticalSection csDMAReadable_;
+    wxCriticalSection csDMAWritable_;
+
+    // Multithread
+    SPUThread* thread_;
+    bool isReadyToProcess_;
+    wxMutex mutexReadyToProcess_;
+    wxCondition condReadyToProcess_;
+    wxMutex mutexProcessSamples_;
+    wxCondition condProcessSamples_;
+
     friend class ChannelInfo;
 
     // Utilities
@@ -447,5 +472,6 @@ inline void SPU::SetIRQAddress(uint32_t addr) {
 
 
 }   // namespace SPU
+
 
 extern SPU::SPU& Spu;

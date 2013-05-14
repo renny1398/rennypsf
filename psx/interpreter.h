@@ -11,11 +11,16 @@ namespace R3000A {
 class InterpreterThread: public wxThread
 {
 protected:
-    InterpreterThread(): wxThread(wxTHREAD_DETACHED) {}
+    InterpreterThread();
+
+public:
+    void Shutdown();
 
 private:
     ExitCode Entry();
     void OnExit();
+
+    bool isRunning_;
 
     friend class Interpreter;
 };

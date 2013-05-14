@@ -597,7 +597,8 @@ void (*const writeGlobalRegisterLUT[])(uint16_t) = {
 void SPU::WriteRegister(uint32_t reg, uint16_t val)
 {
     wxASSERT((reg & 0xfffffe00) == 0x1f801c00);
-    // TODO: mutex lock
+
+    wxCriticalSectionLocker csLocker(csDMAWritable_);
 
     //wxMessageOutputDebug().Printf("SPUwriteRegister at 0x%08x", reg);
 

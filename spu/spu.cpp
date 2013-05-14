@@ -32,7 +32,7 @@ void ChannelInfo::StartSound()
     wxASSERT(bNew == true);
 
     ADSRX.Start();
-    // StartREVERB();
+    Spu.StartReverb(*this);
 
     pCurr = pStart;
 
@@ -207,7 +207,53 @@ void SPU::RemoveStreams()
 }
 
 
-SPU::SPU(): Memory((uint8_t*)m_spuMem)
+
+SPUThread::SPUThread(SPU *pSPU)
+    : wxThread(wxTHREAD_JOINABLE), pSPU_(pSPU)
+{
+}
+
+
+void* SPUThread::Entry()
+{
+    wxASSERT(pSPU_ != 0);
+    SPU* pSPU = pSPU_;
+    pSPU->isPlaying_ = true;  // is not absolutely playing PSF
+    numSamples_ = 0;
+
+    wxMessageOutputDebug().Printf(wxT("Started SPU thread."));
+    do {
+        pSPU->mutexReadyToProcess_.Lock();
+        pSPU->isReadyToProcess_ = true;
+        pSPU->condReadyToProcess_.Broadcast();
+        while (pSPU->isReadyToProcess_ == true) {
+            pSPU->condReadyToProcess_.Wait();
+        }
+        pSPU->mutexReadyToProcess_.Unlock();
+        wxASSERT(pSPU->csDMAWritable_.TryEnter() == false);
+
+        int numSamples = numSamples_;
+        while (numSamples) {
+            numSamples--;
+            for (int ch = 0; ch < 24; ch++) {
+                pSPU->Channels[ch].Update();
+            }
+            wxGetApp().GetSoundManager()->Flush();
+        }
+        numSamples_ = 0;
+
+        pSPU->csDMAWritable_.Leave();
+
+    } while (pSPU_->isPlaying_);
+    wxMessageOutputDebug().Printf(wxT("Terminated SPU thread."));
+    return 0;
+}
+
+
+
+SPU::SPU()
+    : condReadyToProcess_(mutexReadyToProcess_), condProcessSamples_(mutexProcessSamples_),
+      Memory((uint8_t*)m_spuMem)
 {
     Init();
 }
@@ -253,6 +299,11 @@ void SPU::Open()
     poo = 0;
     m_pS = (short*)m_pSpuBuffer;
 
+    thread_ = new SPUThread(this);
+    thread_->Create();
+    isReadyToProcess_ = false;
+    thread_->Run();
+
     nPCM_ = 0;
 
     wxMessageOutputDebug().Printf(wxT("Reset SPU."));
@@ -261,7 +312,14 @@ void SPU::Open()
 void SPU::Close()
 {
     RemoveStreams();
+    isPlaying_ = false;
 }
+
+
+bool SPU::IsRunning() const {
+    return isPlaying_;
+}
+
 
 void SPU::Async(uint32_t cycles)
 {
@@ -273,6 +331,9 @@ void SPU::Async(uint32_t cycles)
     if (do_samples == 0) return;
     poo -= do_samples * 384;
 
+    GetReadyToSync();
+    ProcessSamples(do_samples);
+/*
     while (do_samples) {
         do_samples--;
         //*(m_pS+0) = 0;
@@ -287,6 +348,33 @@ void SPU::Async(uint32_t cycles)
         //    m_pS = (short*)m_pSpuBuffer;
         //}
     }
+*/
+}
+
+
+void SPU::GetReadyToSync()
+{
+    wxASSERT(isPlaying_);
+
+    //mutexReadyToProcess_.Lock();
+    wxMutexLocker lock(mutexReadyToProcess_);
+    while (isReadyToProcess_ == false) {
+        condReadyToProcess_.Wait();
+    }
+}
+
+
+void SPU::ProcessSamples(int numSamples)
+{
+    wxASSERT(isReadyToProcess_);
+
+    do {
+        wxMutexLocker locker(mutexReadyToProcess_);
+        isReadyToProcess_ = false;
+        thread_->numSamples_ = numSamples;
+        csDMAWritable_.Enter();
+    } while (false);
+    condReadyToProcess_.Broadcast();
 }
 
 

@@ -47,10 +47,11 @@ bool PSF::Stop()
 {
     PSX::Interpreter_.Shutdown();
     m_thread = 0;
+    // Spu.Close();
     PSX::Memory::Reset();
+    wxMessageOutputDebug().Printf(wxT("PSF is stopped."));
     return true;
 }
-
 
 
 

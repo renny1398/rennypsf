@@ -930,17 +930,32 @@ void Interpreter::HLECALL(Instruction code) {
 // Thread
 ////////////////////////////////////////////////////////////////
 
+InterpreterThread::InterpreterThread()
+    : wxThread(wxTHREAD_JOINABLE), isRunning_(false)
+{}
+
+
 wxThread::ExitCode InterpreterThread::Entry()
 {
     wxMessageOutputDebug().Printf(wxT("PSX Threads is started."));
 
+    isRunning_ = true;
     do {
         if (RootCounter::SPURun() == 0) break;
         //#warning PSX::Interpreter::Thread don't call SPUendflush
         Interpreter_.ExecuteOnce();
-    } while (TestDestroy() == false);
+    } while (isRunning_);
     return 0;
 }
+
+
+void InterpreterThread::Shutdown()
+{
+    if (isRunning_ == false) return;
+    isRunning_ = false;
+    wxThread::Wait();
+}
+
 
 void InterpreterThread::OnExit()
 {
@@ -971,7 +986,8 @@ void Interpreter::Shutdown()
 {
     if (thread == 0) return;
     if (thread->IsRunning() == false) return;
-    thread->Delete();
+    thread->Shutdown();
+    delete thread;  // WARN
     thread = 0;
 }
 
