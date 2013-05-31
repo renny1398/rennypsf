@@ -10,7 +10,8 @@ ChannelFrame::ChannelFrame(wxWindow* parent): wxFrame(parent, wxID_ANY, _("Chann
     SetBackgroundColour(*wxBLACK);
     ClearBackground();
 
-    panel->SetSizer(sizer);
+    sizer->Add(panel);
+    this->SetSizer(sizer);
     SetAutoLayout(true);
-    //sizer->Fit(this);
+    sizer->Fit(this);
 }

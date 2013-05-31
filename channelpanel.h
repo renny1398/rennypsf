@@ -3,6 +3,7 @@
 #include <wx/frame.h>
 #include <wx/timer.h>
 #include <wx/vector.h>
+#include <wx/hashset.h>
 
 class wxBoxSizer;
 class wxStaticText;
@@ -29,8 +30,6 @@ private:
 
 
 
-
-
 class VolumeBar : public wxPanel
 {
 public:
@@ -39,8 +38,10 @@ public:
     void paintEvent(wxPaintEvent&);
     void paintNow();
 
+protected:
     void render(wxDC& dc);
 
+public:
     int GetValue() const;
     void SetValue(int value);
 
@@ -50,8 +51,45 @@ private:
     int max_;
 
 
-    DECLARE_EVENT_TABLE()
+    wxDECLARE_EVENT_TABLE();
 };
+
+
+WX_DECLARE_HASH_SET(int, wxIntegerHash, wxIntegerEqual, IntSet);
+
+class KeyboardWidget : public wxPanel
+{
+public:
+    KeyboardWidget(wxWindow* parent, int keyWidth, int keyHeight);
+
+public:
+    bool PressKey(int keyIndex);
+    bool PressKey(double pitch);
+    void ReleaseKey();
+    void ReleaseKey(int keyIndex);
+
+protected:
+    void paintEvent(wxPaintEvent&);
+    void paintNow();
+    void render(wxDC& dc);
+
+protected:
+    int calcKeyboardWidth();
+
+private:
+    int keyWidth_, keyHeight_;
+    int octaveMin_, octaveMax_;
+
+    IntSet pressedKeys_;
+    bool muted_;
+
+    static const int defaultOctaveMin = -1;
+    static const int defaultOctaveMax = 9;
+
+    wxDECLARE_EVENT_TABLE();
+};
+
+
 
 
 inline int VolumeBar::GetValue() const {

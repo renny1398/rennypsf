@@ -5,6 +5,8 @@
 
 #include "reverb.h"
 #include "interpolation.h"
+#include "soundbank.h"
+
 
 namespace SPU
 {
@@ -117,13 +119,13 @@ public:
     //int             sinc;
     //int             SB[32+32];                          // sound bank
     InterpolationPtr pInterpolation;
-    int32_t         LPCM[28];
+    // int32_t         LPCM[28];
 
     int             sval;
-
-    unsigned char*  pStart;                             // start ptr into sound mem
-    unsigned char*  pCurr;                              // current pos in sound mem
-    unsigned char*  pLoop;                              // loop ptr in sound mem
+    SamplingToneIterator itrTone;
+    // unsigned char*  pStart;                             // start ptr into sound mem
+    // unsigned char*  pCurr;                              // current pos in sound mem
+    // unsigned char*  pLoop;                              // loop ptr in sound mem
 
     bool            isOn;                                // is channel active (sample playing?)
     bool            isStopped;                              // is channel stopped (sample _can_ still be playing, ADSR Release phase)
@@ -143,9 +145,9 @@ public:
     bool            isRightExpSlope;
     bool            isRightDecreased;
     int             iRawPitch;                          // raw pitch (0x0000 - 0x3fff)
-    int             iIrqDone;                           // debug irq done flag
-    int             s_1;                                // last decoding infos
-    int             s_2;
+    // int             iIrqDone;                           // debug irq done flag
+    // int             s_1;                                // last decoding infos
+    // int             s_2;
     bool            bRVBActive;                         // reverb active flag
     int             iRVBOffset;                         // reverb offset
     int             iRVBRepeat;                         // reverb repeat
@@ -210,7 +212,7 @@ inline void ChannelArray::SoundNew(uint32_t flags)
     wxASSERT(flags < 0x01000000);
     newChannelFlags |= flags;
     for (int i = 0; flags != 0; i++, flags >>= 1) {
-        if (!(flags & 1) || (channels[i].pStart == 0)) continue;
+        if (!(flags & 1) || (channels[i].itrTone.HasNext() == false)) continue;
         channels[i].ignoresLoop = false;
         channels[i].bNew = true;
     }
@@ -356,11 +358,13 @@ private:
     unsigned short m_spuMem[256*1024];
 public:
     uint8_t* const Memory;   // uchar* version of spuMem
-private:
+
+public:
     unsigned char* m_pSpuIrq;
     unsigned char* m_pSpuBuffer;
     unsigned char* m_pMixIrq;
 
+private:
     // User settings
     int m_iUseXA;
     int m_iVolume;
@@ -443,6 +447,19 @@ private:
     PCMInfo pcmInfo_[256];
     int nPCM_;
 };
+
+
+
+class SPUListener {
+public:
+    virtual ~SPUListener() {}
+
+protected:
+
+    void onUpdate(SPU*);
+};
+
+
 
 
 inline ChannelInfo& SPU::GetChannelInfo(int ch) {

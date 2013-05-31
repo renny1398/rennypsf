@@ -60,7 +60,7 @@ void ChannelInfo::VoiceChangeFrequency()
 // FModChangeFrequency
 
 
-
+/*
 void ChannelInfo::ADPCM2LPCM()
 {
     static const int xa_adpcm_table[5][2] = {
@@ -127,6 +127,7 @@ void ChannelInfo::ADPCM2LPCM()
     s_1 = prev1;
     s_2 = prev2;
 }
+*/
 
 
 void ChannelInfo::Update()
@@ -140,17 +141,14 @@ void ChannelInfo::Update()
 
     int fa;
     while (pInterpolation->spos >= 0x10000) {
-        if (iSBPos == 28) {
-            if (pCurr == (uint8_t*)0xffffffff) {
-                isOn = false;
-                ADSRX.lVolume = 0;
-                ADSRX.EnvelopeVol = 0;
-                return;
-            }
-            iSBPos = 0;
-            ADPCM2LPCM();
+        if (itrTone.HasNext() == false) {
+            isOn = false;
+            itrTone = SamplingToneIterator();
+            ADSRX.lVolume = 0;
+            ADSRX.EnvelopeVol = 0;
+            return;
         }
-        fa = LPCM[iSBPos++];
+        fa = itrTone.Next();
 
         pInterpolation->StoreValue(fa);
         pInterpolation->spos -= 0x10000;

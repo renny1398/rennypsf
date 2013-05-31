@@ -1,9 +1,10 @@
 #include "channelpanel.h"
+#include <wx/panel.h>
 #include <wx/dc.h>
 #include <wx/dcclient.h>
 #include <wx/sizer.h>
 #include <wx/stattext.h>
-#include <wx/gauge.h>
+//#include <wx/gauge.h>
 #include "SoundManager.h"
 #include "app.h"
 
@@ -65,9 +66,6 @@ void MuteButton::paintNow()
 }
 
 
-
-
-
 void MuteButton::onEnter(wxMouseEvent& WXUNUSED(event))
 {
     entered_ = true;
@@ -91,9 +89,9 @@ VolumeBar::VolumeBar(wxWindow *parent, wxOrientation orientation, int max)
     value_ = 0;
 }
 
-BEGIN_EVENT_TABLE(VolumeBar, wxPanel)
+wxBEGIN_EVENT_TABLE(VolumeBar, wxPanel)
 EVT_PAINT(VolumeBar::paintEvent)
-END_EVENT_TABLE()
+wxEND_EVENT_TABLE()
 
 
 void VolumeBar::paintEvent(wxPaintEvent &)
@@ -151,6 +149,178 @@ void VolumeBar::render(wxDC &dc)
 
 
 ////////////////////////////////////////////////////////////////////////
+// Keyboard Widget
+////////////////////////////////////////////////////////////////////////
+
+
+int KeyboardWidget::calcKeyboardWidth()
+{
+    int numOctaves = octaveMax_ - octaveMin_ - 1;
+    int keyboardWidth = keyWidth_ * (7 * numOctaves + 1) + 1;
+    return keyboardWidth;
+}
+
+
+KeyboardWidget::KeyboardWidget(wxWindow* parent, int keyWidth, int keyHeight) :
+    wxPanel(parent, wxID_ANY, wxDefaultPosition, wxSize(513, keyHeight)),
+    octaveMin_(defaultOctaveMin), octaveMax_(defaultOctaveMax), muted_(false)
+{
+    if (keyWidth < 7) keyWidth_ = 6;
+    else keyWidth_ = 8;
+    keyHeight_ = keyHeight;
+
+    wxWindow::SetSize(calcKeyboardWidth(), keyHeight_);
+    wxSize size = wxWindow::GetSize();
+    wxMessageOutputDebug().Printf(wxT("(%d, %d)"), size.GetWidth(), size.GetHeight());
+}
+
+
+wxBEGIN_EVENT_TABLE(KeyboardWidget, wxPanel)
+EVT_PAINT(KeyboardWidget::paintEvent)
+wxEND_EVENT_TABLE()
+
+
+void KeyboardWidget::paintEvent(wxPaintEvent &)
+{
+    wxPaintDC dc(this);
+    render(dc);
+}
+
+void KeyboardWidget::paintNow()
+{
+    wxClientDC dc(this);
+    render(dc);
+}
+
+
+void KeyboardWidget::render(wxDC &dc)
+{
+    wxASSERT(keyWidth_ == 8);
+
+    const int numOctaves = octaveMax_ - octaveMin_ - 1;
+
+    wxPen blackPen(*wxBLACK, 1);
+    dc.SetPen(blackPen);
+    dc.SetBrush(*wxWHITE_BRUSH);
+
+    for (int i = 0; i < numOctaves * 7 + 1; i++) {
+        dc.DrawRectangle(i*keyWidth_, 0, keyWidth_+1, keyHeight_);
+    }
+
+    dc.SetBrush(*wxBLACK_BRUSH);
+    for (int i = 0; i < numOctaves * 7; i++) {
+        switch (i % 7) {
+        case 0: /* FALLTHRU */
+        case 1: /* FALLTHRU */
+        case 3: /* FALLTHRU */
+        case 4: /* FALLTHRU */
+        case 5:
+            dc.DrawRectangle(i*keyWidth_+6, 0, 6, keyHeight_/2);
+            break;
+        }
+    }
+
+    if (pressedKeys_.empty()) return;
+
+    if (muted_) {
+        dc.SetPen(wxPen(*wxBLUE, 1));
+        dc.SetBrush(*wxBLUE_BRUSH);
+    } else {
+        dc.SetPen(wxPen(*wxRED, 1));
+        dc.SetBrush(*wxRED_BRUSH);
+    }
+
+    for (IntSet::const_iterator it = pressedKeys_.begin(); it != pressedKeys_.end(); ++it) {
+        int i = *it / 12;
+        int j = *it % 12;
+        int x, y;
+        switch (j) {
+        case 0:
+            x = (i * 7 + 0) * keyWidth_ + 2;
+            y = keyHeight_/2;
+            break;
+        case 2:
+            x = (i * 7 + 1) * keyWidth_ + 2;
+            y = keyHeight_/2;
+            break;
+        case 4:
+            x = (i * 7 + 2) * keyWidth_ + 2;
+            y = keyHeight_/2;
+            break;
+        case 5:
+            x = (i * 7 + 3) * keyWidth_ + 2;
+            y = keyHeight_/2;
+            break;
+        case 7:
+            x = (i * 7 + 4) * keyWidth_ + 2;
+            y = keyHeight_/2;
+            break;
+        case 9:
+            x = (i * 7 + 5) * keyWidth_ + 2;
+            y = keyHeight_/2;
+            break;
+        case 11:
+            x = (i * 7 + 6) * keyWidth_ + 2;
+            y = keyHeight_/2;
+            break;
+
+        case 1:
+            x = (i * 7 + 0) * keyWidth_ + 6;
+            y = 0;
+            break;
+        case 3:
+            x = (i * 7 + 1) * keyWidth_ + 6;
+            y = 0;
+            break;
+        case 6:
+            x = (i * 7 + 3) * keyWidth_ + 6;
+            y = 0;
+            break;
+        case 8:
+            x = (i * 7 + 4) * keyWidth_ + 6;
+            y = 0;
+            break;
+        case 10:
+            x = (i * 7 + 5) * keyWidth_ + 6;
+            y = 0;
+            break;
+        }
+    }
+}
+
+
+bool KeyboardWidget::PressKey(int keyIndex)
+{
+    int keyMax = (octaveMax_ - octaveMin_ - 1) * 12;
+    if (keyMax < keyIndex) return false;
+    pressedKeys_.insert(keyIndex);
+    return true;
+}
+
+
+bool KeyboardWidget::PressKey(double pitch)
+{
+    // A4 = 440 Hz
+    int index = round( ( log(pitch/440.0)/log(2.0) + 5.75 ) * 12.0 );
+    if (index < 0 || 120 < index) return false;
+    pressedKeys_.insert(index);
+    return true;
+}
+
+
+void KeyboardWidget::ReleaseKey()
+{
+    pressedKeys_.clear();
+}
+
+
+void KeyboardWidget::ReleaseKey(int keyIndex)
+{
+    pressedKeys_.erase(keyIndex);
+}
+
+
+////////////////////////////////////////////////////////////////////////
 // Channel Panel
 ////////////////////////////////////////////////////////////////////////
 
@@ -171,6 +341,7 @@ ChannelPanel::ChannelPanel(wxWindow *parent)
         element.muteButton->SetLabel(channelCaption);
         element.channelSizer->Add(element.muteButton);
         element.volumeSizer = new wxBoxSizer(wxVERTICAL);
+        element.volumeSizer->Add(new KeyboardWidget(this, 8, 20));
         element.volumeLeft = new VolumeBar(this, wxHORIZONTAL, 65536 * 64);
         element.volumeRight = new VolumeBar(this, wxHORIZONTAL, 65536 * 64) ;
         element.volumeSizer->Add(element.volumeLeft);

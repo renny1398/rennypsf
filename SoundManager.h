@@ -9,6 +9,19 @@
 #include <wx/vector.h>
 
 
+class Sample {
+public:
+    short left;
+    short right;
+
+    Sample() : left(0), right(0) {}
+    Sample(short l, short r) : left(l), right(r) {}
+
+    operator short*() { return reinterpret_cast<short*>(this); }
+};
+
+
+
 class SoundFormat;
 
 class SoundDevice
