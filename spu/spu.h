@@ -122,6 +122,7 @@ public:
     // int32_t         LPCM[28];
 
     int             sval;
+    SamplingTone* tone;
     SamplingToneIterator itrTone;
     // unsigned char*  pStart;                             // start ptr into sound mem
     // unsigned char*  pCurr;                              // current pos in sound mem
@@ -265,6 +266,7 @@ public:
 };
 
 
+
 class PSF;
 class PSF1;
 
@@ -336,6 +338,7 @@ protected:
     // Utilities
     //
 public:
+    SamplingTone* GetSamplingTone(uint32_t addr) const;
     int GetPCMNumber() const;
     int GetPCM(int index, void* pcm, int* loop) const;
 
@@ -366,17 +369,17 @@ public:
 
 private:
     // User settings
-    int m_iUseXA;
-    int m_iVolume;
-    int m_iXAPitch;
-    int m_iUseTimer;    // should be false (use thread)
-    int m_iSPUIRQWait;
-    int m_iDebugMode;
-    int m_iRecordMode;
+    // int m_iUseXA;
+    //int m_iVolume;
+    //int m_iXAPitch;
+    //int m_iUseTimer;    // should be false (use thread)
+    //int m_iSPUIRQWait;
+    //int m_iDebugMode;
+    //int m_iRecordMode;
     int m_iUseReverb;
     InterpolationType useInterpolation;
-    int m_iDisStereo;
-    int m_iUseDBufIrq;
+    //int m_iDisStereo;
+    //int m_iUseDBufIrq;
 
     // MAIN infos struct for each channel
 public:
@@ -399,9 +402,9 @@ private:
 
     // unsigned long m_newChannel;
 
-    void (*irqCallback)();
-    void (*cddavCallback)(unsigned short, unsigned short);
-    void (*irqQSound)(unsigned char*, long*, long);
+    // void (*irqCallback)();
+    // void (*cddavCallback)(unsigned short, unsigned short);
+    // void (*irqQSound)(unsigned char*, long*, long);
 
     int f[5][2];
 
@@ -422,6 +425,9 @@ private:
     int  iReverbOff;    // reverb offset
     int  iReverbRepeat;
     int  iReverbNum;
+
+    // Sound bank
+    SoundBank soundBank_;
 
     // DMA
     wxCriticalSection csDMAReadable_;
@@ -467,7 +473,8 @@ inline ChannelInfo& SPU::GetChannelInfo(int ch) {
 }
 
 inline unsigned char* SPU::GetSoundBuffer() const {
-    return Memory;
+    // return Memory;
+    return (uint8_t*)m_spuMem;
 }
 
 inline void SPU::SetReverbDepthLeft(int depth) {

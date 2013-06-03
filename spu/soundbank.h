@@ -18,6 +18,7 @@ public:
     bool HasNext() const;
     int Next();
 
+    SamplingTone* GetTone() const;
     void SetPreferredLoop(uint32_t index);
 
 private:
@@ -34,9 +35,10 @@ class SoundBank;
 class SamplingTone
 {
 public:
-    SamplingTone(SoundBank* pSB);
+    SamplingTone(const SoundBank *pSB, uint8_t* pADPCM);
 
     const uint32_t* GetData() const;
+    const uint8_t* GetADPCM() const;
     uint32_t GetLength() const;
     uint32_t GetLoopIndex() const;
     int GetFreq() const;
@@ -57,7 +59,7 @@ protected:
 
 
 private:
-    SoundBank* pSB_;
+    const SoundBank* pSB_;
 
     uint8_t* pADPCM_;
     mutable wxVector<int32_t> LPCM_;
@@ -87,17 +89,20 @@ class SoundBank
 public:
     SoundBank(SPU* pSPU);
 
+    // const SamplineTone* GetSamplingTone(uint8_t* pADPCM) const;
+    SamplingTone *GetSamplingTone(uint32_t addr) const;
+
     void Reset();
 
     SPU* GetSPU() const;
-    bool ContainsAddr(int32_t addr);
+    bool ContainsAddr(uint32_t addr) const;
 
 protected:
 
 private:
     SPU* pSPU_;
 
-    SamplingToneMap tones_;
+    mutable SamplingToneMap tones_;
 
     // wxThread *thread;
     int* fftBuffer_;

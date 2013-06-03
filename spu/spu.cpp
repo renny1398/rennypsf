@@ -34,11 +34,11 @@ void ChannelInfo::StartSound()
     ADSRX.Start();
     Spu.StartReverb(*this);
 
-    pCurr = pStart;
+    // pCurr = pStart;
 
-    s_1 = 0;
-    s_2 = 0;
-    iSBPos = 28;
+    // s_1 = 0;
+    // s_2 = 0;
+    // iSBPos = 28;
 
     bNew = false;
     isStopped = false;
@@ -184,17 +184,37 @@ void ChannelInfo::Update()
 }
 
 
+SamplingTone* SPU::GetSamplingTone(uint32_t addr) const
+{
+    return soundBank_.GetSamplingTone(addr);
+}
+
+
+
+
+
+
+
+
+
+
+
+
 void SPU::SetupStreams()
 {
     m_pSpuBuffer = new uint8_t[32768];
 
+    soundBank_.Reset();
+
     for (int i = 0; i < 24; i++) {
         Channels[i].ADSRX.SustainLevel = 0xf << 27;
         Channels[i].iMute = 0;
-        Channels[i].iIrqDone = 0;
-        Channels[i].pLoop = Memory;
-        Channels[i].pStart = Memory;
-        Channels[i].pCurr = Memory;
+        // Channels[i].iIrqDone = 0;
+        // Channels[i].pLoop = Memory;
+        // Channels[i].pStart = Memory;
+        // Channels[i].pCurr = Memory;
+        Channels[i].tone = 0;
+        Channels[i].itrTone = SamplingToneIterator();
     }
 }
 
@@ -249,9 +269,10 @@ void* SPUThread::Entry()
 
 
 
-SPU::SPU()
-    : condReadyToProcess_(mutexReadyToProcess_), condProcessSamples_(mutexProcessSamples_),
-      Memory((uint8_t*)m_spuMem)
+SPU::SPU() :
+    soundBank_(this),
+    condReadyToProcess_(mutexReadyToProcess_), condProcessSamples_(mutexProcessSamples_),
+    Memory(reinterpret_cast<uint8_t*>(m_spuMem))
 {
     Init();
 }
@@ -259,14 +280,14 @@ SPU::SPU()
 
 void SPU::Init()
 {
-    m_iXAPitch = 1;
-    m_iUseTimer = 2;
-    m_iDebugMode = 0;
-    m_iRecordMode = 0;
-    m_iUseReverb = 2;
+    // m_iXAPitch = 1;
+    // m_iUseTimer = 2;
+    // m_iDebugMode = 0;
+    // m_iRecordMode = 0;
+    // m_iUseReverb = 2;
     useInterpolation = GAUSS_INTERPOLATION;
-    m_iDisStereo = 0;
-    m_iUseDBufIrq = 0;
+    // m_iDisStereo = 0;
+    // m_iUseDBufIrq = 0;
 
 
     //::memset(&Channels, 0, sizeof(Channels));
@@ -280,8 +301,8 @@ void SPU::Init()
 
 void SPU::Open()
 {
-    m_iUseXA = 1;
-    m_iVolume = 3;
+    // m_iUseXA = 1;
+    // m_iVolume = 3;
     iReverbOff = -1;
     // spuIrq = 0;
     Addr = 0xffffffff;
@@ -290,7 +311,7 @@ void SPU::Open()
     m_pMixIrq = 0;
 
     // pSpuIrq = 0;
-    m_iSPUIRQWait = 1;
+    // m_iSPUIRQWait = 1;
 
     SetupStreams();
 
@@ -331,22 +352,6 @@ void SPU::Async(uint32_t cycles)
 
     GetReadyToSync();
     ProcessSamples(do_samples);
-/*
-    while (do_samples) {
-        do_samples--;
-        //*(m_pS+0) = 0;
-        //*(m_pS+1) = 0;
-        for (int ch = 0; ch < 24; ch++) {
-            Channels[ch].Update();
-        }
-        wxGetApp().GetSoundManager()->Flush();
-        //m_pS += 2;
-        //if (((unsigned char*)m_pS - m_pSpuBuffer) >= NSSIZE*2) {
-            // wxGetApp().GetSoundManager().WriteBuffer(m_pSpuBuffer, NSSIZE*4);
-        //    m_pS = (short*)m_pSpuBuffer;
-        //}
-    }
-*/
 }
 
 

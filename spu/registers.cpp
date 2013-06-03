@@ -75,7 +75,7 @@ uint16_t read1xx4(const ChannelInfo& channelInfo)
 // Get start address of Sound
 uint16_t read1xx6(const ChannelInfo& channelInfo)
 {
-    int soundBuffer = channelInfo.pStart - Spu.GetSoundBuffer();
+    uint32_t soundBuffer = channelInfo.tone->GetADPCM() - Spu.GetSoundBuffer();
     return soundBuffer >> 3;
 }
 
@@ -113,8 +113,11 @@ uint16_t read1xxc(const ChannelInfo& channelInfo)
 // Get repeat address
 uint16_t read1xxe(const ChannelInfo& channelInfo)
 {
-    if (channelInfo.pLoop == 0) return 0;
-    return (channelInfo.pLoop - Spu.Memory) >> 3;
+//    if (channelInfo.pLoop == 0) return 0;
+//    return (channelInfo.pLoop - Spu.Memory) >> 3;
+    uint32_t indexLoop = channelInfo.tone->GetLoopIndex();
+    if (0x80000000 <= indexLoop) return 0;
+    return (indexLoop / 28) << 1;
 }
 
 
@@ -321,7 +324,10 @@ void write1xx4(ChannelInfo& channelInfo, uint16_t val)
 // Set start address of Sound
 void write1xx6(ChannelInfo& channelInfo, uint16_t val)
 {
-    channelInfo.pStart = Spu.GetSoundBuffer() + (static_cast<uint32_t>(val) << 3);
+//    channelInfo.pStart = Spu.GetSoundBuffer() + (static_cast<uint32_t>(val) << 3);
+    SamplingTone* tone = Spu.GetSamplingTone(static_cast<uint32_t>(val) << 3);
+    channelInfo.tone = tone;
+    channelInfo.itrTone = tone->Iterator();
 }
 
 // Set ADS level
@@ -351,8 +357,9 @@ void (*const write1xxc)(ChannelInfo&, uint16_t) = writeChannelNOP;
 // Set repeat address
 void write1xxe(ChannelInfo& channelInfo, uint16_t val)
 {
-    channelInfo.pLoop = Spu.GetSoundBuffer() + (static_cast<uint32_t>(val) << 3);
-    channelInfo.ignoresLoop = true;
+    // channelInfo.pLoop = Spu.GetSoundBuffer() + (static_cast<uint32_t>(val) << 3);
+    // channelInfo.ignoresLoop = true;
+    channelInfo.itrTone.SetPreferredLoop(static_cast<uint32_t>(val) << 3);
 }
 
 

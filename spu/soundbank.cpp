@@ -6,10 +6,18 @@
 namespace SPU {
 
 
-SamplingTone::SamplingTone(SoundBank *pSB) :
-    pSB_(pSB), indexLoop_(0xffffffff), processedBlockNumber_(0),
+SamplingTone::SamplingTone(const SoundBank *pSB, uint8_t *pADPCM) :
+    pSB_(pSB), pADPCM_(pADPCM), indexLoop_(0xffffffff), processedBlockNumber_(0),
     begin_(this), prev1_(0), prev2_(0)
-{}
+{
+    wxMessageOutputDebug().Printf(wxT("Sampling tone addr = %08x"), pADPCM_);
+}
+
+
+const uint8_t* SamplingTone::GetADPCM() const
+{
+    return pADPCM_;
+}
 
 
 uint32_t SamplingTone::GetLength() const
@@ -156,6 +164,12 @@ SamplingToneIterator::SamplingToneIterator(SamplingTone *pTone) :
 }
 
 
+void SamplingToneIterator::SetPreferredLoop(uint32_t index)
+{
+    indexPreferredLoop_ = index;
+}
+
+
 bool SamplingToneIterator::HasNext() const
 {
     if (pTone_ == 0) return false;
@@ -179,6 +193,53 @@ int SamplingToneIterator::Next()
 {
     return pTone_->At(index_++);
 }
+
+
+
+
+
+SoundBank::SoundBank(SPU *pSPU) : pSPU_(pSPU) {}
+
+
+SamplingTone* SoundBank::GetSamplingTone(uint32_t addr) const
+{
+    SamplingToneMap::Iterator it = tones_.find(addr);
+    if (it != tones_.end()) {
+        return it.m_node->m_value.second;
+    }
+    SamplingTone* tone = new SamplingTone(this, pSPU_->GetSoundBuffer() + addr);
+    // tones_.insert(addr, tone);
+    tones_[addr] = tone;
+    return tone;
+}
+
+
+
+void SoundBank::Reset()
+{
+    for (SamplingToneMap::Iterator it = tones_.begin(); it != tones_.end(); ) {
+        delete it.m_node->m_value.second;
+    }
+    tones_.clear();
+}
+
+
+SPU* SoundBank::GetSPU() const
+{
+    return pSPU_;
+}
+
+
+bool SoundBank::ContainsAddr(uint32_t addr) const
+{
+    return (tones_.find(addr) != tones_.end());
+}
+
+
+
+
+
+
 
 
 
