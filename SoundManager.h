@@ -42,11 +42,8 @@ public:
 
     // int GetChannelNumber() const;
 
-    // virtual int GetEnvelopeVolume(int ch) const;
-    // virtual void SetEnvelopeVolume(int ch, int vol);
-
-    virtual void GetEnvelopeVolume(int ch, int* left, int* right) const;
-    virtual void SetEnvelopeVolume(int ch, int left, int right);
+    virtual int GetEnvelopeVolume(int ch) const;
+    virtual void SetEnvelopeVolume(int ch, int vol);
 
 protected:
     void setChannelNumber(int number);
@@ -59,7 +56,8 @@ protected:
 private:
     int leftSample_, rightSample_;
     Sample* chSample_;
-    int *chEnvelopeLeft_, *chEnvelopeRight_;
+    int *chEnvelope_;
+    // int *chEnvelopeLeft_, *chEnvelopeRight_;
     int channelNumber_;
     Sample* buffer_;
     int bufferSize_;

@@ -24,6 +24,7 @@ wxDEFINE_SCOPED_PTR(AbstractInterpolation, InterpolationPtr)
 
 ChannelInfo::ChannelInfo(): pInterpolation(new GaussianInterpolation(*this))
 {
+    isUpdating = false;
 }
 
 
@@ -143,7 +144,6 @@ void ChannelInfo::Update()
     while (pInterpolation->spos >= 0x10000) {
         if (itrTone.HasNext() == false) {
             isOn = false;
-            itrTone = SamplingToneIterator();
             ADSRX.lVolume = 0;
             ADSRX.EnvelopeVol = 0;
             return;
@@ -153,6 +153,11 @@ void ChannelInfo::Update()
         pInterpolation->StoreValue(fa);
         pInterpolation->spos -= 0x10000;
     }
+
+    Spu.mutexUpdate_.Lock();
+    isUpdating = false;
+    Spu.condUpdate_.Broadcast();
+    Spu.mutexUpdate_.Unlock();
 
     if (bNoise) {
         // TODO: Noise
@@ -168,14 +173,9 @@ void ChannelInfo::Update()
     } else {
         if (iMute) sval = 0;
         else {
-            // Spu.m_SSumL[]
             short left = (sval * iLeftVolume) / 0x4000;
             short right = (sval * iRightVolume) / 0x4000;
-            //*(Spu.m_pS+0) += left;
-            //*(Spu.m_pS+1) += right;
-            int leftEnvelope = ADSRX.lVolume * iLeftVolume;
-            int rightEnvelope = ADSRX.lVolume * iRightVolume;
-            wxGetApp().GetSoundManager()->SetEnvelopeVolume(ch, leftEnvelope, rightEnvelope);
+            wxGetApp().GetSoundManager()->SetEnvelopeVolume(ch, ADSRX.lVolume);
             wxGetApp().GetSoundManager()->WriteStereo(ch, left, right);
         }
     }
@@ -186,14 +186,8 @@ void ChannelInfo::Update()
 
 SamplingTone* SPU::GetSamplingTone(uint32_t addr) const
 {
-    return soundBank_.GetSamplingTone(addr);
+    return SoundBank_.GetSamplingTone(addr);
 }
-
-
-
-
-
-
 
 
 
@@ -204,7 +198,7 @@ void SPU::SetupStreams()
 {
     m_pSpuBuffer = new uint8_t[32768];
 
-    soundBank_.Reset();
+    SoundBank_.Reset();
 
     for (int i = 0; i < 24; i++) {
         Channels[i].ADSRX.SustainLevel = 0xf << 27;
@@ -262,6 +256,8 @@ void* SPUThread::Entry()
 
         pSPU->csDMAWritable_.Leave();
 
+        pSPU->condReadyToProcess_.Broadcast();  // test code
+
     } while (pSPU_->isPlaying_);
     wxMessageOutputDebug().Printf(wxT("Terminated SPU thread."));
     return 0;
@@ -270,9 +266,9 @@ void* SPUThread::Entry()
 
 
 SPU::SPU() :
-    soundBank_(this),
-    condReadyToProcess_(mutexReadyToProcess_), condProcessSamples_(mutexProcessSamples_),
-    Memory(reinterpret_cast<uint8_t*>(m_spuMem))
+    SoundBank_(this), Memory(reinterpret_cast<uint8_t*>(m_spuMem)),
+    condReadyToProcess_(mutexReadyToProcess_), condUpdate_(mutexUpdate_)
+
 {
     Init();
 }
@@ -335,6 +331,13 @@ void SPU::Close()
 }
 
 
+void SPU::Shutdown()
+{
+    Close();
+    thread_->Wait();
+}
+
+
 bool SPU::IsRunning() const {
     return isPlaying_;
 }
@@ -376,8 +379,18 @@ void SPU::ProcessSamples(int numSamples)
         isReadyToProcess_ = false;
         thread_->numSamples_ = numSamples;
         csDMAWritable_.Enter();
+
+        // assume numSamples == 1
+        for (int i = 0; i < 24; i++) {
+            // Channels[i].isUpdating = true;
+        }
+
     } while (false);
     condReadyToProcess_.Broadcast();
+
+    // test code
+    // wxMutexLocker locker(mutexReadyToProcess_);
+    // condReadyToProcess_.Wait();
 }
 
 

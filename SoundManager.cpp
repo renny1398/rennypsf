@@ -13,15 +13,13 @@ const int NSSIZE = 45;
 void SoundDevice::setChannelNumber(int number)
 {
     if (chSample_) {
-        delete [] chEnvelopeRight_;
-        delete [] chEnvelopeLeft_;
+        delete [] chEnvelope_;
         delete [] chSample_;
     }
     leftSample_ = 0;
     rightSample_ = 0;
     chSample_ = new Sample[number];
-    chEnvelopeLeft_ = new int[number];
-    chEnvelopeRight_ = new int[number];
+    chEnvelope_ = new int[number];
     channelNumber_ = number;
 }
 
@@ -35,7 +33,7 @@ void SoundDevice::setBufferSize(int size)
     bufferIndex_ = 0;
 }
 
-/*
+
 int SoundDevice::GetEnvelopeVolume(int ch) const
 {
     return chEnvelope_[ch];
@@ -45,8 +43,8 @@ void SoundDevice::SetEnvelopeVolume(int ch, int vol)
 {
     chEnvelope_[ch] = vol;
 }
-*/
 
+/*
 void SoundDevice::GetEnvelopeVolume(int ch, int *left, int *right) const
 {
     *left = chEnvelopeLeft_[ch];
@@ -58,7 +56,7 @@ void SoundDevice::SetEnvelopeVolume(int ch, int left, int right)
     chEnvelopeLeft_[ch] = left;
     chEnvelopeRight_[ch] = right;
 }
-
+*/
 
 SoundDevice::SoundDevice(int channelNumber)
     : chSample_(0), buffer_(0), m_sound(0)
@@ -71,8 +69,7 @@ SoundDevice::~SoundDevice()
 {
     if (buffer_) delete [] buffer_;
     if (chSample_) {
-        delete [] chEnvelopeRight_;
-        delete [] chEnvelopeLeft_;
+        delete [] chEnvelope_;
         delete [] chSample_;
     }
 }

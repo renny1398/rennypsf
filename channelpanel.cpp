@@ -84,7 +84,7 @@ void MuteButton::onLeave(wxMouseEvent& WXUNUSED(event))
 ////////////////////////////////////////////////////////////////////////
 
 VolumeBar::VolumeBar(wxWindow *parent, wxOrientation orientation, int max)
-    : wxPanel(parent, wxID_ANY, wxDefaultPosition, wxSize(256, 12)), orientation_(orientation), max_(max)
+    : wxPanel(parent, wxID_ANY, wxDefaultPosition, wxSize(512, 6)), orientation_(orientation), max_(max)
 {
     value_ = 0;
 }
@@ -114,7 +114,7 @@ void VolumeBar::render(wxDC &dc)
     int barWidth, barHeight;
     GetSize(&barWidth, &barHeight);
 
-    const int blockNumber = 20;
+    const int blockNumber = 80;
     const int blockgapWidth = barWidth / blockNumber;
     const int gapWidth = 2;
     const int blockWidth = blockgapWidth - gapWidth;
@@ -170,8 +170,8 @@ KeyboardWidget::KeyboardWidget(wxWindow* parent, int keyWidth, int keyHeight) :
     keyHeight_ = keyHeight;
 
     wxWindow::SetSize(calcKeyboardWidth(), keyHeight_);
-    wxSize size = wxWindow::GetSize();
-    wxMessageOutputDebug().Printf(wxT("(%d, %d)"), size.GetWidth(), size.GetHeight());
+    // wxSize size = wxWindow::GetSize();
+    // wxMessageOutputDebug().Printf(wxT("(%d, %d)"), size.GetWidth(), size.GetHeight());
 }
 
 
@@ -337,16 +337,16 @@ ChannelPanel::ChannelPanel(wxWindow *parent)
         wxString channelCaption;
         channelCaption.sprintf("ch.%02d", i);
         // element.channelText = new wxStaticText(this, -1, channelCaption, wxDefaultPosition, wxDefaultSize, 0);
-        element.muteButton = new MuteButton(this, wxID_ANY, wxDefaultPosition, wxSize(60, 60), 0, channelCaption);
+        element.muteButton = new MuteButton(this, wxID_ANY, wxDefaultPosition, wxSize(32, 32), 0, channelCaption);
         element.muteButton->SetLabel(channelCaption);
-        element.channelSizer->Add(element.muteButton);
+        element.channelSizer->Add(element.muteButton, wxEXPAND);
         element.volumeSizer = new wxBoxSizer(wxVERTICAL);
-        element.volumeSizer->Add(new KeyboardWidget(this, 8, 20));
-        element.volumeLeft = new VolumeBar(this, wxHORIZONTAL, 65536 * 64);
-        element.volumeRight = new VolumeBar(this, wxHORIZONTAL, 65536 * 64) ;
+        element.volumeSizer->Add(new KeyboardWidget(this, 8, 20), wxFIXED_MINSIZE);
+
+        element.volumeLeft = new VolumeBar(this, wxHORIZONTAL, 2048);
         element.volumeSizer->Add(element.volumeLeft);
-        element.volumeSizer->Add(element.volumeRight);
-        element.channelSizer->Add(element.volumeSizer);
+
+        element.channelSizer->Add(element.volumeSizer, wxFIXED_MINSIZE);
         wholeSizer->Add(element.channelSizer);
         elements.push_back(element);
     }
@@ -375,15 +375,132 @@ void ChannelPanel::Update()
     SoundDevice *soundDevice = wxGetApp().GetSoundManager();
     int i = 0;
     for (wxVector<ChannelElement>::iterator it = elements.begin(), it_end = elements.end(); it != it_end; ++it) {
-        int currLeft = it->volumeLeft->GetValue();
-        int currRight = it->volumeRight->GetValue();
-        int nextLeft, nextRight;
-        soundDevice->GetEnvelopeVolume(i, &nextLeft, &nextRight);
-        i++;
-        if (currLeft == nextLeft && currRight == nextRight) continue;
-        it->volumeLeft->SetValue(nextLeft);
-        it->volumeRight->SetValue(nextRight);
+        int currVol = it->volumeLeft->GetValue();
+        int nextVol = soundDevice->GetEnvelopeVolume(i++);
+        if (currVol == nextVol) continue;
+        it->volumeLeft->SetValue(nextVol);
         it->volumeLeft->Refresh();
-        it->volumeRight->Refresh();
     }
+}
+
+
+
+////////////////////////////////////////////////////////////////////////
+// Wavetable List Control Panel
+////////////////////////////////////////////////////////////////////////
+
+
+WavetableList::WavetableList(wxWindow *parent) :
+    wxListCtrl(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT, wxDefaultValidator, wxT("WavetableList"))
+{
+    wxListItem itemOffset;
+    itemOffset.SetId(1);
+    itemOffset.SetWidth(80);
+    itemOffset.SetText(_("Offset"));
+    wxListCtrl::InsertColumn(0, itemOffset);
+
+    wxListItem itemLength;
+    itemLength.SetId(2);
+    itemLength.SetWidth(64);
+    itemLength.SetText(_("Length"));
+    wxListCtrl::InsertColumn(1, itemLength);
+
+    wxListItem itemLoop;
+    itemLoop.SetId(3);
+    itemLoop.SetWidth(64);
+    itemLoop.SetText(_("Loop"));
+    wxListCtrl::InsertColumn(2, itemLoop);
+
+    wxListItem itemFFT;
+    itemFFT.SetId(3);
+    itemFFT.SetWidth(64);
+    itemFFT.SetText(_("FFT"));
+    wxListCtrl::InsertColumn(3, itemFFT);
+}
+
+
+void WavetableList::onAdd(SPU::SoundBank*, SPU::SamplingTone *tone)
+{
+    const unsigned int offset = tone->GetSPUOffset();
+//    const unsigned int length = tone->GetLength() * 16 / 28;
+//    const unsigned int loop = tone->GetLoopIndex() * 16 / 28;
+
+    int itemCount = wxListCtrl::GetItemCount();
+    wxString strOffset;
+    strOffset << offset;
+    wxListCtrl::InsertItem(itemCount, strOffset);
+
+    wxListCtrl::SetItem(itemCount, 0, strOffset);
+
+ /*
+    if (length == 0) return;
+
+    wxString strLength;
+    strLength << length;
+    wxListCtrl::SetItem(itemCount, 2, strLength);
+
+    wxString strLoop;
+    strLoop << loop;
+    wxListCtrl::SetItem(itemCount, 3, strLoop);
+    */
+}
+
+
+void WavetableList::onModify(SPU::SoundBank*, SPU::SamplingTone *tone)
+{
+    const unsigned int offset = tone->GetSPUOffset();
+    const unsigned int length = tone->GetLength() * 16 / 28;
+    const unsigned int loop = tone->GetLoopIndex() * 16 / 28;
+
+    wxString strOffset;
+    strOffset << offset;
+
+    long itemId = wxListCtrl::FindItem(-1, strOffset);
+    if (itemId == wxNOT_FOUND) {
+        return;
+    }
+
+/*
+    wxListItem item;
+
+    for (int i = 0; i < wxListCtrl::GetItemCount(); i++) {
+        item.SetId(i);
+        item.SetMask(wxLIST_MASK_TEXT);
+        wxListCtrl::GetItem(item);
+        wxMessageOutputDebug().Printf(item.GetText());
+        if (item.GetText() == strOffset) break;
+    }
+    if (item.GetText() != strOffset) return;
+
+    long itemId = item.GetId();
+
+    wxMessageOutputDebug().Printf(wxT("onModify"));
+*/
+    wxString strLength;
+    strLength << length;
+    wxListCtrl::SetItem(itemId, 1, strLength);
+
+    wxString strLoop;
+    strLoop << loop;
+    wxListCtrl::SetItem(itemId, 2, strLoop);
+
+    double freq = tone->GetFreq();
+    if (freq >= 1.0) {
+        wxString strFreq;
+        strFreq << freq;
+        wxListCtrl::SetItem(itemId, 3, strFreq);
+    }
+
+}
+
+void WavetableList::onRemove(SPU::SoundBank*, SPU::SamplingTone *tone)
+{
+    const unsigned int offset = tone->GetSPUOffset();
+    wxString strOffset;
+    strOffset << offset;
+    long item = wxListCtrl::FindItem(0, strOffset);
+    if (item == wxNOT_FOUND) {
+        return;
+    }
+    wxListCtrl::DeleteItem(item);
 }

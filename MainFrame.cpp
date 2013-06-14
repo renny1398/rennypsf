@@ -8,6 +8,8 @@
 
 #include "SoundFormat.h"
 
+#include "spu/spu.h"
+
 
 ///////////////////////////////////////////////////////////////////////
 // EVENT TABLE
@@ -116,6 +118,7 @@ void MainFrame::OnOpen(wxCommandEvent& WXUNUSED(event))
 
 void MainFrame::OnExit(wxCommandEvent& WXUNUSED(event))
 {
+    Spu.Shutdown();
 	Close(true);
 }
 

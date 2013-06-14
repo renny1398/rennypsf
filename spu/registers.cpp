@@ -614,6 +614,13 @@ void SPU::WriteRegister(uint32_t reg, uint16_t val)
     if (ch < 24) {
         ChannelInfo& channelInfo = GetChannelInfo(ch);
         const int ofs = (reg & 0xf) >> 1;
+
+        mutexUpdate_.Lock();
+        while (channelInfo.isUpdating == true) {
+            condUpdate_.Wait();
+        }
+        mutexUpdate_.Unlock();
+
         writeChannelRegisterLUT[ofs](channelInfo, val);
         return;
     }

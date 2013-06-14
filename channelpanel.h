@@ -1,9 +1,11 @@
 #pragma once
 #include <wx/panel.h>
 #include <wx/frame.h>
+#include <wx/listctrl.h>
 #include <wx/timer.h>
 #include <wx/vector.h>
 #include <wx/hashset.h>
+#include <wx/hashmap.h>
 
 class wxBoxSizer;
 class wxStaticText;
@@ -135,4 +137,37 @@ private:
     wxBoxSizer* wholeSizer;
     wxVector<ChannelElement> elements;
     DrawTimer timer;
+};
+
+
+
+
+
+////////////////////////////////////////////////////////////////////////
+// Wavetable List Control Panel
+////////////////////////////////////////////////////////////////////////
+
+
+struct WavetableInfo
+{
+    unsigned int offset;
+    unsigned int length;
+    unsigned int loop;
+};
+
+
+#include "spu/soundbank.h"
+
+class WavetableList : public wxListCtrl, public SPU::SoundBankListener
+{
+public:
+    WavetableList(wxWindow* parent);
+
+protected:
+    void onAdd(SPU::SoundBank*, SPU::SamplingTone *tone);
+    void onModify(SPU::SoundBank*, SPU::SamplingTone *tone);
+    void onRemove(SPU::SoundBank*, SPU::SamplingTone *tone);
+
+private:
+    // map<Tone, wavetable>
 };

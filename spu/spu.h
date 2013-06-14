@@ -113,6 +113,7 @@ public:
     int ch;
 
     bool            bNew;                               // start flag
+    bool            isUpdating;
 
     int             iSBPos;                             // mixing stuff
     //int             spos;
@@ -279,6 +280,7 @@ public:
     void Open();
     void SetLength(int stop, int fade);
     void Close();
+    void Shutdown();
     void Flush();
 
     bool IsRunning() const;
@@ -427,9 +429,11 @@ private:
     int  iReverbNum;
 
     // Sound bank
-    SoundBank soundBank_;
+public:
+    SoundBank SoundBank_;
 
     // DMA
+private:
     wxCriticalSection csDMAReadable_;
     wxCriticalSection csDMAWritable_;
 
@@ -438,8 +442,9 @@ private:
     bool isReadyToProcess_;
     wxMutex mutexReadyToProcess_;
     wxCondition condReadyToProcess_;
-    wxMutex mutexProcessSamples_;
-    wxCondition condProcessSamples_;
+
+    wxMutex mutexUpdate_;
+    wxCondition condUpdate_;
 
     friend class ChannelInfo;
 
