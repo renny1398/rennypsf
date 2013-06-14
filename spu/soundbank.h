@@ -9,15 +9,17 @@
 #include <wx/thread.h>
 
 
+
 namespace SPU {
 
 
 class SamplingTone;
+class ChannelInfo;
 
 class SamplingToneIterator
 {
 public:
-    SamplingToneIterator(SamplingTone* pTone = 0);
+    SamplingToneIterator(SamplingTone* pTone = 0, ChannelInfo* pChannel = 0);
     SamplingToneIterator(const SamplingToneIterator& itr);
 
     SamplingToneIterator& operator =(const SamplingToneIterator& itr);
@@ -26,15 +28,15 @@ public:
     int Next();
 
     SamplingTone* GetTone() const;
-    void SetPreferredLoop(uint32_t index);
+    // void SetPreferredLoop(uint32_t index);
 
 protected:
     void clone(SamplingToneIterator* itrTone) const;
 
 private:
     SamplingTone* pTone_;
+    ChannelInfo* pChannel_;
     mutable uint32_t index_;
-    uint32_t indexPreferredLoop_;
 
     void* operator new(std::size_t);
 };
@@ -60,7 +62,7 @@ public:
     const SoundBank *GetSoundBank() const;
 
     // iterators
-    SamplingToneIterator Iterator() const;
+    SamplingToneIterator Iterator(ChannelInfo *pChannel) const;
     // const SamplingToneIterator& Begin() const;
     // const SamplingToneIterator& End() const;
 
@@ -68,8 +70,6 @@ protected:
     void ADPCM2LPCM() const;
 
     bool hasFinishedConv() const;
-
-
 
 
 private:

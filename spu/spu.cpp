@@ -61,75 +61,6 @@ void ChannelInfo::VoiceChangeFrequency()
 // FModChangeFrequency
 
 
-/*
-void ChannelInfo::ADPCM2LPCM()
-{
-    static const int xa_adpcm_table[5][2] = {
-        {   0,   0 },
-        {  60,   0 },
-        { 115, -52 },
-        {  98, -55 },
-        { 122, -60 }
-    };
-
-    int prev1 = s_1;
-    int prev2 = s_2;
-    uint8_t* start = pCurr;
-    int predict_nr = *start++;
-    int shift_factor = predict_nr & 0xf;
-    int flags = *start++;
-    predict_nr >>= 4;
-
-    int d, s, fa;
-
-    for (int i = 0; i < 28; start++) {
-        d = *start;
-
-        s = (d & 0xf) << 12;
-        if (s & 0x8000) s |= 0xffff0000;
-        fa = (s >> shift_factor);
-        fa += ((prev1 * xa_adpcm_table[predict_nr][0]) >> 6) + ((prev2 * xa_adpcm_table[predict_nr][1]) >> 6);
-        prev2 = prev1; prev1 = fa;
-
-        LPCM[i++] = fa;
-
-        s = (d & 0xf0) << 8;
-        if (s & 0x8000) s |= 0xffff0000;
-        fa = (s >> shift_factor);
-        fa += ((prev1 * xa_adpcm_table[predict_nr][0]) >> 6) + ((prev2 * xa_adpcm_table[predict_nr][1]) >> 6);
-        prev2 = prev1; prev1 = fa;
-
-        LPCM[i++] = fa;
-    }
-    wxASSERT(start == pCurr+16);
-
-    if (Spu.Sp0 & 0x40) {
-        if ( (start-16 < Spu.m_pSpuIrq && Spu.m_pSpuIrq <= start) || ((flags & 1) && (pLoop-16 < Spu.m_pSpuIrq && Spu.m_pSpuIrq <= pLoop)) ) {
-            iIrqDone = 1;
-            PSX::u32Href(0x1070) |= BFLIP32(0x200);
-        }
-    }
-
-    if ( (flags & 4) && ignoresLoop == 0 ) {
-        pLoop = start - 16;
-    }
-
-    if (flags & 1) {
-        if (flags != 3 || pLoop == 0) { // DQ4
-            // wxMessageOutputDebug().Printf(wxT("flags = %02x"), flags);
-            start = (uint8_t*)0xffffffff;
-        } else {
-            wxASSERT( (flags & 4) == 0 );
-            start = pLoop;
-        }
-    }
-
-    pCurr = start;
-    s_1 = prev1;
-    s_2 = prev2;
-}
-*/
-
 
 void ChannelInfo::Update()
 {
@@ -153,11 +84,6 @@ void ChannelInfo::Update()
         pInterpolation->StoreValue(fa);
         pInterpolation->spos -= 0x10000;
     }
-
-    Spu.mutexUpdate_.Lock();
-    isUpdating = false;
-    Spu.condUpdate_.Broadcast();
-    Spu.mutexUpdate_.Unlock();
 
     if (bNoise) {
         // TODO: Noise
@@ -248,7 +174,11 @@ void* SPUThread::Entry()
         while (numSamples) {
             numSamples--;
             for (int ch = 0; ch < 24; ch++) {
+                // Spu.mutexUpdate_.Lock();
                 pSPU->Channels[ch].Update();
+                pSPU->Channels[ch].isUpdating = false;
+                pSPU->condUpdate_.Broadcast();
+                // Spu.mutexUpdate_.Unlock();
             }
             wxGetApp().GetSoundManager()->Flush();
         }
@@ -382,7 +312,7 @@ void SPU::ProcessSamples(int numSamples)
 
         // assume numSamples == 1
         for (int i = 0; i < 24; i++) {
-            // Channels[i].isUpdating = true;
+            Channels[i].isUpdating = true;
         }
 
     } while (false);

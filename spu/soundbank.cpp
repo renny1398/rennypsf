@@ -141,7 +141,6 @@ void SamplingTone::ADPCM2LPCM() const
     ++processedBlockNumber_;
     assert(p == pADPCM_ + processedBlockNumber_ * 16);
 
-/*
     const uint8_t* pLoop = indexLoop_ ? pADPCM_ + (indexLoop_ / 28 * 16) : 0;
     if (pSpu->Sp0 & 0x40) {
         if ( (p-16 < pSpu->m_pSpuIrq && pSpu->m_pSpuIrq <= p) || ((flags & 1) && (pLoop-16 < pSpu->m_pSpuIrq && pSpu->m_pSpuIrq <= pLoop)) ) {
@@ -149,7 +148,7 @@ void SamplingTone::ADPCM2LPCM() const
             PSX::u32Href(0x1070) |= BFLIP32(0x200);
         }
     }
-*/
+
 
     if ( flags & 4 ) {
         // pLoop = start - 16;
@@ -187,23 +186,23 @@ void SamplingTone::ADPCM2LPCM() const
 
 
 
-SamplingToneIterator SamplingTone::Iterator() const
+SamplingToneIterator SamplingTone::Iterator(ChannelInfo *pChannel) const
 {
     // clone the 'begin' iterator
-    return begin_;
+    return SamplingToneIterator(const_cast<SamplingTone*>(this), pChannel);
 }
 
 
 
-SamplingToneIterator::SamplingToneIterator(SamplingTone *pTone) :
-    pTone_(pTone), index_(0), indexPreferredLoop_(0xffffffff)
+SamplingToneIterator::SamplingToneIterator(SamplingTone *pTone, ChannelInfo *pChannel) :
+    pTone_(pTone), pChannel_(pChannel), index_(0)
 {}
 
 
 void SamplingToneIterator::clone(SamplingToneIterator *itrTone) const
 {
-    // the index of preferred loop MUST NOT copied.
     itrTone->pTone_ = pTone_;
+    itrTone->pChannel_ = pChannel_;
     itrTone->index_ = index_;
 }
 
@@ -211,7 +210,6 @@ void SamplingToneIterator::clone(SamplingToneIterator *itrTone) const
 SamplingToneIterator::SamplingToneIterator(const SamplingToneIterator &itr)
 {
     itr.clone(this);
-    indexPreferredLoop_ = 0xffffffff;
 }
 
 
@@ -221,7 +219,7 @@ SamplingToneIterator& SamplingToneIterator::operator=(const SamplingToneIterator
     return *this;
 }
 
-
+/*
 void SamplingToneIterator::SetPreferredLoop(uint32_t index)
 {
 //    wxMessageOutputDebug().Printf(wxT("force loop is on at %d (start = %d)"), (uint32_t)val << 3, );
@@ -229,7 +227,7 @@ void SamplingToneIterator::SetPreferredLoop(uint32_t index)
     // experimental
     pTone_->indexLoop_ = (index - pTone_->GetSPUOffset()) * 28 / 16;
 }
-
+*/
 
 bool SamplingToneIterator::HasNext() const
 {
@@ -242,12 +240,15 @@ bool SamplingToneIterator::HasNext() const
         return true;
     }
 
-    uint32_t indexLoop = pTone_->GetLoopIndex();
-    if (0x80000000 <= indexLoop) {
-        return false;
-    }
-    if (indexPreferredLoop_ < 0x80000000) {
-        indexLoop = indexPreferredLoop_;
+    uint32_t indexLoop;
+    const uint32_t offsetExternalLoop = pChannel_->offsetExternalLoop;
+    if (offsetExternalLoop < 0x80000000) {
+        indexLoop = (offsetExternalLoop - pTone_->GetSPUOffset()) * 28 / 16;
+    } else {
+        indexLoop = pTone_->GetLoopIndex();
+        if (0x80000000 <= indexLoop) {
+            return false;
+        }
     }
     uint32_t lenLoop = pTone_->GetLength() - indexLoop;
     // wxMessageOutputDebug().Printf(wxT("Loop index = %d, Loop length = %d"), indexLoop, lenLoop);

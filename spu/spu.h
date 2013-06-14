@@ -125,9 +125,6 @@ public:
     int             sval;
     SamplingTone* tone;
     SamplingToneIterator itrTone;
-    // unsigned char*  pStart;                             // start ptr into sound mem
-    // unsigned char*  pCurr;                              // current pos in sound mem
-    // unsigned char*  pLoop;                              // loop ptr in sound mem
 
     bool            isOn;                                // is channel active (sample playing?)
     bool            isStopped;                              // is channel stopped (sample _can_ still be playing, ADSR Release phase)
@@ -139,7 +136,8 @@ public:
     bool            isLeftExpSlope;
     bool            isLeftDecreased;
     //int             iLeftVolRaw;                        // left psx volume value
-    bool            ignoresLoop;                        // ignore loop bit, if an external loop address is used
+    //bool            ignoresLoop;                        // ignore loop bit, if an external loop address is used
+    unsigned int    offsetExternalLoop;
     int             iMute;                              // mute mode
     int             iRightVolume;                       // right volume (s15)
     //int             iRightVolRaw;                       // right psx volume value
@@ -148,8 +146,6 @@ public:
     bool            isRightDecreased;
     int             iRawPitch;                          // raw pitch (0x0000 - 0x3fff)
     // int             iIrqDone;                           // debug irq done flag
-    // int             s_1;                                // last decoding infos
-    // int             s_2;
     bool            bRVBActive;                         // reverb active flag
     int             iRVBOffset;                         // reverb offset
     int             iRVBRepeat;                         // reverb repeat
@@ -214,9 +210,9 @@ inline void ChannelArray::SoundNew(uint32_t flags)
     wxASSERT(flags < 0x01000000);
     newChannelFlags |= flags;
     for (int i = 0; flags != 0; i++, flags >>= 1) {
-        if (!(flags & 1) || (channels[i].itrTone.HasNext() == false)) continue;
-        channels[i].ignoresLoop = false;
+        if (!(flags & 1) || (channels[i].tone->GetADPCM() == 0)) continue;
         channels[i].bNew = true;
+        channels[i].offsetExternalLoop = 0xffffffff;
     }
 }
 

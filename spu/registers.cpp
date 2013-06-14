@@ -115,9 +115,11 @@ uint16_t read1xxe(const ChannelInfo& channelInfo)
 {
 //    if (channelInfo.pLoop == 0) return 0;
 //    return (channelInfo.pLoop - Spu.Memory) >> 3;
-    uint32_t indexLoop = channelInfo.tone->GetLoopIndex();
+    const uint32_t offsetLoop = channelInfo.offsetExternalLoop;
+    if (offsetLoop <= 0x80000000) return (offsetLoop >> 3);
+    const uint32_t indexLoop = channelInfo.tone->GetLoopIndex();
     if (0x80000000 <= indexLoop) return 0;
-    return (indexLoop / 28) << 1;
+    return (channelInfo.tone->GetSPUOffset() + indexLoop / 28 * 16) >> 3;
 }
 
 
@@ -327,7 +329,7 @@ void write1xx6(ChannelInfo& channelInfo, uint16_t val)
 //    channelInfo.pStart = Spu.GetSoundBuffer() + (static_cast<uint32_t>(val) << 3);
     SamplingTone* tone = Spu.GetSamplingTone(static_cast<uint32_t>(val) << 3);
     channelInfo.tone = tone;
-    channelInfo.itrTone = tone->Iterator();
+    channelInfo.itrTone = tone->Iterator(&channelInfo);
 }
 
 // Set ADS level
@@ -359,7 +361,7 @@ void write1xxe(ChannelInfo& channelInfo, uint16_t val)
 {
     // channelInfo.pLoop = Spu.GetSoundBuffer() + (static_cast<uint32_t>(val) << 3);
     // channelInfo.ignoresLoop = true;
-    channelInfo.itrTone.SetPreferredLoop(static_cast<uint32_t>(val) << 3);
+    channelInfo.offsetExternalLoop = static_cast<uint32_t>(val) << 3;
 }
 
 
