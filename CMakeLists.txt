@@ -29,7 +29,7 @@ SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3 -W -Wall -finline-functions 
 SET(CMAKE_BUILD_TYPE "Debug")
 SET(wxWidgets_USE_DEBUG ON)
 #SET(wxWidgets_USE_REL_AND_DBG ON)
-#SET(wxDEBUG_LEVEL 2)
+SET(wxDEBUG_LEVEL 1)
 
 
 FIND_LIBRARY(OPENAL_LIBRARY
@@ -66,6 +66,7 @@ IF(wxWidgets_FOUND)
     ADD_EXECUTABLE(rennypsf ${CPPFILES} ${HEADERS})
     TARGET_LINK_LIBRARIES(rennypsf ${wxWidgets_LIBRARIES} ${OPENAL_LIBRARY} psx spu)
 ENDIF(wxWidgets_FOUND)
+
 
 MESSAGE(STATUS "CMake Build Type            : ${CMAKE_BUILD_TYPE}")
 MESSAGE(STATUS "wxWidgets Debug?            : ${wxWidgets_USE_DEBUG}")

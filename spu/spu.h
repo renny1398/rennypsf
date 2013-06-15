@@ -94,12 +94,12 @@ public:
 
 class AbstractInterpolation;
 
-wxDECLARE_SCOPED_PTR(AbstractInterpolation, InterpolationPtr)
+// wxDECLARE_SCOPED_PTR(AbstractInterpolation, InterpolationPtr)
 
 class ChannelInfo
 {
 public:
-    ChannelInfo();
+    ChannelInfo(SPU* pSPU);
     void StartSound();
     static void InitADSR();
     int MixADSR();
@@ -107,7 +107,10 @@ public:
     void Update();
 protected:
     void VoiceChangeFrequency();
-    void ADPCM2LPCM();
+    // void ADPCM2LPCM();
+
+private:
+    SPU* pSPU_;
 
 public:
     int ch;
@@ -119,7 +122,7 @@ public:
     //int             spos;
     //int             sinc;
     //int             SB[32+32];                          // sound bank
-    InterpolationPtr pInterpolation;
+    AbstractInterpolation*  pInterpolation;
     // int32_t         LPCM[28];
 
     int             sval;
@@ -173,52 +176,58 @@ public:
 class ChannelArray: public IChannelArray
 {
 public:
-    ChannelArray();
+    ChannelArray(SPU* pSPU, int channelNumber);
 
-    int GetChannelNumber() const {
-        return 24;
-    }
-
+    int GetChannelNumber() const;
     bool ExistsNew() const;
     void SoundNew(uint32_t flags);
 
     ChannelInfo& operator[](int i);
 
 private:
-    ChannelInfo channels[25];
-    uint32_t newChannelFlags;
+    wxVector<ChannelInfo> channels_;
+    SPU* pSPU_;
+    uint32_t flagNewChannels_;
 
     friend class ChannelInfo;
 };
 
 
-inline ChannelArray::ChannelArray()
+inline int ChannelArray::GetChannelNumber() const
 {
-    for (int i = 0; i < 25; i++) {
-        channels[i].ch = i;
+    return channels_.size();
+}
+
+
+
+
+inline ChannelArray::ChannelArray(SPU *pSPU, int channelNumber)
+    : channels_(channelNumber, ChannelInfo(pSPU)), pSPU_(pSPU)
+{
+    for (int i = 0; i < channelNumber; i++) {
+        channels_.at(i).ch = i;
     }
 }
 
 
 inline bool ChannelArray::ExistsNew() const {
-    return (newChannelFlags != 0);
+    return (flagNewChannels_ != 0);
 }
 
 
 inline void ChannelArray::SoundNew(uint32_t flags)
 {
     wxASSERT(flags < 0x01000000);
-    newChannelFlags |= flags;
+    flagNewChannels_ |= flags;
     for (int i = 0; flags != 0; i++, flags >>= 1) {
-        if (!(flags & 1) || (channels[i].tone->GetADPCM() == 0)) continue;
-        channels[i].bNew = true;
-        channels[i].offsetExternalLoop = 0xffffffff;
+        if (!(flags & 1) || (channels_[i].tone->GetADPCM() == 0)) continue;
+        channels_[i].bNew = true;
+        // channels_[i].offsetExternalLoop = 0xffffffff;
     }
 }
 
 inline ChannelInfo& ChannelArray::operator [](int i) {
-    wxASSERT(0 <= i && i < 24);
-    return channels[i];
+    return channels_.at(i);
 }
 
 

@@ -7,6 +7,7 @@
 //#include <wx/gauge.h>
 #include "SoundManager.h"
 #include "app.h"
+#include "spu/spu.h"
 
 
 ////////////////////////////////////////////////////////////////////////
@@ -337,9 +338,9 @@ ChannelPanel::ChannelPanel(wxWindow *parent)
         wxString channelCaption;
         channelCaption.sprintf("ch.%02d", i);
         // element.channelText = new wxStaticText(this, -1, channelCaption, wxDefaultPosition, wxDefaultSize, 0);
-        element.muteButton = new MuteButton(this, wxID_ANY, wxDefaultPosition, wxSize(32, 32), 0, channelCaption);
+        element.muteButton = new MuteButton(this, wxID_ANY, wxDefaultPosition, wxSize(50, 25), 0, channelCaption);
         element.muteButton->SetLabel(channelCaption);
-        element.channelSizer->Add(element.muteButton, wxEXPAND);
+        element.channelSizer->Add(element.muteButton);
         element.volumeSizer = new wxBoxSizer(wxVERTICAL);
         element.volumeSizer->Add(new KeyboardWidget(this, 8, 20), wxFIXED_MINSIZE);
 
@@ -416,6 +417,12 @@ WavetableList::WavetableList(wxWindow *parent) :
     itemFFT.SetWidth(64);
     itemFFT.SetText(_("FFT"));
     wxListCtrl::InsertColumn(3, itemFFT);
+
+    wxEvtHandler::Connect(wxEVT_COMMAND_LIST_ITEM_RIGHT_CLICK, (wxObjectEventFunction)&WavetableList::onListRightClick, 0, this);
+
+    // create a popup menu
+    menuPopup_.Append(ID_EXPORT_WAVE, _("&Export"));
+    wxEvtHandler::Connect(wxEVT_COMMAND_MENU_SELECTED, (wxObjectEventFunction)&WavetableList::onPopupClick, 0, this);
 }
 
 
@@ -503,4 +510,84 @@ void WavetableList::onRemove(SPU::SoundBank*, SPU::SamplingTone *tone)
         return;
     }
     wxListCtrl::DeleteItem(item);
+}
+
+
+void WavetableList::onListRightClick(wxListEvent &event)
+{
+    wxListItem item = event.GetItem();
+    long offset;
+    item.GetText().ToLong(&offset);
+    if (offset < 0 || 0x80000 <= offset) return;
+    SPU::SamplingTone *tone = Spu.SoundBank_.GetSamplingTone(offset);
+    menuPopup_.SetClientData(tone);
+    PopupMenu(&menuPopup_);
+}
+
+void WavetableList::onPopupClick(wxCommandEvent &event)
+{
+    using namespace SPU;
+    SamplingTone *tone = reinterpret_cast<SamplingTone*>(static_cast<wxMenu *>(event.GetEventObject())->GetClientData());
+    wxMessageOutputDebug().Printf(wxT("offset: %d"), tone->GetSPUOffset());
+    switch (event.GetId()) {
+    case ID_EXPORT_WAVE:
+        ExportTone(tone);
+        break;
+    default:
+        break;
+    }
+}
+
+
+#include <wx/file.h>
+
+void WavetableList::ExportTone(SPU::SamplingTone *tone)
+{
+    using namespace SPU;
+
+    wxString strFileName;
+    strFileName << tone->GetSPUOffset() << ".wav";
+
+    wxFile file(strFileName, wxFile::write);
+
+    int length = 0;
+
+    file.Write("RIFF", 4);
+    file.Write(&length, 4);
+    file.Write("WAVEfmt ", 8);
+
+    const int channelNumber = 1;
+    const int bitNumber = 16;
+    const int samplingRate = 44100;
+    const int blockSize = (bitNumber/8) * channelNumber;
+    const int dataRate = samplingRate * blockSize;
+
+    const int fmtSize = 16;
+    const int fmtId = 1;
+    file.Write(&fmtSize, 4);
+    file.Write(&fmtId, 2);
+    file.Write(&channelNumber, 2);
+    file.Write(&samplingRate, 4);
+    file.Write(&dataRate, 4);
+    file.Write(&blockSize, 2);
+    file.Write(&bitNumber, 2);
+
+    file.Write("data", 4);
+    file.Write(&length, 4);
+
+    length = tone->GetLength();
+    for (int i = 0; i < length; i++) {
+        int s = tone->At(i);
+        file.Write(&s, 2);
+    }
+
+    length *= 2;
+    file.Seek(0x28, wxFromStart);
+    file.Write(&length, 4);
+    length += 0x24;
+    file.Write(&length, 4);
+
+    file.Close();
+
+    wxMessageOutputDebug().Printf(wxT("Saved as %s"), strFileName);
 }

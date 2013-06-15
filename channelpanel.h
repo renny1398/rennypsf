@@ -2,6 +2,7 @@
 #include <wx/panel.h>
 #include <wx/frame.h>
 #include <wx/listctrl.h>
+#include <wx/menu.h>
 #include <wx/timer.h>
 #include <wx/vector.h>
 #include <wx/hashset.h>
@@ -120,10 +121,7 @@ private:
         // wxStaticText* channelText;
         MuteButton* muteButton;
         wxBoxSizer* volumeSizer;
-        // wxGauge* volumeLeft;
-        // wxGauge* volumeRight;
         VolumeBar *volumeLeft;
-        VolumeBar *volumeRight;
     };
 
     class DrawTimer: public wxTimer {
@@ -168,6 +166,13 @@ protected:
     void onModify(SPU::SoundBank*, SPU::SamplingTone *tone);
     void onRemove(SPU::SoundBank*, SPU::SamplingTone *tone);
 
+    void onListRightClick(wxListEvent& event);
+    void onPopupClick(wxCommandEvent& event);
+
+    void ExportTone(SPU::SamplingTone* tone);
+
 private:
     // map<Tone, wavetable>
+    wxMenu menuPopup_;
+    static const int ID_EXPORT_WAVE = 1001;
 };

@@ -20,9 +20,11 @@ static int32_t poo;
 
 namespace SPU {
 
-wxDEFINE_SCOPED_PTR(AbstractInterpolation, InterpolationPtr)
+// wxDEFINE_SCOPED_PTR(AbstractInterpolation, InterpolationPtr)
 
-ChannelInfo::ChannelInfo(): pInterpolation(new GaussianInterpolation(*this))
+ChannelInfo::ChannelInfo(SPU *pSPU) :
+    pSPU_(pSPU), pInterpolation(new GaussianInterpolation(*this))
+    // TODO: how to generate GaussianInterpolation
 {
     isUpdating = false;
 }
@@ -34,8 +36,6 @@ void ChannelInfo::StartSound()
 
     ADSRX.Start();
     Spu.StartReverb(*this);
-
-    // pCurr = pStart;
 
     // s_1 = 0;
     // s_2 = 0;
@@ -197,6 +197,7 @@ void* SPUThread::Entry()
 
 SPU::SPU() :
     SoundBank_(this), Memory(reinterpret_cast<uint8_t*>(m_spuMem)),
+    Channels(this, 24),
     condReadyToProcess_(mutexReadyToProcess_), condUpdate_(mutexUpdate_)
 
 {
@@ -265,6 +266,8 @@ void SPU::Shutdown()
 {
     Close();
     thread_->Wait();
+    wxMessageOutputDebug().Printf(wxT("Shut down SPU."));
+    wxLogDebug(wxT("SHUT DOWN"));
 }
 
 
