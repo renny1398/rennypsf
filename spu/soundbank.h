@@ -183,11 +183,12 @@ private:
 
 
 
-
-
-
-
-
-
-
 } // namespace SPU
+
+
+#include <wx/event.h>
+
+wxDECLARE_EVENT(EVENT_SPU_ADD_TONE, wxCommandEvent);
+wxDECLARE_EVENT(EVENT_SPU_MODIFY_TONE, wxCommandEvent);
+wxDECLARE_EVENT(EVENT_SPU_REMOVE_TONE, wxCommandEvent);
+

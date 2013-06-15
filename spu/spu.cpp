@@ -20,7 +20,7 @@ static int32_t poo;
 
 namespace SPU {
 
-// wxDEFINE_SCOPED_PTR(AbstractInterpolation, InterpolationPtr)
+wxDEFINE_SCOPED_PTR(AbstractInterpolation, InterpolationPtr)
 
 ChannelInfo::ChannelInfo(SPU *pSPU) :
     pSPU_(pSPU), pInterpolation(new GaussianInterpolation(*this))

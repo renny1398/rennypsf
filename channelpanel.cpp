@@ -391,6 +391,8 @@ void ChannelPanel::Update()
 ////////////////////////////////////////////////////////////////////////
 
 
+#include "spu/soundbank.h"
+
 WavetableList::WavetableList(wxWindow *parent) :
     wxListCtrl(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT, wxDefaultValidator, wxT("WavetableList"))
 {
@@ -418,6 +420,12 @@ WavetableList::WavetableList(wxWindow *parent) :
     itemFFT.SetText(_("FFT"));
     wxListCtrl::InsertColumn(3, itemFFT);
 
+    /*
+    wxEvtHandler::Bind(EVENT_SPU_ADD_TONE, &WavetableList::onAdd, this, wxID_ANY);
+    wxEvtHandler::Bind(EVENT_SPU_MODIFY_TONE, &WavetableList::onAdd, this, wxID_ANY);
+    wxEvtHandler::Bind(EVENT_SPU_REMOVE_TONE, &WavetableList::onAdd, this, wxID_ANY);
+*/
+
     wxEvtHandler::Connect(wxEVT_COMMAND_LIST_ITEM_RIGHT_CLICK, (wxObjectEventFunction)&WavetableList::onListRightClick, 0, this);
 
     // create a popup menu
@@ -426,8 +434,10 @@ WavetableList::WavetableList(wxWindow *parent) :
 }
 
 
-void WavetableList::onAdd(SPU::SoundBank*, SPU::SamplingTone *tone)
+void WavetableList::onAdd(wxCommandEvent& event)
 {
+    SPU::SamplingTone* tone = (SPU::SamplingTone*)event.GetClientData();
+
     const unsigned int offset = tone->GetSPUOffset();
 //    const unsigned int length = tone->GetLength() * 16 / 28;
 //    const unsigned int loop = tone->GetLoopIndex() * 16 / 28;
@@ -453,8 +463,10 @@ void WavetableList::onAdd(SPU::SoundBank*, SPU::SamplingTone *tone)
 }
 
 
-void WavetableList::onModify(SPU::SoundBank*, SPU::SamplingTone *tone)
+void WavetableList::onModify(wxCommandEvent& event)
 {
+    SPU::SamplingTone* tone = (SPU::SamplingTone*)event.GetClientData();
+
     const unsigned int offset = tone->GetSPUOffset();
     const unsigned int length = tone->GetLength() * 16 / 28;
     const unsigned int loop = tone->GetLoopIndex() * 16 / 28;
@@ -500,8 +512,10 @@ void WavetableList::onModify(SPU::SoundBank*, SPU::SamplingTone *tone)
 
 }
 
-void WavetableList::onRemove(SPU::SoundBank*, SPU::SamplingTone *tone)
+void WavetableList::onRemove(wxCommandEvent& event)
 {
+    SPU::SamplingTone* tone = (SPU::SamplingTone*)event.GetClientData();
+
     const unsigned int offset = tone->GetSPUOffset();
     wxString strOffset;
     strOffset << offset;

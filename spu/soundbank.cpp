@@ -45,9 +45,10 @@ uint32_t SamplingTone::GetLength() const
 
 uint32_t SamplingTone::GetLoopIndex() const
 {
-    wxASSERT(indexLoop_ % 28 == 0);
+    wxASSERT(indexLoop_ % 28 == 0 || indexLoop_ == 0xffffffff);
     return indexLoop_;
 }
+
 
 double SamplingTone::GetFreq() const
 {
@@ -243,14 +244,20 @@ bool SamplingToneIterator::HasNext() const
 
     uint32_t indexLoop;
     const uint32_t offsetExternalLoop = pChannel_->offsetExternalLoop;
-    if (offsetExternalLoop < 0x80000000) {
-        indexLoop = (offsetExternalLoop - pTone_->GetSPUOffset()) * 28 / 16;
-    } else {
-        indexLoop = pTone_->GetLoopIndex();
-        if (0x80000000 <= indexLoop) {
+    const uint32_t inLoop = pTone_->GetLoopIndex();
+    const uint32_t exLoop = (offsetExternalLoop - pTone_->GetSPUOffset()) * 28 / 16;
+
+    if (pChannel_->useExternalLoop) {
+        indexLoop = exLoop;
+    } else if (0x80000000 <= inLoop) {
+        if (0x80000000 <= offsetExternalLoop) {
             return false;
         }
+        indexLoop = exLoop;
+    } else {
+        indexLoop = inLoop;
     }
+
     uint32_t lenLoop = pTone_->GetLength() - indexLoop;
     // wxMessageOutputDebug().Printf(wxT("Loop index = %d, Loop length = %d"), indexLoop, lenLoop);
     while (pTone_->GetLength() <= index_) {
@@ -392,27 +399,32 @@ void* FourierTransformer::mainLoop(void *param)
 SoundBank::SoundBank(SPU *pSPU) : pSPU_(pSPU) {}
 
 
+wxDEFINE_EVENT(EVENT_SPU_ADD_TONE, wxCommandEvent);
+wxDEFINE_EVENT(EVENT_SPU_MODIFY_TONE, wxCommandEvent);
+wxDEFINE_EVENT(EVENT_SPU_REMOVE_TONE, wxCommandEvent);
+
+
 void SoundBank::NotifyOnAdd(SamplingTone *tone) const
 {
-    for (std::set<SoundBankListener*>::const_iterator it = listeners_.begin(); it != listeners_.end(); ++it) {
-        const_cast<SoundBankListener*>(*it)->onAdd(const_cast<SoundBank*>(this), tone);
-    }
+//    for (std::set<SoundBankListener*>::const_iterator it = listeners_.begin(); it != listeners_.end(); ++it) {
+//        const_cast<SoundBankListener*>(*it)->onAdd(const_cast<SoundBank*>(this), tone);
+//    }
 }
 
 
 void SoundBank::NotifyOnModify(SamplingTone *tone) const
 {
-    for (std::set<SoundBankListener*>::const_iterator it = listeners_.begin(); it != listeners_.end(); ++it) {
-        const_cast<SoundBankListener*>(*it)->onModify(const_cast<SoundBank*>(this), tone);
-    }
+//    for (std::set<SoundBankListener*>::const_iterator it = listeners_.begin(); it != listeners_.end(); ++it) {
+//        const_cast<SoundBankListener*>(*it)->onModify(const_cast<SoundBank*>(this), tone);
+//    }
 }
 
 
 void SoundBank::NotifyOnRemove(SamplingTone *tone) const
 {
-    for (std::set<SoundBankListener*>::const_iterator it = listeners_.begin(); it != listeners_.end(); ++it) {
-        const_cast<SoundBankListener*>(*it)->onRemove(const_cast<SoundBank*>(this), tone);
-    }
+//    for (std::set<SoundBankListener*>::const_iterator it = listeners_.begin(); it != listeners_.end(); ++it) {
+//        const_cast<SoundBankListener*>(*it)->onRemove(const_cast<SoundBank*>(this), tone);
+//    }
 }
 
 

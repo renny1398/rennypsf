@@ -94,12 +94,14 @@ public:
 
 class AbstractInterpolation;
 
-// wxDECLARE_SCOPED_PTR(AbstractInterpolation, InterpolationPtr)
+wxDECLARE_SCOPED_PTR(AbstractInterpolation, InterpolationPtr)
+
+class ChannelArray;
 
 class ChannelInfo
 {
 public:
-    ChannelInfo(SPU* pSPU);
+    ChannelInfo(SPU* pSPU = 0);
     void StartSound();
     static void InitADSR();
     int MixADSR();
@@ -122,7 +124,7 @@ public:
     //int             spos;
     //int             sinc;
     //int             SB[32+32];                          // sound bank
-    AbstractInterpolation*  pInterpolation;
+    InterpolationPtr  pInterpolation;
     // int32_t         LPCM[28];
 
     int             sval;
@@ -139,8 +141,8 @@ public:
     bool            isLeftExpSlope;
     bool            isLeftDecreased;
     //int             iLeftVolRaw;                        // left psx volume value
-    //bool            ignoresLoop;                        // ignore loop bit, if an external loop address is used
     unsigned int    offsetExternalLoop;
+    bool            useExternalLoop;                        // ignore loop bit, if an external loop address is used
     int             iMute;                              // mute mode
     int             iRightVolume;                       // right volume (s15)
     //int             iRightVolRaw;                       // right psx volume value
@@ -161,6 +163,8 @@ public:
 
 private:
     static uint32_t rateTable[160];
+
+    friend class ChannelArray;
 };
 
 
@@ -185,8 +189,9 @@ public:
     ChannelInfo& operator[](int i);
 
 private:
-    wxVector<ChannelInfo> channels_;
     SPU* pSPU_;
+    ChannelInfo* channels_;
+    int channelNumber_;
     uint32_t flagNewChannels_;
 
     friend class ChannelInfo;
@@ -195,17 +200,18 @@ private:
 
 inline int ChannelArray::GetChannelNumber() const
 {
-    return channels_.size();
+    return channelNumber_;
 }
 
 
 
 
 inline ChannelArray::ChannelArray(SPU *pSPU, int channelNumber)
-    : channels_(channelNumber, ChannelInfo(pSPU)), pSPU_(pSPU)
+    : pSPU_(pSPU), channels_(new ChannelInfo[channelNumber]), channelNumber_(channelNumber)
 {
     for (int i = 0; i < channelNumber; i++) {
-        channels_.at(i).ch = i;
+        channels_[i].pSPU_ = pSPU;
+        channels_[i].ch = i;
     }
 }
 
@@ -220,14 +226,14 @@ inline void ChannelArray::SoundNew(uint32_t flags)
     wxASSERT(flags < 0x01000000);
     flagNewChannels_ |= flags;
     for (int i = 0; flags != 0; i++, flags >>= 1) {
-        if (!(flags & 1) || (channels_[i].tone->GetADPCM() == 0)) continue;
+        if (!(flags & 1) || (channels_[i].itrTone.HasNext() == false)) continue;
         channels_[i].bNew = true;
-        // channels_[i].offsetExternalLoop = 0xffffffff;
+        channels_[i].useExternalLoop = false;
     }
 }
 
 inline ChannelInfo& ChannelArray::operator [](int i) {
-    return channels_.at(i);
+    return channels_[i];
 }
 
 

@@ -156,15 +156,15 @@ struct WavetableInfo
 
 #include "spu/soundbank.h"
 
-class WavetableList : public wxListCtrl, public SPU::SoundBankListener
+class WavetableList : public wxListCtrl
 {
 public:
     WavetableList(wxWindow* parent);
 
 protected:
-    void onAdd(SPU::SoundBank*, SPU::SamplingTone *tone);
-    void onModify(SPU::SoundBank*, SPU::SamplingTone *tone);
-    void onRemove(SPU::SoundBank*, SPU::SamplingTone *tone);
+    void onAdd(wxCommandEvent& event);
+    void onModify(wxCommandEvent& event);
+    void onRemove(wxCommandEvent& event);
 
     void onListRightClick(wxListEvent& event);
     void onPopupClick(wxCommandEvent& event);

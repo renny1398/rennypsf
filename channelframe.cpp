@@ -12,7 +12,6 @@ ChannelFrame::ChannelFrame(wxWindow* parent): wxFrame(parent, wxID_ANY, _("Chann
     ClearBackground();
 
     WavetableList *wavetableList = new WavetableList(this);
-    Spu.SoundBank_.AddListener(wavetableList);
 
     sizer->Add(panel);
     sizer->Add(wavetableList, wxGROW);

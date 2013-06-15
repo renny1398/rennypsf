@@ -360,8 +360,8 @@ void (*const write1xxc)(ChannelInfo&, uint16_t) = writeChannelNOP;
 void write1xxe(ChannelInfo& channelInfo, uint16_t val)
 {
     // channelInfo.pLoop = Spu.GetSoundBuffer() + (static_cast<uint32_t>(val) << 3);
-    // channelInfo.ignoresLoop = true;
     channelInfo.offsetExternalLoop = static_cast<uint32_t>(val) << 3;
+    channelInfo.useExternalLoop = true;
 }
 
 
