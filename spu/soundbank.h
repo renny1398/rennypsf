@@ -4,11 +4,15 @@
 #include <set>
 #include <pthread.h>
 
+#include <wx/event.h>
 #include <wx/vector.h>
 #include <wx/hashmap.h>
 #include <wx/thread.h>
 
+#include <wx/event.h>
 
+
+class wxEvtHandler;
 
 namespace SPU {
 
@@ -29,6 +33,7 @@ public:
 
     SamplingTone* GetTone() const;
     // void SetPreferredLoop(uint32_t index);
+    uint32_t GetLoopIndex() const;
 
 protected:
     void clone(SamplingToneIterator* itrTone) const;
@@ -67,7 +72,7 @@ public:
     // const SamplingToneIterator& End() const;
 
 protected:
-    void ADPCM2LPCM() const;
+    void ADPCM2LPCM();
 
     bool hasFinishedConv() const;
 
@@ -79,6 +84,7 @@ private:
     mutable wxVector<int32_t> LPCM_;
 
     mutable uint32_t indexLoop_;
+    bool forcesStop_;
     // bool hasFinishedConv_;
     mutable uint32_t processedBlockNumber_;
     double freq_;
@@ -125,21 +131,6 @@ private:
 
 WX_DECLARE_HASH_MAP(uint32_t, SamplingTone*, wxIntegerHash, wxIntegerEqual, SamplingToneMap);
 
-class SoundBankListener
-{
-    friend class SoundBank;
-
-public:
-    virtual ~SoundBankListener() {}
-
-protected:
-    // virtual void onUpdate(SoundBank* soundBank) = 0;
-
-    virtual void onAdd(SoundBank*, SamplingTone*) {}
-    virtual void onModify(SoundBank*, SamplingTone*) {}
-    virtual void onRemove(SoundBank*, SamplingTone*) {}
-};
-
 
 class SPU;
 
@@ -147,6 +138,7 @@ class SoundBank
 {
 public:
     SoundBank(SPU* pSPU);
+    ~SoundBank() {}
 
     // const SamplineTone* GetSamplingTone(uint8_t* pADPCM) const;
     SamplingTone *GetSamplingTone(uint32_t addr) const;
@@ -158,15 +150,12 @@ public:
 
     void FourierTransform(SamplingTone* tone);
 
-    void AddListener(SoundBankListener* listener);
-    void RemoveListener(SoundBankListener* listener);
-    void RemoveAllListeners();
+    void AddListener(wxEvtHandler* listener);
+    void RemoveListener(wxEvtHandler* listener);
 
     void NotifyOnAdd(SamplingTone* tone) const;
     void NotifyOnModify(SamplingTone* tone) const;
     void NotifyOnRemove(SamplingTone* tone) const;
-
-protected:
 
 private:
     SPU* pSPU_;
@@ -177,7 +166,7 @@ private:
     // int* fftBuffer_;
     FourierTransformer fft_;
 
-    std::set<SoundBankListener*> listeners_;
+    std::set<wxEvtHandler*> listeners_;
 };
 
 
@@ -186,9 +175,7 @@ private:
 } // namespace SPU
 
 
-#include <wx/event.h>
-
-wxDECLARE_EVENT(EVENT_SPU_ADD_TONE, wxCommandEvent);
-wxDECLARE_EVENT(EVENT_SPU_MODIFY_TONE, wxCommandEvent);
-wxDECLARE_EVENT(EVENT_SPU_REMOVE_TONE, wxCommandEvent);
+wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVENT_SPU_ADD_TONE, wxCommandEvent);
+wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVENT_SPU_MODIFY_TONE, wxCommandEvent);
+wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVENT_SPU_REMOVE_TONE, wxCommandEvent);
 

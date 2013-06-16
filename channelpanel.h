@@ -1,8 +1,6 @@
 #pragma once
 #include <wx/panel.h>
 #include <wx/frame.h>
-#include <wx/listctrl.h>
-#include <wx/menu.h>
 #include <wx/timer.h>
 #include <wx/vector.h>
 #include <wx/hashset.h>
@@ -104,6 +102,8 @@ inline void VolumeBar::SetValue(int value) {
 }
 
 
+#include <wx/event.h>
+
 class ChannelPanel: public wxPanel
 {
 public:
@@ -114,14 +114,19 @@ public:
 protected:
     void Update();
 
+    void onChangeLoopIndex(wxCommandEvent& event);
+
 private:
     struct ChannelElement {
         int ich;
         wxBoxSizer* channelSizer;
         // wxStaticText* channelText;
         MuteButton* muteButton;
+        KeyboardWidget* keyboard;
         wxBoxSizer* volumeSizer;
         VolumeBar *volumeLeft;
+        wxStaticText* textToneOffset;
+        wxStaticText* textToneLoop;
     };
 
     class DrawTimer: public wxTimer {
@@ -135,44 +140,6 @@ private:
     wxBoxSizer* wholeSizer;
     wxVector<ChannelElement> elements;
     DrawTimer timer;
-};
 
-
-
-
-
-////////////////////////////////////////////////////////////////////////
-// Wavetable List Control Panel
-////////////////////////////////////////////////////////////////////////
-
-
-struct WavetableInfo
-{
-    unsigned int offset;
-    unsigned int length;
-    unsigned int loop;
-};
-
-
-#include "spu/soundbank.h"
-
-class WavetableList : public wxListCtrl
-{
-public:
-    WavetableList(wxWindow* parent);
-
-protected:
-    void onAdd(wxCommandEvent& event);
-    void onModify(wxCommandEvent& event);
-    void onRemove(wxCommandEvent& event);
-
-    void onListRightClick(wxListEvent& event);
-    void onPopupClick(wxCommandEvent& event);
-
-    void ExportTone(SPU::SamplingTone* tone);
-
-private:
-    // map<Tone, wavetable>
-    wxMenu menuPopup_;
-    static const int ID_EXPORT_WAVE = 1001;
+    wxDECLARE_EVENT_TABLE();
 };

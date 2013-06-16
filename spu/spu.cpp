@@ -17,6 +17,9 @@ static int32_t poo;
 }   // namespace
 
 
+wxDEFINE_EVENT(wxEVENT_SPU_CHANNEL_CHANGE_LOOP, wxCommandEvent);
+
+
 
 namespace SPU {
 
@@ -41,6 +44,7 @@ void ChannelInfo::StartSound()
     // s_2 = 0;
     // iSBPos = 28;
 
+    itrTone = tone->Iterator(this);
     bNew = false;
     isStopped = false;
     isOn = true;
@@ -75,8 +79,10 @@ void ChannelInfo::Update()
     while (pInterpolation->spos >= 0x10000) {
         if (itrTone.HasNext() == false) {
             isOn = false;
+            // isStopped = true;
             ADSRX.lVolume = 0;
             ADSRX.EnvelopeVol = 0;
+            wxGetApp().GetSoundManager()->SetEnvelopeVolume(ch, ADSRX.lVolume);
             return;
         }
         fa = itrTone.Next();
@@ -110,12 +116,81 @@ void ChannelInfo::Update()
 }
 
 
+
+
+int ChannelArray::GetChannelNumber() const
+{
+    return channelNumber_;
+}
+
+
+
+
+ChannelArray::ChannelArray(SPU *pSPU, int channelNumber)
+    : pSPU_(pSPU), channels_(new ChannelInfo[channelNumber]), channelNumber_(channelNumber)
+{
+    for (int i = 0; i < channelNumber; i++) {
+        channels_[i].pSPU_ = pSPU;
+        channels_[i].ch = i;
+    }
+}
+
+
+bool ChannelArray::ExistsNew() const {
+    return (flagNewChannels_ != 0);
+}
+
+
+void ChannelArray::SoundNew(uint32_t flags)
+{
+    wxASSERT(flags < 0x01000000);
+    flagNewChannels_ |= flags;
+    for (int i = 0; flags != 0; i++, flags >>= 1) {
+        if (!(flags & 1) || (channels_[i].tone->GetADPCM() == 0)) continue;
+        channels_[i].bNew = true;
+        // channels_[i].isStopped = false;
+        channels_[i].useExternalLoop = false;
+        pSPU_->NotifyOnChangeLoopIndex(&channels_[i]);
+    }
+}
+
+ChannelInfo& ChannelArray::operator [](int i) {
+    return channels_[i];
+}
+
+
+
+
+void SPUBase::AddListener(wxEvtHandler *listener)
+{
+    listeners_.insert(listener);
+}
+
+
+void SPUBase::RemoveListener(wxEvtHandler *listener)
+{
+    listeners_.erase(listener);
+}
+
+
+void SPUBase::NotifyOnChangeLoopIndex(ChannelInfo *pChannel) const
+{
+    wxCommandEvent event(wxEVENT_SPU_CHANNEL_CHANGE_LOOP);
+    event.SetClientData(pChannel);
+
+    const SPUListener::const_iterator itrEnd = listeners_.end();
+    for (SPUListener::const_iterator itr = listeners_.begin(); itr != itrEnd; ++itr) {
+        (*itr)->AddPendingEvent(event);
+    }
+}
+
+
+
+
 SamplingTone* SPU::GetSamplingTone(uint32_t addr) const
 {
     return SoundBank_.GetSamplingTone(addr);
 }
-
-
 
 
 

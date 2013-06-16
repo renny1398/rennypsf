@@ -6,12 +6,17 @@
 #include <stdexcept>
 
 
+wxDEFINE_EVENT(wxEVENT_SPU_ADD_TONE, wxCommandEvent);
+wxDEFINE_EVENT(wxEVENT_SPU_MODIFY_TONE, wxCommandEvent);
+wxDEFINE_EVENT(wxEVENT_SPU_REMOVE_TONE, wxCommandEvent);
+
+
 namespace SPU {
 
 
 SamplingTone::SamplingTone(const SoundBank *pSB, uint8_t *pADPCM) :
-    pSB_(pSB), pADPCM_(pADPCM), indexLoop_(0xffffffff), processedBlockNumber_(0),
-    freq_(0.0), begin_(this), prev1_(0), prev2_(0)
+    pSB_(pSB), pADPCM_(pADPCM), indexLoop_(0xffffffff), forcesStop_(false),
+    processedBlockNumber_(0), freq_(0.0), begin_(this), prev1_(0), prev2_(0)
 {
     wxASSERT(pADPCM_ != 0);
 }
@@ -82,7 +87,7 @@ int SamplingTone::At(int index) const
 
     wxASSERT(len == processedBlockNumber_ * 28);
     for (int i = len; i <= index; i += 28) {
-        ADPCM2LPCM();
+        const_cast<SamplingTone*>(this)->ADPCM2LPCM();
         if (hasFinishedConv()) break;
     }
 
@@ -96,7 +101,7 @@ const SoundBank* SamplingTone::GetSoundBank() const
 }
 
 
-void SamplingTone::ADPCM2LPCM() const
+void SamplingTone::ADPCM2LPCM()
 {
     wxASSERT(hasFinishedConv() == false);
 
@@ -157,21 +162,16 @@ void SamplingTone::ADPCM2LPCM() const
     if ( flags & 4 ) {
         // pLoop = start - 16;
         indexLoop_ = (processedBlockNumber_ - 1) * 28;
-        pSB_->NotifyOnModify(const_cast<SamplingTone*>(this));
+        pSB_->NotifyOnModify(this);
     } else if ( flags & 1 ) {
         // the end of this tone
-        processedBlockNumber_ = 0xffffffff;
-        // wxMessageOutputDebug().Printf(wxT("Tone end"));
-        pSB_->NotifyOnModify(const_cast<SamplingTone*>(this));
-        /*
-        if (flags != 3 || indexLoop_ == 0) { // DQ4
-            start = (uint8_t*)0xffffffff;
-            ;
-        } else {
-            wxASSERT( (flags & 4) == 0 );
-            start = pLoop;
+        pSB_->NotifyOnModify(this);
+
+        if (flags != 3 ) {
+            forcesStop_ = true;
         }
-        */
+
+        processedBlockNumber_ = 0xffffffff;
         Spu.SoundBank_.FourierTransform(const_cast<SamplingTone*>(this));
     }
 
@@ -221,25 +221,17 @@ SamplingToneIterator& SamplingToneIterator::operator=(const SamplingToneIterator
     return *this;
 }
 
-/*
-void SamplingToneIterator::SetPreferredLoop(uint32_t index)
+
+SamplingTone* SamplingToneIterator::GetTone() const
 {
-//    wxMessageOutputDebug().Printf(wxT("force loop is on at %d (start = %d)"), (uint32_t)val << 3, );
-    indexPreferredLoop_ = (index - pTone_->GetSPUOffset()) * 28 / 16;
-    // experimental
-    pTone_->indexLoop_ = (index - pTone_->GetSPUOffset()) * 28 / 16;
+    return pTone_;
 }
-*/
 
-bool SamplingToneIterator::HasNext() const
+
+uint32_t SamplingToneIterator::GetLoopIndex() const
 {
-    if (pTone_ == 0) return false;
-
-    if (index_ < pTone_->GetLength()) {
-        return true;
-    }
-    if (pTone_->hasFinishedConv() == false) {
-        return true;
+    if (pTone_->forcesStop_ == true) {
+        return 0xffffffff;
     }
 
     uint32_t indexLoop;
@@ -251,11 +243,35 @@ bool SamplingToneIterator::HasNext() const
         indexLoop = exLoop;
     } else if (0x80000000 <= inLoop) {
         if (0x80000000 <= offsetExternalLoop) {
-            return false;
+            return 0xffffffff;
         }
         indexLoop = exLoop;
     } else {
         indexLoop = inLoop;
+    }
+
+    return indexLoop;
+}
+
+
+
+
+bool SamplingToneIterator::HasNext() const
+{
+    if (pTone_ == 0) {
+        return false;
+    }
+
+    if (index_ < pTone_->GetLength()) {
+        return true;
+    }
+    if (pTone_->hasFinishedConv() == false) {
+        return true;
+    }
+
+    uint32_t indexLoop = GetLoopIndex();
+    if (0x80000000 <= indexLoop) {
+        return false;
     }
 
     uint32_t lenLoop = pTone_->GetLength() - indexLoop;
@@ -394,37 +410,43 @@ void* FourierTransformer::mainLoop(void *param)
 }
 
 
-
-
 SoundBank::SoundBank(SPU *pSPU) : pSPU_(pSPU) {}
 
-
-wxDEFINE_EVENT(EVENT_SPU_ADD_TONE, wxCommandEvent);
-wxDEFINE_EVENT(EVENT_SPU_MODIFY_TONE, wxCommandEvent);
-wxDEFINE_EVENT(EVENT_SPU_REMOVE_TONE, wxCommandEvent);
 
 
 void SoundBank::NotifyOnAdd(SamplingTone *tone) const
 {
-//    for (std::set<SoundBankListener*>::const_iterator it = listeners_.begin(); it != listeners_.end(); ++it) {
-//        const_cast<SoundBankListener*>(*it)->onAdd(const_cast<SoundBank*>(this), tone);
-//    }
+    wxCommandEvent event(wxEVENT_SPU_ADD_TONE, wxID_ANY);
+    event.SetClientData(tone);
+
+    std::set<wxEvtHandler*>::const_iterator itrEnd = listeners_.end();
+    for (std::set<wxEvtHandler*>::const_iterator itr = listeners_.begin(); itr != itrEnd; ++itr) {
+        (*itr)->AddPendingEvent(event);
+    }
 }
 
 
 void SoundBank::NotifyOnModify(SamplingTone *tone) const
 {
-//    for (std::set<SoundBankListener*>::const_iterator it = listeners_.begin(); it != listeners_.end(); ++it) {
-//        const_cast<SoundBankListener*>(*it)->onModify(const_cast<SoundBank*>(this), tone);
-//    }
+    wxCommandEvent event(wxEVENT_SPU_MODIFY_TONE, wxID_ANY);
+    event.SetClientData(tone);
+
+    std::set<wxEvtHandler*>::const_iterator itrEnd = listeners_.end();
+    for (std::set<wxEvtHandler*>::const_iterator itr = listeners_.begin(); itr != itrEnd; ++itr) {
+        (*itr)->AddPendingEvent(event);
+    }
 }
 
 
 void SoundBank::NotifyOnRemove(SamplingTone *tone) const
 {
-//    for (std::set<SoundBankListener*>::const_iterator it = listeners_.begin(); it != listeners_.end(); ++it) {
-//        const_cast<SoundBankListener*>(*it)->onRemove(const_cast<SoundBank*>(this), tone);
-//    }
+    wxCommandEvent event(wxEVENT_SPU_REMOVE_TONE, wxID_ANY);
+    event.SetClientData(tone);
+
+    std::set<wxEvtHandler*>::const_iterator itrEnd = listeners_.end();
+    for (std::set<wxEvtHandler*>::const_iterator itr = listeners_.begin(); itr != itrEnd; ++itr) {
+        (*itr)->AddPendingEvent(event);
+    }
 }
 
 
@@ -472,21 +494,14 @@ void SoundBank::FourierTransform(SamplingTone *tone)
 }
 
 
-void SoundBank::AddListener(SoundBankListener *listener)
+void SoundBank::AddListener(wxEvtHandler* listener)
 {
     listeners_.insert(listener);
 }
 
-
-void SoundBank::RemoveListener(SoundBankListener *listener)
+void SoundBank::RemoveListener(wxEvtHandler* listener)
 {
     listeners_.erase(listener);
-}
-
-
-void SoundBank::RemoveAllListeners()
-{
-    listeners_.clear();
 }
 
 

@@ -329,7 +329,6 @@ void write1xx6(ChannelInfo& channelInfo, uint16_t val)
 //    channelInfo.pStart = Spu.GetSoundBuffer() + (static_cast<uint32_t>(val) << 3);
     SamplingTone* tone = Spu.GetSamplingTone(static_cast<uint32_t>(val) << 3);
     channelInfo.tone = tone;
-    channelInfo.itrTone = tone->Iterator(&channelInfo);
 }
 
 // Set ADS level
@@ -362,6 +361,7 @@ void write1xxe(ChannelInfo& channelInfo, uint16_t val)
     // channelInfo.pLoop = Spu.GetSoundBuffer() + (static_cast<uint32_t>(val) << 3);
     channelInfo.offsetExternalLoop = static_cast<uint32_t>(val) << 3;
     channelInfo.useExternalLoop = true;
+    Spu.NotifyOnChangeLoopIndex(&channelInfo);
 }
 
 

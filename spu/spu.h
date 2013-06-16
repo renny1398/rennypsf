@@ -2,10 +2,14 @@
 #include <stdint.h>
 #include <wx/ptr_scpd.h>
 #include <wx/thread.h>
+#include <wx/hashset.h>
 
 #include "reverb.h"
 #include "interpolation.h"
 #include "soundbank.h"
+
+
+class wxEvtHandler;
 
 
 namespace SPU
@@ -198,43 +202,6 @@ private:
 };
 
 
-inline int ChannelArray::GetChannelNumber() const
-{
-    return channelNumber_;
-}
-
-
-
-
-inline ChannelArray::ChannelArray(SPU *pSPU, int channelNumber)
-    : pSPU_(pSPU), channels_(new ChannelInfo[channelNumber]), channelNumber_(channelNumber)
-{
-    for (int i = 0; i < channelNumber; i++) {
-        channels_[i].pSPU_ = pSPU;
-        channels_[i].ch = i;
-    }
-}
-
-
-inline bool ChannelArray::ExistsNew() const {
-    return (flagNewChannels_ != 0);
-}
-
-
-inline void ChannelArray::SoundNew(uint32_t flags)
-{
-    wxASSERT(flags < 0x01000000);
-    flagNewChannels_ |= flags;
-    for (int i = 0; flags != 0; i++, flags >>= 1) {
-        if (!(flags & 1) || (channels_[i].itrTone.HasNext() == false)) continue;
-        channels_[i].bNew = true;
-        channels_[i].useExternalLoop = false;
-    }
-}
-
-inline ChannelInfo& ChannelArray::operator [](int i) {
-    return channels_[i];
-}
 
 
 ////////////////////////////////////////////////////////////////////////
@@ -270,11 +237,23 @@ private:
 // SPU interface (experimental)
 ////////////////////////////////////////////////////////////////////////
 
-class ISPU
+
+WX_DECLARE_HASH_SET(wxEvtHandler*, wxPointerHash, wxPointerEqual, SPUListener);
+
+
+class SPUBase
 {
 public:
-    virtual ~ISPU() {}
+    virtual ~SPUBase() {}
     virtual uint32_t GetDefaultSamplingRate() const = 0;
+
+    void AddListener(wxEvtHandler* listener);
+    void RemoveListener(wxEvtHandler* listener);
+
+    void NotifyOnChangeLoopIndex(ChannelInfo* pChannel) const;
+
+private:
+    SPUListener listeners_;
 };
 
 
@@ -282,7 +261,7 @@ public:
 class PSF;
 class PSF1;
 
-class SPU: public ISPU
+class SPU: public SPUBase
 {
 public:
     SPU();
@@ -471,7 +450,7 @@ private:
 };
 
 
-
+/*
 class SPUListener {
 public:
     virtual ~SPUListener() {}
@@ -480,7 +459,7 @@ protected:
 
     void onUpdate(SPU*);
 };
-
+*/
 
 
 
@@ -512,6 +491,11 @@ inline void SPU::SetIRQAddress(uint32_t addr) {
 
 
 }   // namespace SPU
+
+
+#include <wx/event.h>
+
+wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVENT_SPU_CHANNEL_CHANGE_LOOP, wxCommandEvent);
 
 
 extern SPU::SPU& Spu;

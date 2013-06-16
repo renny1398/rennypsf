@@ -1,5 +1,6 @@
 #include "channelframe.h"
 #include "channelpanel.h"
+#include "wavetablepanel.h"
 #include <wx/sizer.h>
 #include "spu/spu.h"
 
@@ -11,10 +12,10 @@ ChannelFrame::ChannelFrame(wxWindow* parent): wxFrame(parent, wxID_ANY, _("Chann
     SetBackgroundColour(*wxBLACK);
     ClearBackground();
 
-    WavetableList *wavetableList = new WavetableList(this);
+    WavetablePanel *wavetablePanel = new WavetablePanel(this);
 
     sizer->Add(panel);
-    sizer->Add(wavetableList, wxGROW);
+    sizer->Add(wavetablePanel, wxGROW);
     this->SetSizer(sizer);
     SetAutoLayout(true);
     sizer->Fit(this);

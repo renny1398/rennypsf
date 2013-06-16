@@ -85,7 +85,7 @@ void MuteButton::onLeave(wxMouseEvent& WXUNUSED(event))
 ////////////////////////////////////////////////////////////////////////
 
 VolumeBar::VolumeBar(wxWindow *parent, wxOrientation orientation, int max)
-    : wxPanel(parent, wxID_ANY, wxDefaultPosition, wxSize(512, 6)), orientation_(orientation), max_(max)
+    : wxPanel(parent, wxID_ANY, wxDefaultPosition, wxSize(512, 4)), orientation_(orientation), max_(max)
 {
     value_ = 0;
 }
@@ -115,9 +115,9 @@ void VolumeBar::render(wxDC &dc)
     int barWidth, barHeight;
     GetSize(&barWidth, &barHeight);
 
-    const int blockNumber = 80;
+    const int blockNumber = 64;
     const int blockgapWidth = barWidth / blockNumber;
-    const int gapWidth = 2;
+    const int gapWidth = 1;
     const int blockWidth = blockgapWidth - gapWidth;
 
     const int gapHeight = 1;
@@ -325,6 +325,12 @@ void KeyboardWidget::ReleaseKey(int keyIndex)
 // Channel Panel
 ////////////////////////////////////////////////////////////////////////
 
+
+wxBEGIN_EVENT_TABLE(ChannelPanel, wxPanel)
+EVT_COMMAND(wxID_ANY, wxEVENT_SPU_CHANNEL_CHANGE_LOOP, ChannelPanel::onChangeLoopIndex)
+wxEND_EVENT_TABLE()
+
+
 ChannelPanel::ChannelPanel(wxWindow *parent)
     : wxPanel(parent, -1, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL, "channel_panel"),
       timer(this)
@@ -337,17 +343,26 @@ ChannelPanel::ChannelPanel(wxWindow *parent)
         element.channelSizer = new wxBoxSizer(wxHORIZONTAL);
         wxString channelCaption;
         channelCaption.sprintf("ch.%02d", i);
-        // element.channelText = new wxStaticText(this, -1, channelCaption, wxDefaultPosition, wxDefaultSize, 0);
+
         element.muteButton = new MuteButton(this, wxID_ANY, wxDefaultPosition, wxSize(50, 25), 0, channelCaption);
         element.muteButton->SetLabel(channelCaption);
         element.channelSizer->Add(element.muteButton);
+
         element.volumeSizer = new wxBoxSizer(wxVERTICAL);
-        element.volumeSizer->Add(new KeyboardWidget(this, 8, 20), wxFIXED_MINSIZE);
 
-        element.volumeLeft = new VolumeBar(this, wxHORIZONTAL, 2048);
+        element.keyboard = new KeyboardWidget(this, 8, 20);
+        element.volumeSizer->Add(element.keyboard, wxFIXED_MINSIZE);
+
+        element.volumeLeft = new VolumeBar(this, wxHORIZONTAL, 1024);
         element.volumeSizer->Add(element.volumeLeft);
-
         element.channelSizer->Add(element.volumeSizer, wxFIXED_MINSIZE);
+
+        element.textToneOffset = new wxStaticText(this, wxID_ANY, wxT("0"), wxDefaultPosition, wxSize(48, -1));
+        element.channelSizer->Add(element.textToneOffset);
+
+        element.textToneLoop = new wxStaticText(this, wxID_ANY, wxT("0"), wxDefaultPosition, wxSize(40, -1));
+        element.channelSizer->Add(element.textToneLoop);
+
         wholeSizer->Add(element.channelSizer);
         elements.push_back(element);
     }
@@ -355,6 +370,8 @@ ChannelPanel::ChannelPanel(wxWindow *parent)
     SetSizer(wholeSizer);
     SetAutoLayout(true);
     wholeSizer->Fit(this);
+
+    Spu.AddListener(this);
 
     timer.Start(50, wxTIMER_CONTINUOUS);
 }
@@ -385,223 +402,10 @@ void ChannelPanel::Update()
 }
 
 
-
-////////////////////////////////////////////////////////////////////////
-// Wavetable List Control Panel
-////////////////////////////////////////////////////////////////////////
-
-
-#include "spu/soundbank.h"
-
-WavetableList::WavetableList(wxWindow *parent) :
-    wxListCtrl(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT, wxDefaultValidator, wxT("WavetableList"))
-{
-    wxListItem itemOffset;
-    itemOffset.SetId(1);
-    itemOffset.SetWidth(80);
-    itemOffset.SetText(_("Offset"));
-    wxListCtrl::InsertColumn(0, itemOffset);
-
-    wxListItem itemLength;
-    itemLength.SetId(2);
-    itemLength.SetWidth(64);
-    itemLength.SetText(_("Length"));
-    wxListCtrl::InsertColumn(1, itemLength);
-
-    wxListItem itemLoop;
-    itemLoop.SetId(3);
-    itemLoop.SetWidth(64);
-    itemLoop.SetText(_("Loop"));
-    wxListCtrl::InsertColumn(2, itemLoop);
-
-    wxListItem itemFFT;
-    itemFFT.SetId(3);
-    itemFFT.SetWidth(64);
-    itemFFT.SetText(_("FFT"));
-    wxListCtrl::InsertColumn(3, itemFFT);
-
-    /*
-    wxEvtHandler::Bind(EVENT_SPU_ADD_TONE, &WavetableList::onAdd, this, wxID_ANY);
-    wxEvtHandler::Bind(EVENT_SPU_MODIFY_TONE, &WavetableList::onAdd, this, wxID_ANY);
-    wxEvtHandler::Bind(EVENT_SPU_REMOVE_TONE, &WavetableList::onAdd, this, wxID_ANY);
-*/
-
-    wxEvtHandler::Connect(wxEVT_COMMAND_LIST_ITEM_RIGHT_CLICK, (wxObjectEventFunction)&WavetableList::onListRightClick, 0, this);
-
-    // create a popup menu
-    menuPopup_.Append(ID_EXPORT_WAVE, _("&Export"));
-    wxEvtHandler::Connect(wxEVT_COMMAND_MENU_SELECTED, (wxObjectEventFunction)&WavetableList::onPopupClick, 0, this);
-}
-
-
-void WavetableList::onAdd(wxCommandEvent& event)
-{
-    SPU::SamplingTone* tone = (SPU::SamplingTone*)event.GetClientData();
-
-    const unsigned int offset = tone->GetSPUOffset();
-//    const unsigned int length = tone->GetLength() * 16 / 28;
-//    const unsigned int loop = tone->GetLoopIndex() * 16 / 28;
-
-    int itemCount = wxListCtrl::GetItemCount();
-    wxString strOffset;
-    strOffset << offset;
-    wxListCtrl::InsertItem(itemCount, strOffset);
-
-    wxListCtrl::SetItem(itemCount, 0, strOffset);
-
- /*
-    if (length == 0) return;
-
-    wxString strLength;
-    strLength << length;
-    wxListCtrl::SetItem(itemCount, 2, strLength);
-
-    wxString strLoop;
-    strLoop << loop;
-    wxListCtrl::SetItem(itemCount, 3, strLoop);
-    */
-}
-
-
-void WavetableList::onModify(wxCommandEvent& event)
-{
-    SPU::SamplingTone* tone = (SPU::SamplingTone*)event.GetClientData();
-
-    const unsigned int offset = tone->GetSPUOffset();
-    const unsigned int length = tone->GetLength() * 16 / 28;
-    const unsigned int loop = tone->GetLoopIndex() * 16 / 28;
-
-    wxString strOffset;
-    strOffset << offset;
-
-    long itemId = wxListCtrl::FindItem(-1, strOffset);
-    if (itemId == wxNOT_FOUND) {
-        return;
-    }
-
-/*
-    wxListItem item;
-
-    for (int i = 0; i < wxListCtrl::GetItemCount(); i++) {
-        item.SetId(i);
-        item.SetMask(wxLIST_MASK_TEXT);
-        wxListCtrl::GetItem(item);
-        wxMessageOutputDebug().Printf(item.GetText());
-        if (item.GetText() == strOffset) break;
-    }
-    if (item.GetText() != strOffset) return;
-
-    long itemId = item.GetId();
-
-    wxMessageOutputDebug().Printf(wxT("onModify"));
-*/
-    wxString strLength;
-    strLength << length;
-    wxListCtrl::SetItem(itemId, 1, strLength);
-
-    wxString strLoop;
-    strLoop << loop;
-    wxListCtrl::SetItem(itemId, 2, strLoop);
-
-    double freq = tone->GetFreq();
-    if (freq >= 1.0) {
-        wxString strFreq;
-        strFreq << freq;
-        wxListCtrl::SetItem(itemId, 3, strFreq);
-    }
-
-}
-
-void WavetableList::onRemove(wxCommandEvent& event)
-{
-    SPU::SamplingTone* tone = (SPU::SamplingTone*)event.GetClientData();
-
-    const unsigned int offset = tone->GetSPUOffset();
-    wxString strOffset;
-    strOffset << offset;
-    long item = wxListCtrl::FindItem(0, strOffset);
-    if (item == wxNOT_FOUND) {
-        return;
-    }
-    wxListCtrl::DeleteItem(item);
-}
-
-
-void WavetableList::onListRightClick(wxListEvent &event)
-{
-    wxListItem item = event.GetItem();
-    long offset;
-    item.GetText().ToLong(&offset);
-    if (offset < 0 || 0x80000 <= offset) return;
-    SPU::SamplingTone *tone = Spu.SoundBank_.GetSamplingTone(offset);
-    menuPopup_.SetClientData(tone);
-    PopupMenu(&menuPopup_);
-}
-
-void WavetableList::onPopupClick(wxCommandEvent &event)
+void ChannelPanel::onChangeLoopIndex(wxCommandEvent& event)
 {
     using namespace SPU;
-    SamplingTone *tone = reinterpret_cast<SamplingTone*>(static_cast<wxMenu *>(event.GetEventObject())->GetClientData());
-    wxMessageOutputDebug().Printf(wxT("offset: %d"), tone->GetSPUOffset());
-    switch (event.GetId()) {
-    case ID_EXPORT_WAVE:
-        ExportTone(tone);
-        break;
-    default:
-        break;
-    }
-}
+    ChannelInfo *pChannel = reinterpret_cast<ChannelInfo*>(event.GetClientData());
 
-
-#include <wx/file.h>
-
-void WavetableList::ExportTone(SPU::SamplingTone *tone)
-{
-    using namespace SPU;
-
-    wxString strFileName;
-    strFileName << tone->GetSPUOffset() << ".wav";
-
-    wxFile file(strFileName, wxFile::write);
-
-    int length = 0;
-
-    file.Write("RIFF", 4);
-    file.Write(&length, 4);
-    file.Write("WAVEfmt ", 8);
-
-    const int channelNumber = 1;
-    const int bitNumber = 16;
-    const int samplingRate = 44100;
-    const int blockSize = (bitNumber/8) * channelNumber;
-    const int dataRate = samplingRate * blockSize;
-
-    const int fmtSize = 16;
-    const int fmtId = 1;
-    file.Write(&fmtSize, 4);
-    file.Write(&fmtId, 2);
-    file.Write(&channelNumber, 2);
-    file.Write(&samplingRate, 4);
-    file.Write(&dataRate, 4);
-    file.Write(&blockSize, 2);
-    file.Write(&bitNumber, 2);
-
-    file.Write("data", 4);
-    file.Write(&length, 4);
-
-    length = tone->GetLength();
-    for (int i = 0; i < length; i++) {
-        int s = tone->At(i);
-        file.Write(&s, 2);
-    }
-
-    length *= 2;
-    file.Seek(0x28, wxFromStart);
-    file.Write(&length, 4);
-    length += 0x24;
-    file.Write(&length, 4);
-
-    file.Close();
-
-    wxMessageOutputDebug().Printf(wxT("Saved as %s"), strFileName);
+    elements[pChannel->ch].textToneLoop->SetLabel(wxString::Format(wxT("%d"), pChannel->itrTone.GetLoopIndex()));
 }
