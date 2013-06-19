@@ -139,21 +139,21 @@ const int gauss_table[]={
 
 namespace SPU {
 
-AbstractInterpolation::AbstractInterpolation(const ChannelInfo& info): channelInfo(info) {}
+InterpolationBase::InterpolationBase(const ChannelInfo& info): channelInfo(info) {}
 
-void AbstractInterpolation::Start()
+void InterpolationBase::Start()
 {
     currSample = 0;
 //    nextSample = 0;
 }
 
-void AbstractInterpolation::SetSinc(uint32_t pitch)
+void InterpolationBase::SetSinc(uint32_t pitch)
 {
     sinc = (pitch << 4);
     if (sinc == 0) sinc = 1;
 }
 
-void AbstractInterpolation::StoreValue(int fa)
+void InterpolationBase::StoreValue(int fa)
 {
     if (channelInfo.bFMod == 2) {
         currSample = fa;
@@ -168,7 +168,7 @@ void AbstractInterpolation::StoreValue(int fa)
     storeVal(fa);
 }
 
-int AbstractInterpolation::GetValue()
+int InterpolationBase::GetValue()
 {
     if (channelInfo.bFMod == 2) {
         return currSample;
@@ -179,7 +179,7 @@ int AbstractInterpolation::GetValue()
 
 void GaussianInterpolation::Start()
 {
-    AbstractInterpolation::Start();
+    InterpolationBase::Start();
     spos = 0x30000;
     gpos = 0;
     for (int i = 0; i < 4; i++) {
@@ -217,7 +217,7 @@ int GaussianInterpolation::getVal() const
 
 void CubicInterpolation::Start()
 {
-    AbstractInterpolation::Start();
+    InterpolationBase::Start();
     spos = 0x30000;
     gpos = 0;
     for (int i = 0; i < 4; i++) {

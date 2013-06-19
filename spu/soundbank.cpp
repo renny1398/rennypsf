@@ -43,7 +43,7 @@ uint32_t SamplingTone::GetSPUOffset() const
 uint32_t SamplingTone::GetLength() const
 {
     const uint32_t len = LPCM_.size();
-    wxASSERT(len % 28 == 0);
+    // wxASSERT(len % 28 == 0);
     return len;
 }
 
@@ -113,7 +113,7 @@ void SamplingTone::ADPCM2LPCM()
         { 122, -60 }
     };
 
-    SPU* pSpu = pSB_->GetSPU();
+    // SPU* pSpu = pSB_->GetSPU();
 
     int prev1 = prev1_;
     int prev2 = prev2_;
@@ -230,7 +230,7 @@ SamplingTone* SamplingToneIterator::GetTone() const
 
 uint32_t SamplingToneIterator::GetLoopIndex() const
 {
-    if (pTone_->forcesStop_ == true) {
+    if (pTone_ == 0 || pTone_->forcesStop_ == true) {
         return 0xffffffff;
     }
 
@@ -241,12 +241,12 @@ uint32_t SamplingToneIterator::GetLoopIndex() const
 
     if (pChannel_->useExternalLoop) {
         indexLoop = exLoop;
-    } else if (0x80000000 <= inLoop) {
+    } else /*if (0x80000000 <= inLoop) {
         if (0x80000000 <= offsetExternalLoop) {
             return 0xffffffff;
         }
         indexLoop = exLoop;
-    } else {
+    } else */{
         indexLoop = inLoop;
     }
 
@@ -352,30 +352,31 @@ void* FourierTransformer::mainLoop(void *param)
         if (tone != 0) {
             // const int32_t *p = tone->GetData();
             int n = tone->GetLength();
-            n = (int) pow( 2.0, floor(log(n) / log(2.0)) );
+            int n2 = (int) pow( 2.0, floor(log(n) / log(2.0)) );
 
-            if (np < n) {
+            if (np < n2) {
                 if (np) {
                     delete [] w;
                     delete [] ip;
                     delete [] a;
                 }
-                np = n;
+                np = n2;
                 a = new double[np*2];
                 ip = new int[2+(int)sqrt(np)];
                 w = new double[np];
                 ip[0] = 0;
             }
 
-            for (int i = 0; i < n; i++) {
-                a[i] = (double)tone->At(i) / 32767.0;
+            const int dn = n - n2;
+            for (int i = 0; i < n2; i++) {
+                a[i] = (double)tone->At(dn+i) / 32767.0;
             }
 
-            cdft(n, -1, a, ip, w);
+            cdft(n2, -1, a, ip, w);
 
             double valMax2 = 0.0;
             int indexMax = 0;
-            for (int i = 0; i < n/2; i++) {
+            for (int i = 0; i < n2/2; i++) {
                 const double re = a[2*i];
                 const double im = a[2*i+1];
                 const double val2 = re*re + im*im;
@@ -386,7 +387,7 @@ void* FourierTransformer::mainLoop(void *param)
             }
 
             SPU* pSPU = tone->GetSoundBank()->GetSPU();
-            double freq = static_cast<double>(indexMax * pSPU->GetDefaultSamplingRate()) / n;
+            double freq = static_cast<double>(indexMax * pSPU->GetDefaultSamplingRate()) / n2;
             tone->SetFreq(freq);
             Spu.SoundBank_.NotifyOnModify(tone);
             wxMessageOutputDebug().Printf(wxT("Finished FFT (offset = %d, freq = %d)"), tone->GetSPUOffset(), indexMax);

@@ -1,5 +1,6 @@
 #pragma once
 #include <stdint.h>
+#include <pthread.h>
 #include <wx/ptr_scpd.h>
 #include <wx/thread.h>
 #include <wx/hashset.h>
@@ -96,9 +97,9 @@ public:
     long           lDummy2;
 };
 
-class AbstractInterpolation;
+class InterpolationBase;
 
-wxDECLARE_SCOPED_PTR(AbstractInterpolation, InterpolationPtr)
+wxDECLARE_SCOPED_PTR(InterpolationBase, InterpolationPtr)
 
 class ChannelArray;
 
@@ -122,7 +123,8 @@ public:
     int ch;
 
     bool            bNew;                               // start flag
-    bool            isUpdating;
+    // bool            isUpdating;
+    bool is_ready;
 
     int             iSBPos;                             // mixing stuff
     //int             spos;
@@ -137,6 +139,7 @@ public:
 
     bool            isOn;                                // is channel active (sample playing?)
     bool            isStopped;                              // is channel stopped (sample _can_ still be playing, ADSR Release phase)
+    bool            is_muted;
     bool            hasReverb;                            // can we do reverb on this channel? must have ctrl register bit, to get active
     int             iActFreq;                           // current psx pitch
     int             iUsedFreq;                          // current pc pitch
@@ -336,8 +339,8 @@ public:
 
 
     // Multiprocess
-    void GetReadyToSync();
-    void ProcessSamples(int numSamples);
+    // void GetReadyToSync();
+   //  void ProcessSamples(int numSamples);
     friend class SPUThread;
 
 private:
@@ -429,24 +432,32 @@ private:
 
     // Multithread
     SPUThread* thread_;
-    bool isReadyToProcess_;
-    wxMutex mutexReadyToProcess_;
-    wxCondition condReadyToProcess_;
+    // bool isReadyToProcess_;
+    // wxMutex mutexReadyToProcess_;
+    // wxCondition condReadyToProcess_;
 
-    wxMutex mutexUpdate_;
-    wxCondition condUpdate_;
+    // wxMutex mutexUpdate_;
+    // wxCondition condUpdate_;
+
+    pthread_mutex_t process_mutex_;
+    pthread_mutex_t wait_start_mutex_;
+    pthread_cond_t process_cond_;
+    pthread_mutex_t dma_writable_mutex_;
+
+    enum ProcessState {
+        STATE_SHUTDOWN = -1,
+        STATE_PSX_IS_READY = 0,
+        STATE_START_PROCESS,
+        STATE_NOTE_ON,
+        STATE_NOTE_OFF,
+        STATE_SET_OFFSET,
+        STATE_NONE
+    } process_state_;
+    int processing_channel_;
+
 
     friend class ChannelInfo;
-
-    // Utilities
-    struct PCMInfo {
-        int addr;
-        int loop;
-        int end;
-        bool muted;
-    };
-    PCMInfo pcmInfo_[256];
-    int nPCM_;
+    friend class ChannelArray;  // temp
 };
 
 

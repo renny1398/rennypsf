@@ -14,17 +14,19 @@ class wxStaticText;
 class MuteButton : public wxPanel
 {
 public:
-    MuteButton(wxWindow* parent, wxWindowID id, const wxPoint& pos, const wxSize& size, long style, const wxString& name);
+    MuteButton(wxWindow* parent, int channel_number);
 
 private:
     void onEnter(wxMouseEvent&);
     void onLeave(wxMouseEvent&);
     void onPaint(wxPaintEvent&);
+    void onClick(wxMouseEvent&);
 
     void paintNow();
     void render(wxDC&);
 
 private:
+    int channel_number_;
     bool muted_;
     bool entered_;
 };

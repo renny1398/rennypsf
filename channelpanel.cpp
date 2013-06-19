@@ -15,12 +15,16 @@
 ////////////////////////////////////////////////////////////////////////
 
 
-MuteButton::MuteButton(wxWindow* parent, wxWindowID id, const wxPoint& pos, const wxSize& size, long style, const wxString& name)
-    : wxPanel(parent, id, pos, size, style, name), muted_(false), entered_(false)
+MuteButton::MuteButton(wxWindow* parent, int channel_number) :
+    wxPanel(parent, wxID_ANY, wxDefaultPosition, wxSize(50, 25)), muted_(false), entered_(false)
 {
-    Connect(wxID_ANY, wxEVT_ENTER_WINDOW, wxMouseEventHandler(MuteButton::onEnter));
-    Connect(wxID_ANY, wxEVT_LEAVE_WINDOW, wxMouseEventHandler(MuteButton::onLeave));
-    Connect(wxID_ANY, wxEVT_PAINT, wxPaintEventHandler(MuteButton::onPaint));
+    channel_number_ = channel_number;
+    // Connect(wxID_ANY, wxEVT_ENTER_WINDOW, wxMouseEventHandler(MuteButton::onEnter));
+    // Connect(wxID_ANY, wxEVT_LEAVE_WINDOW, wxMouseEventHandler(MuteButton::onLeave));
+    // Connect(wxID_ANY, wxEVT_PAINT, wxPaintEventHandler(MuteButton::onPaint));
+
+    wxEvtHandler::Bind(wxEVT_PAINT, &MuteButton::onPaint, this);
+    wxEvtHandler::Bind(wxEVT_LEFT_DOWN, &MuteButton::onClick, this);
 }
 
 
@@ -44,13 +48,14 @@ void MuteButton::render(wxDC &dc)
     }
     dc.DrawRectangle(0, 0, width, height);
 
-    if (entered_) {
+    if (muted_) {
         dc.SetPen(grayPen);
     } else {
-        dc.SetPen(whitePen);
+        dc.SetPen(blackPen);
     }
     dc.SetBrush(*wxWHITE_BRUSH);
-    dc.DrawLabel(this->GetLabel(), wxRect(0, 0, width, height), wxALIGN_CENTER_VERTICAL | wxALIGN_CENTER_HORIZONTAL);
+    const wxString label = wxString::Format(wxT("ch.%2d"), channel_number_);
+    dc.DrawLabel(label, wxRect(0, 0, width, height), wxALIGN_CENTER_VERTICAL | wxALIGN_CENTER_HORIZONTAL);
 }
 
 
@@ -78,6 +83,23 @@ void MuteButton::onLeave(wxMouseEvent& WXUNUSED(event))
     entered_ = false;
     paintNow();
 }
+
+
+void MuteButton::onClick(wxMouseEvent &)
+{
+    muted_ = !muted_;
+    Spu.Channels[channel_number_].is_muted = muted_;
+    if (muted_) {
+        wxMessageOutputDebug().Printf(wxT("Mute on ch.%d"), channel_number_);
+    } else {
+        wxMessageOutputDebug().Printf(wxT("Mute off ch.%d"), channel_number_);
+    }
+    paintNow();
+}
+
+
+
+
 
 
 ////////////////////////////////////////////////////////////////////////
@@ -341,11 +363,8 @@ ChannelPanel::ChannelPanel(wxWindow *parent)
         ChannelElement element;
         element.ich = i;
         element.channelSizer = new wxBoxSizer(wxHORIZONTAL);
-        wxString channelCaption;
-        channelCaption.sprintf("ch.%02d", i);
 
-        element.muteButton = new MuteButton(this, wxID_ANY, wxDefaultPosition, wxSize(50, 25), 0, channelCaption);
-        element.muteButton->SetLabel(channelCaption);
+        element.muteButton = new MuteButton(this, i);
         element.channelSizer->Add(element.muteButton);
 
         element.volumeSizer = new wxBoxSizer(wxVERTICAL);

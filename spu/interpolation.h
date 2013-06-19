@@ -34,11 +34,11 @@ namespace SPU
 
 class ChannelInfo;
 
-class AbstractInterpolation
+class InterpolationBase
 {
 public:
-    AbstractInterpolation(const ChannelInfo&);
-    virtual ~AbstractInterpolation() {}
+    InterpolationBase(const ChannelInfo&);
+    virtual ~InterpolationBase() {}
 
     virtual void Start();
 
@@ -68,12 +68,15 @@ protected:
 //    uint32_t next2Sample;
 };
 
-inline uint32_t AbstractInterpolation::GetSinc() const { return sinc; }
 
-class GaussianInterpolation: public AbstractInterpolation
+inline uint32_t InterpolationBase::GetSinc() const { return sinc; }
+
+
+
+class GaussianInterpolation: public InterpolationBase
 {
 public:
-    GaussianInterpolation(ChannelInfo& channelInfo): AbstractInterpolation(channelInfo) {}
+    GaussianInterpolation(ChannelInfo& channelInfo): InterpolationBase(channelInfo) {}
     void Start();
 
     InterpolationType GetInterpolationType() const { return GAUSS_INTERPOLATION; }
@@ -89,10 +92,12 @@ private:
     int samples[4];
 };
 
-class CubicInterpolation: public AbstractInterpolation
+
+
+class CubicInterpolation: public InterpolationBase
 {
 public:
-    CubicInterpolation(ChannelInfo& channelInfo): AbstractInterpolation(channelInfo) {}
+    CubicInterpolation(ChannelInfo& channelInfo): InterpolationBase(channelInfo) {}
     void Start();
 
     InterpolationType GetInterpolationType() const { return CUBIC_INTERPOLATION; }
