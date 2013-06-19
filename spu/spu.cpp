@@ -33,6 +33,37 @@ ChannelInfo::ChannelInfo(SPU *pSPU) :
 }
 
 
+void ChannelInfo::AddListener(ChannelInfoListener *listener) {
+    listeners_.insert(listener);
+}
+
+
+void ChannelInfo::RemoveListener(ChannelInfoListener *listener) {
+    listeners_.erase(listener);
+}
+
+
+void ChannelInfo::NotifyOnNoteOn() const {
+    std::set<ChannelInfoListener*>::const_iterator itr = listeners_.begin();
+    const std::set<ChannelInfoListener*>::const_iterator itrEnd = listeners_.end();
+    while (itr != itrEnd) {
+        (*itr)->OnNoteOn(*this);
+        ++itr;
+    }
+}
+
+
+void ChannelInfo::NotifyOnNoteOff() const {
+    std::set<ChannelInfoListener*>::const_iterator itr = listeners_.begin();
+    const std::set<ChannelInfoListener*>::const_iterator itrEnd = listeners_.end();
+    while (itr != itrEnd) {
+        (*itr)->OnNoteOff(*this);
+        ++itr;
+    }
+}
+
+
+
 void ChannelInfo::StartSound()
 {
     wxASSERT(bNew == true);
@@ -145,11 +176,11 @@ bool ChannelArray::ExistsNew() const {
 }
 
 
-void ChannelArray::SoundNew(uint32_t flags)
+void ChannelArray::SoundNew(uint32_t flags, int start)
 {
     wxASSERT(flags < 0x01000000);
-    flagNewChannels_ |= flags;
-    for (int i = 0; flags != 0; i++, flags >>= 1) {
+    flagNewChannels_ |= flags << start;
+    for (int i = start; flags != 0; i++, flags >>= 1) {
         if (!(flags & 1) || (channels_[i].tone->GetADPCM() == 0)) continue;
         channels_[i].bNew = true;
         // channels_[i].isStopped = false;
@@ -161,9 +192,30 @@ void ChannelArray::SoundNew(uint32_t flags)
         pthread_cond_broadcast(&pSPU_->process_cond_);
         pthread_mutex_unlock(&pSPU_->process_mutex_);
 
+        channels_[i].NotifyOnNoteOn();
         pSPU_->NotifyOnChangeLoopIndex(&channels_[i]);
     }
 }
+
+
+void ChannelArray::VoiceOff(uint32_t flags, int start)
+{
+    wxASSERT(flags < 0x01000000);
+    for (int i = start; flags != 0; i++, flags >>= 1) {
+        if ((flags & 1) == 0) continue;
+        channels_[i].isStopped = true;
+
+        pthread_mutex_lock(&pSPU_->process_mutex_);
+        pSPU_->process_state_ = SPU::STATE_NOTE_OFF;
+        pSPU_->processing_channel_ = i;
+        pthread_cond_broadcast(&pSPU_->process_cond_);
+        pthread_mutex_unlock(&pSPU_->process_mutex_);
+
+        channels_[i].NotifyOnNoteOff();
+    }
+}
+
+
 
 ChannelInfo& ChannelArray::operator [](int i) {
     return channels_[i];
@@ -181,6 +233,15 @@ void SPUBase::AddListener(wxEvtHandler *listener)
 void SPUBase::RemoveListener(wxEvtHandler *listener)
 {
     listeners_.erase(listener);
+}
+
+
+void SPUBase::NotifyOnUpdateStartAddress(int ch) const {
+    pthread_mutex_lock(&process_mutex_);
+    process_state_ = SPU::STATE_SET_OFFSET;
+    processing_channel_ = ch;
+    pthread_cond_broadcast(&process_cond_);
+    pthread_mutex_unlock(&process_mutex_);
 }
 
 
@@ -263,6 +324,8 @@ void* SPUThread::Entry()
             process_state = SPU::STATE_START_PROCESS;
             pthread_cond_broadcast(&process_cond);
             pthread_mutex_unlock(&wait_start_mutex);
+            /* FALLTHRU */
+        case SPU::STATE_START_PROCESS:
             pthread_mutex_lock(&dma_writable_mutex);
             while (0 < numSamples_) {
                 --numSamples_;
@@ -288,6 +351,13 @@ void* SPUThread::Entry()
         case SPU::STATE_NOTE_OFF:
             pSPU->Channels[processing_channel].Update();
             break;
+
+        case SPU::STATE_SET_OFFSET:
+            pSPU->Channels[processing_channel].tone->ConvertData();
+            break;
+
+        default:
+            break;
         }
 
         pthread_cond_wait(&process_cond, &process_mutex);
@@ -295,37 +365,6 @@ void* SPUThread::Entry()
 
     pthread_mutex_unlock(&process_mutex);
 
-    /*
-    do {
-        pSPU->mutexReadyToProcess_.Lock();
-        pSPU->isReadyToProcess_ = true;
-        pSPU->condReadyToProcess_.Broadcast();
-        while (pSPU->isReadyToProcess_ == true) {
-            pSPU->condReadyToProcess_.Wait();
-        }
-        pSPU->mutexReadyToProcess_.Unlock();
-        wxASSERT(pSPU->csDMAWritable_.TryEnter() == false);
-
-        int numSamples = numSamples_;
-        while (numSamples) {
-            numSamples--;
-            for (int ch = 0; ch < 24; ch++) {
-                // Spu.mutexUpdate_.Lock();
-                pSPU->Channels[ch].Update();
-                pSPU->Channels[ch].isUpdating = false;
-                pSPU->condUpdate_.Broadcast();
-                // Spu.mutexUpdate_.Unlock();
-            }
-            wxGetApp().GetSoundManager()->Flush();
-        }
-        numSamples_ = 0;
-
-        pSPU->csDMAWritable_.Leave();
-
-        pSPU->condReadyToProcess_.Broadcast();  // test code
-
-    } while (pSPU_->isPlaying_);
-*/
     wxMessageOutputDebug().Printf(wxT("Terminated SPU thread."));
     return 0;
 }

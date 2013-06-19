@@ -85,7 +85,7 @@ int SamplingTone::At(int index) const
         wxMessageOutputDebug().Printf(wxT("WARNING: hasFinishedConv"));
     }
 
-    wxASSERT(len == processedBlockNumber_ * 28);
+    wxASSERT(static_cast<uint32_t>(len) == processedBlockNumber_ * 28);
     for (int i = len; i <= index; i += 28) {
         const_cast<SamplingTone*>(this)->ADPCM2LPCM();
         if (hasFinishedConv()) break;
@@ -167,7 +167,7 @@ void SamplingTone::ADPCM2LPCM()
         // the end of this tone
         pSB_->NotifyOnModify(this);
 
-        if (flags != 3 ) {
+        if (flags != 3) {
             forcesStop_ = true;
         }
 
@@ -180,12 +180,12 @@ void SamplingTone::ADPCM2LPCM()
 }
 
 
-
-
-
-
-
-
+void SamplingTone::ConvertData()
+{
+     while (processedBlockNumber_ < 0x80000000) {
+        ADPCM2LPCM();
+    }
+}
 
 
 SamplingToneIterator SamplingTone::Iterator(ChannelInfo *pChannel) const
@@ -241,12 +241,12 @@ uint32_t SamplingToneIterator::GetLoopIndex() const
 
     if (pChannel_->useExternalLoop) {
         indexLoop = exLoop;
-    } else /*if (0x80000000 <= inLoop) {
+    } else if (0x80000000 <= inLoop) {
         if (0x80000000 <= offsetExternalLoop) {
             return 0xffffffff;
         }
         indexLoop = exLoop;
-    } else */{
+    } else {
         indexLoop = inLoop;
     }
 
@@ -262,7 +262,8 @@ bool SamplingToneIterator::HasNext() const
         return false;
     }
 
-    if (index_ < pTone_->GetLength()) {
+    const uint32_t len = pTone_->GetLength();
+    if (index_ < len) {
         return true;
     }
     if (pTone_->hasFinishedConv() == false) {
@@ -274,7 +275,11 @@ bool SamplingToneIterator::HasNext() const
         return false;
     }
 
-    uint32_t lenLoop = pTone_->GetLength() - indexLoop;
+    uint32_t lenLoop = len - indexLoop;
+    if (0x80000000 <= lenLoop) {
+        return false;
+    }
+
     // wxMessageOutputDebug().Printf(wxT("Loop index = %d, Loop length = %d"), indexLoop, lenLoop);
     while (pTone_->GetLength() <= index_) {
         index_ -= lenLoop;
@@ -369,19 +374,19 @@ void* FourierTransformer::mainLoop(void *param)
 
             const int dn = n - n2;
             for (int i = 0; i < n2; i++) {
-                a[i] = (double)tone->At(dn+i) / 32767.0;
+                a[i] = (double)tone->At(dn+i)/* / 32767.0*/;
             }
 
             cdft(n2, -1, a, ip, w);
 
-            double valMax2 = 0.0;
+            double valMax = 0.0;
             int indexMax = 0;
-            for (int i = 0; i < n2/2; i++) {
+            for (int i = 0; i < n2/4; i++) {
                 const double re = a[2*i];
                 const double im = a[2*i+1];
-                const double val2 = re*re + im*im;
-                if (valMax2 < val2) {
-                    valMax2 = val2;
+                const double val = re*re + im*im;
+                if (valMax < val) {
+                    valMax = val;
                     indexMax = i;
                 }
             }
@@ -411,8 +416,22 @@ void* FourierTransformer::mainLoop(void *param)
 }
 
 
-SoundBank::SoundBank(SPU *pSPU) : pSPU_(pSPU) {}
+SoundBank::SoundBank(SPU *pSPU) : pSPU_(pSPU)
+{
+    Init();
+}
 
+
+SoundBank::~SoundBank() {}
+
+
+void SoundBank::Init() {
+
+}
+
+void SoundBank::Shutdown() {
+
+}
 
 
 void SoundBank::NotifyOnAdd(SamplingTone *tone) const

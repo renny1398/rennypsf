@@ -318,9 +318,17 @@ void write1xx4(ChannelInfo& channelInfo, uint16_t val)
 {
     int NP = (val > 0x3fff) ? 0x3fff : val;
     channelInfo.iRawPitch = NP;
-    NP = 44100*NP/4096;
+    NP = 44100*NP/0x1000;
     if (NP < 1) NP = 1;
     channelInfo.iActFreq = NP;
+    if (channelInfo.tone != NULL) {
+        const double freq = channelInfo.tone->GetFreq();
+        if (1.0 <= freq) {
+            channelInfo.Pitch = (freq * channelInfo.iRawPitch) / 0x1000;
+        } else {
+            channelInfo.Pitch = 0.0;
+        }
+    }
 }
 
 // Set start address of Sound
@@ -329,6 +337,8 @@ void write1xx6(ChannelInfo& channelInfo, uint16_t val)
 //    channelInfo.pStart = Spu.GetSoundBuffer() + (static_cast<uint32_t>(val) << 3);
     SamplingTone* tone = Spu.GetSamplingTone(static_cast<uint32_t>(val) << 3);
     channelInfo.tone = tone;
+
+    Spu.NotifyOnUpdateStartAddress(channelInfo.ch);
 }
 
 // Set ADS level
@@ -393,53 +403,29 @@ void write1d86(uint16_t depth)
     Spu.SetReverbDepthRight(static_cast<int16_t>(depth));
 }
 
-// Voice ON (inline func)
-/*
-void voiceON(int start, int end, uint16_t flag)
-{
-    for (int i = start; i < end; i++, flag>>=1) {
-        if ((flag & 1) == 0) continue;
-        ChannelInfo& channelInfo = Spu.GetChannelInfo(i);
-        if (channelInfo.pStart == 0) continue;
-        channelInfo.ignoresLoop = false;
-        channelInfo.bNew = true;
-        // dwNewChannel |= (1<<ch);
-    }
-}
-*/
-
 // Voice ON (0-15)
 void write1d88(uint16_t flags)
 {
-    Spu.Channels.SoundNew(flags);
+    Spu.Channels.SoundNew(flags, 0);
 }
 
 // Voice ON (16-23)
 void write1d8a(uint16_t flags)
 {
-    Spu.Channels.SoundNew(static_cast<uint32_t>(flags) << 16);
-}
-
-// Voice OFF (inline func)
-inline void voiceOFF(int start, int end, uint16_t flag)
-{
-    for (int i = start; i < end; i++, flag>>=1) {
-        if ((flag & 1) == 0) continue;
-        ChannelInfo& channelInfo = Spu.GetChannelInfo(i);
-        channelInfo.isStopped = true;
-    }
+    Spu.Channels.SoundNew(flags & 0xff, 16);
 }
 
 // Voice OFF (0-15)
-void write1d8c(uint16_t flag)
+void write1d8c(uint16_t flags)
 {
-    voiceOFF(0, 16, flag);
+    Spu.Channels.VoiceOff(flags, 0);
 }
 
 // Voice 0FF (16-23)
-void write1d8e(uint16_t flag)
+void write1d8e(uint16_t flags)
 {
-    voiceOFF(16, 24, flag);
+    // 0xff can't be omitted.
+    Spu.Channels.VoiceOff(flags & 0xff, 16);
 }
 
 // Channel FM mode (inline func)

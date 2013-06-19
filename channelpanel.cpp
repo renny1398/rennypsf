@@ -176,6 +176,16 @@ void VolumeBar::render(wxDC &dc)
 ////////////////////////////////////////////////////////////////////////
 
 
+wxDEFINE_EVENT(wxEVENT_SPU_CHANNEL_NOTE_ON, wxCommandEvent);
+wxDEFINE_EVENT(wxEVENT_SPU_CHANNEL_NOTE_OFF, wxCommandEvent);
+
+wxBEGIN_EVENT_TABLE(KeyboardWidget, wxPanel)
+EVT_PAINT(KeyboardWidget::paintEvent)
+EVT_COMMAND(wxID_ANY, wxEVENT_SPU_CHANNEL_NOTE_ON, KeyboardWidget::OnNoteOn)
+EVT_COMMAND(wxID_ANY, wxEVENT_SPU_CHANNEL_NOTE_OFF, KeyboardWidget::OnNoteOff)
+wxEND_EVENT_TABLE()
+
+
 int KeyboardWidget::calcKeyboardWidth()
 {
     int numOctaves = octaveMax_ - octaveMin_ - 1;
@@ -184,7 +194,7 @@ int KeyboardWidget::calcKeyboardWidth()
 }
 
 
-KeyboardWidget::KeyboardWidget(wxWindow* parent, int keyWidth, int keyHeight) :
+KeyboardWidget::KeyboardWidget(wxWindow* parent, int ch, int keyWidth, int keyHeight) :
     wxPanel(parent, wxID_ANY, wxDefaultPosition, wxSize(513, keyHeight)),
     octaveMin_(defaultOctaveMin), octaveMax_(defaultOctaveMax), muted_(false)
 {
@@ -195,12 +205,11 @@ KeyboardWidget::KeyboardWidget(wxWindow* parent, int keyWidth, int keyHeight) :
     wxWindow::SetSize(calcKeyboardWidth(), keyHeight_);
     // wxSize size = wxWindow::GetSize();
     // wxMessageOutputDebug().Printf(wxT("(%d, %d)"), size.GetWidth(), size.GetHeight());
+
+    // temp
+    Spu.Channels[ch].AddListener(this);
 }
 
-
-wxBEGIN_EVENT_TABLE(KeyboardWidget, wxPanel)
-EVT_PAINT(KeyboardWidget::paintEvent)
-wxEND_EVENT_TABLE()
 
 
 void KeyboardWidget::paintEvent(wxPaintEvent &)
@@ -308,6 +317,7 @@ void KeyboardWidget::render(wxDC &dc)
             y = 0;
             break;
         }
+        dc.DrawRectangle(x, y, 6, keyHeight_/2);
     }
 }
 
@@ -317,6 +327,7 @@ bool KeyboardWidget::PressKey(int keyIndex)
     int keyMax = (octaveMax_ - octaveMin_ - 1) * 12;
     if (keyMax < keyIndex) return false;
     pressedKeys_.insert(keyIndex);
+    paintNow();
     return true;
 }
 
@@ -327,6 +338,7 @@ bool KeyboardWidget::PressKey(double pitch)
     int index = round( ( log(pitch/440.0)/log(2.0) + 5.75 ) * 12.0 );
     if (index < 0 || 120 < index) return false;
     pressedKeys_.insert(index);
+    paintNow();
     return true;
 }
 
@@ -334,6 +346,7 @@ bool KeyboardWidget::PressKey(double pitch)
 void KeyboardWidget::ReleaseKey()
 {
     pressedKeys_.clear();
+    paintNow();
 }
 
 
@@ -341,6 +354,33 @@ void KeyboardWidget::ReleaseKey(int keyIndex)
 {
     pressedKeys_.erase(keyIndex);
 }
+
+
+
+void KeyboardWidget::OnNoteOn(wxCommandEvent &event) {
+    SPU::ChannelInfo* ch = reinterpret_cast<SPU::ChannelInfo*>(event.GetClientData());
+    PressKey(ch->Pitch);
+}
+
+
+void KeyboardWidget::OnNoteOff(wxCommandEvent& WXUNUSED(event)) {
+    ReleaseKey();
+}
+
+
+void KeyboardWidget::OnNoteOn(const SPU::ChannelInfo &ch) {
+    wxCommandEvent event(wxEVENT_SPU_CHANNEL_NOTE_ON);
+    event.SetClientData(const_cast<SPU::ChannelInfo*>(&ch));
+    wxEvtHandler::AddPendingEvent(event);
+}
+
+
+void KeyboardWidget::OnNoteOff(const SPU::ChannelInfo &ch) {
+    wxCommandEvent event(wxEVENT_SPU_CHANNEL_NOTE_OFF);
+    event.SetClientData(const_cast<SPU::ChannelInfo*>(&ch));
+    wxEvtHandler::AddPendingEvent(event);
+}
+
 
 
 ////////////////////////////////////////////////////////////////////////
@@ -369,7 +409,7 @@ ChannelPanel::ChannelPanel(wxWindow *parent)
 
         element.volumeSizer = new wxBoxSizer(wxVERTICAL);
 
-        element.keyboard = new KeyboardWidget(this, 8, 20);
+        element.keyboard = new KeyboardWidget(this, i, 8, 20);
         element.volumeSizer->Add(element.keyboard, wxFIXED_MINSIZE);
 
         element.volumeLeft = new VolumeBar(this, wxHORIZONTAL, 1024);

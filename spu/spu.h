@@ -1,6 +1,8 @@
 #pragma once
 #include <stdint.h>
 #include <pthread.h>
+#include <set>
+
 #include <wx/ptr_scpd.h>
 #include <wx/thread.h>
 #include <wx/hashset.h>
@@ -97,6 +99,25 @@ public:
     long           lDummy2;
 };
 
+
+
+class ChannelInfo;
+
+class ChannelInfoListener {
+
+    friend class ChannelInfo;
+
+public:
+    virtual ~ChannelInfoListener() {}
+
+protected:
+    virtual void OnNoteOn(const ChannelInfo&) {}
+    virtual void OnNoteOff(const ChannelInfo&) {}
+};
+
+
+
+
 class InterpolationBase;
 
 wxDECLARE_SCOPED_PTR(InterpolationBase, InterpolationPtr)
@@ -143,6 +164,7 @@ public:
     bool            hasReverb;                            // can we do reverb on this channel? must have ctrl register bit, to get active
     int             iActFreq;                           // current psx pitch
     int             iUsedFreq;                          // current pc pitch
+    double          Pitch;
     int             iLeftVolume;                        // left volume (s15)
     bool            isLeftSweep;
     bool            isLeftExpSlope;
@@ -168,8 +190,17 @@ public:
     ADSRInfo        ADSR;                               // active ADSR settings
     ADSRInfoEx      ADSRX;                              // next ADSR settings (will be moved to active on sample start)
 
+
+    void AddListener(ChannelInfoListener* listener);
+    void RemoveListener(ChannelInfoListener* listener);
+
+    void NotifyOnNoteOn() const;
+    void NotifyOnNoteOff() const;
+
 private:
     static uint32_t rateTable[160];
+
+    std::set<ChannelInfoListener*> listeners_;
 
     friend class ChannelArray;
 };
@@ -191,7 +222,8 @@ public:
 
     int GetChannelNumber() const;
     bool ExistsNew() const;
-    void SoundNew(uint32_t flags);
+    void SoundNew(uint32_t flags, int start);
+    void VoiceOff(uint32_t flags, int start);
 
     ChannelInfo& operator[](int i);
 
@@ -253,7 +285,26 @@ public:
     void AddListener(wxEvtHandler* listener);
     void RemoveListener(wxEvtHandler* listener);
 
+    // Notify functions
+    void NotifyOnUpdateStartAddress(int ch) const;
     void NotifyOnChangeLoopIndex(ChannelInfo* pChannel) const;
+
+protected:
+    mutable pthread_mutex_t process_mutex_;
+    mutable pthread_mutex_t wait_start_mutex_;
+    mutable pthread_cond_t process_cond_;
+    mutable pthread_mutex_t dma_writable_mutex_;
+
+    mutable enum ProcessState {
+        STATE_SHUTDOWN = -1,
+        STATE_PSX_IS_READY = 0,
+        STATE_START_PROCESS,
+        STATE_NOTE_ON,
+        STATE_NOTE_OFF,
+        STATE_SET_OFFSET,
+        STATE_NONE
+    } process_state_;
+    mutable int processing_channel_;
 
 private:
     SPUListener listeners_;
@@ -337,10 +388,6 @@ public:
     int GetPCMNumber() const;
     int GetPCM(int index, void* pcm, int* loop) const;
 
-
-    // Multiprocess
-    // void GetReadyToSync();
-   //  void ProcessSamples(int numSamples);
     friend class SPUThread;
 
 private:
@@ -438,22 +485,6 @@ private:
 
     // wxMutex mutexUpdate_;
     // wxCondition condUpdate_;
-
-    pthread_mutex_t process_mutex_;
-    pthread_mutex_t wait_start_mutex_;
-    pthread_cond_t process_cond_;
-    pthread_mutex_t dma_writable_mutex_;
-
-    enum ProcessState {
-        STATE_SHUTDOWN = -1,
-        STATE_PSX_IS_READY = 0,
-        STATE_START_PROCESS,
-        STATE_NOTE_ON,
-        STATE_NOTE_OFF,
-        STATE_SET_OFFSET,
-        STATE_NONE
-    } process_state_;
-    int processing_channel_;
 
 
     friend class ChannelInfo;

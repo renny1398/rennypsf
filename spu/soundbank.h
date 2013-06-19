@@ -64,6 +64,8 @@ public:
 
     int At(int index) const;
 
+    void ConvertData();
+
     const SoundBank *GetSoundBank() const;
 
     // iterators
@@ -138,12 +140,15 @@ class SoundBank
 {
 public:
     SoundBank(SPU* pSPU);
-    ~SoundBank() {}
+    ~SoundBank();
+
+    void Init();
+    void Reset();
+    void Shutdown();
 
     // const SamplineTone* GetSamplingTone(uint8_t* pADPCM) const;
     SamplingTone *GetSamplingTone(uint32_t addr) const;
 
-    void Reset();
 
     SPU* GetSPU() const;
     bool ContainsAddr(uint32_t addr) const;

@@ -60,10 +60,18 @@ private:
 
 WX_DECLARE_HASH_SET(int, wxIntegerHash, wxIntegerEqual, IntSet);
 
-class KeyboardWidget : public wxPanel
+
+#include "spu/spu.h"
+
+
+wxDECLARE_EVENT(wxEVENT_SPU_CHANNEL_NOTE_ON, wxCommandEvent);
+wxDECLARE_EVENT(wxEVENT_SPU_CHANNEL_NOTE_OFF, wxCommandEvent);
+
+
+class KeyboardWidget : public wxPanel, public SPU::ChannelInfoListener
 {
 public:
-    KeyboardWidget(wxWindow* parent, int keyWidth, int keyHeight);
+    KeyboardWidget(wxWindow* parent, int ch, int keyWidth, int keyHeight);
 
 public:
     bool PressKey(int keyIndex);
@@ -79,6 +87,12 @@ protected:
 protected:
     int calcKeyboardWidth();
 
+    void OnNoteOn(wxCommandEvent& event);
+    void OnNoteOff(wxCommandEvent& event);
+
+    virtual void OnNoteOn(const SPU::ChannelInfo &ch);
+    virtual void OnNoteOff(const SPU::ChannelInfo &ch);
+
 private:
     int keyWidth_, keyHeight_;
     int octaveMin_, octaveMax_;
@@ -91,7 +105,6 @@ private:
 
     wxDECLARE_EVENT_TABLE();
 };
-
 
 
 
