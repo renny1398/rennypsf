@@ -68,6 +68,9 @@ wxDECLARE_EVENT(wxEVENT_SPU_CHANNEL_NOTE_ON, wxCommandEvent);
 wxDECLARE_EVENT(wxEVENT_SPU_CHANNEL_NOTE_OFF, wxCommandEvent);
 
 
+class wxRect;
+
+
 class KeyboardWidget : public wxPanel, public SPU::ChannelInfoListener
 {
 public:
@@ -83,6 +86,10 @@ protected:
     void paintEvent(wxPaintEvent&);
     void paintNow();
     void render(wxDC& dc);
+
+    void CalcKeyRect(int key, wxRect* rect);
+    void PaintPressedKeys(const IntSet& keys);
+    void PaintReleasedKeys(const IntSet& keys);
 
 protected:
     int calcKeyboardWidth();

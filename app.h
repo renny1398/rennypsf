@@ -13,22 +13,22 @@ public:
     bool Play(SoundFormat*);
     bool Stop();
 
-    SoundDevice* GetSoundManager() const;
-    void SetSoundDevice(SoundDevice*);
+    SoundDriver* GetSoundManager() const;
+    void SetSoundDevice(SoundDriver*);
 
 private:
-    SoundDevice* soundDevice_;
+    SoundDriver* soundDevice_;
 };
 
 // allow wxAppGet() to be called
 DECLARE_APP(RennypsfApp)
 
 
-inline SoundDevice* RennypsfApp::GetSoundManager() const {
+inline SoundDriver* RennypsfApp::GetSoundManager() const {
     wxASSERT(soundDevice_ != 0);
     return soundDevice_;
 }
 
-inline void RennypsfApp::SetSoundDevice(SoundDevice* device) {
+inline void RennypsfApp::SetSoundDevice(SoundDriver* device) {
     soundDevice_ = device;
 }

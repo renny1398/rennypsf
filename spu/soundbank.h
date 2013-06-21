@@ -31,6 +31,8 @@ public:
     bool HasNext() const;
     int Next();
 
+    SamplingToneIterator& operator +=(int n);
+
     SamplingTone* GetTone() const;
     // void SetPreferredLoop(uint32_t index);
     uint32_t GetLoopIndex() const;
@@ -45,6 +47,7 @@ private:
 
     void* operator new(std::size_t);
 };
+
 
 
 class SoundBank;
@@ -113,10 +116,12 @@ public:
     FourierTransformer();
     ~FourierTransformer();
 
-    void PostTransform(SamplingTone* tone);
+    void PostTransform(SamplingTone* tone, int sampling_rate);
 
 private:
     static void* mainLoop(void *);
+
+    int sampling_rate_;
 
     std::deque<SamplingTone*> queue_;
     pthread_t thread_;

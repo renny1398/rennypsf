@@ -171,6 +171,7 @@ void VolumeBar::render(wxDC &dc)
 }
 
 
+
 ////////////////////////////////////////////////////////////////////////
 // Keyboard Widget
 ////////////////////////////////////////////////////////////////////////
@@ -225,6 +226,139 @@ void KeyboardWidget::paintNow()
 }
 
 
+#include <wx/gdicmn.h>
+
+void KeyboardWidget::CalcKeyRect(int key, wxRect *rect)
+{
+    int i = key / 12;
+    int j = key % 12;
+    int x, y, w, h;
+    switch (j) {
+    case 0:
+        x = (i * 7 + 0) * keyWidth_ + 1;
+        y = keyHeight_/2;
+        w = 7;
+        h = keyHeight_ / 2 - 1;
+        break;
+    case 2:
+        x = (i * 7 + 1) * keyWidth_ + 1;
+        y = keyHeight_/2;
+        w = 7;
+        h = keyHeight_ / 2 - 1;
+        break;
+    case 4:
+        x = (i * 7 + 2) * keyWidth_ + 1;
+        y = keyHeight_/2;
+        w = 7;
+        h = keyHeight_ / 2 - 1;
+        break;
+    case 5:
+        x = (i * 7 + 3) * keyWidth_ + 1;
+        y = keyHeight_/2;
+        w = 7;
+        h = keyHeight_ / 2 - 1;
+        break;
+    case 7:
+        x = (i * 7 + 4) * keyWidth_ + 1;
+        y = keyHeight_/2;
+        w = 7;
+        h = keyHeight_ / 2 - 1;
+        break;
+    case 9:
+        x = (i * 7 + 5) * keyWidth_ + 1;
+        y = keyHeight_/2;
+        w = 7;
+        h = keyHeight_ / 2 - 1;
+        break;
+    case 11:
+        x = (i * 7 + 6) * keyWidth_ + 1;
+        y = keyHeight_/2;
+        w = 7;
+        h = keyHeight_ / 2 - 1;
+        break;
+
+    case 1:
+        x = (i * 7 + 0) * keyWidth_ + 6;
+        y = 0;
+        w = 6;
+        h = keyHeight_ / 2;
+        break;
+    case 3:
+        x = (i * 7 + 1) * keyWidth_ + 6;
+        y = 0;
+        w = 6;
+        h = keyHeight_ / 2;
+        break;
+    case 6:
+        x = (i * 7 + 3) * keyWidth_ + 6;
+        y = 0;
+        w = 6;
+        h = keyHeight_ / 2;
+        break;
+    case 8:
+        x = (i * 7 + 4) * keyWidth_ + 6;
+        y = 0;
+        w = 6;
+        h = keyHeight_ / 2;
+        break;
+    case 10:
+        x = (i * 7 + 5) * keyWidth_ + 6;
+        y = 0;
+        w = 6;
+        h = keyHeight_ / 2;
+        break;
+    }
+
+    rect->SetLeft(x);
+    rect->SetTop(y);
+    rect->SetWidth(w);
+    rect->SetHeight(h);
+}
+
+
+void KeyboardWidget::PaintPressedKeys(const IntSet &keys)
+{
+    if (pressedKeys_.empty()) return;
+
+    wxClientDC dc(this);
+
+    if (muted_) {
+        dc.SetPen(wxPen(*wxBLUE, 1));
+        dc.SetBrush(*wxBLUE_BRUSH);
+    } else {
+        dc.SetPen(wxPen(*wxRED, 1));
+        dc.SetBrush(*wxRED_BRUSH);
+    }
+
+    for (IntSet::const_iterator it = keys.begin(); it != keys.end(); ++it) {
+        wxRect rect;
+        CalcKeyRect(*it, &rect);
+        dc.DrawRectangle(rect);
+    }
+}
+
+
+void KeyboardWidget::PaintReleasedKeys(const IntSet &keys)
+{
+    if (pressedKeys_.empty()) return;
+
+    wxClientDC dc(this);
+
+    for (IntSet::const_iterator it = keys.begin(); it != keys.end(); ++it) {
+        wxRect rect;
+        CalcKeyRect(*it, &rect);
+        if (rect.GetY() == 0) {
+            dc.SetPen(wxPen(*wxBLACK, 1));
+            dc.SetBrush(*wxBLACK_BRUSH);
+        } else {
+            dc.SetPen(wxPen(*wxWHITE, 1));
+            dc.SetBrush(*wxWHITE_BRUSH);
+        }
+        dc.DrawRectangle(rect);
+    }
+}
+
+
 void KeyboardWidget::render(wxDC &dc)
 {
     wxASSERT(keyWidth_ == 8);
@@ -252,73 +386,7 @@ void KeyboardWidget::render(wxDC &dc)
         }
     }
 
-    if (pressedKeys_.empty()) return;
-
-    if (muted_) {
-        dc.SetPen(wxPen(*wxBLUE, 1));
-        dc.SetBrush(*wxBLUE_BRUSH);
-    } else {
-        dc.SetPen(wxPen(*wxRED, 1));
-        dc.SetBrush(*wxRED_BRUSH);
-    }
-
-    for (IntSet::const_iterator it = pressedKeys_.begin(); it != pressedKeys_.end(); ++it) {
-        int i = *it / 12;
-        int j = *it % 12;
-        int x, y;
-        switch (j) {
-        case 0:
-            x = (i * 7 + 0) * keyWidth_ + 2;
-            y = keyHeight_/2;
-            break;
-        case 2:
-            x = (i * 7 + 1) * keyWidth_ + 2;
-            y = keyHeight_/2;
-            break;
-        case 4:
-            x = (i * 7 + 2) * keyWidth_ + 2;
-            y = keyHeight_/2;
-            break;
-        case 5:
-            x = (i * 7 + 3) * keyWidth_ + 2;
-            y = keyHeight_/2;
-            break;
-        case 7:
-            x = (i * 7 + 4) * keyWidth_ + 2;
-            y = keyHeight_/2;
-            break;
-        case 9:
-            x = (i * 7 + 5) * keyWidth_ + 2;
-            y = keyHeight_/2;
-            break;
-        case 11:
-            x = (i * 7 + 6) * keyWidth_ + 2;
-            y = keyHeight_/2;
-            break;
-
-        case 1:
-            x = (i * 7 + 0) * keyWidth_ + 6;
-            y = 0;
-            break;
-        case 3:
-            x = (i * 7 + 1) * keyWidth_ + 6;
-            y = 0;
-            break;
-        case 6:
-            x = (i * 7 + 3) * keyWidth_ + 6;
-            y = 0;
-            break;
-        case 8:
-            x = (i * 7 + 4) * keyWidth_ + 6;
-            y = 0;
-            break;
-        case 10:
-            x = (i * 7 + 5) * keyWidth_ + 6;
-            y = 0;
-            break;
-        }
-        dc.DrawRectangle(x, y, 6, keyHeight_/2);
-    }
+    PaintPressedKeys(pressedKeys_);
 }
 
 
@@ -327,7 +395,11 @@ bool KeyboardWidget::PressKey(int keyIndex)
     int keyMax = (octaveMax_ - octaveMin_ - 1) * 12;
     if (keyMax < keyIndex) return false;
     pressedKeys_.insert(keyIndex);
-    paintNow();
+    // paintNow();
+    // wxRect rect;
+    // CalcKeyRect(keyIndex, &rect);
+    // wxWindow::RefreshRect(rect);
+    PaintPressedKeys(pressedKeys_);
     return true;
 }
 
@@ -337,22 +409,24 @@ bool KeyboardWidget::PressKey(double pitch)
     // A4 = 440 Hz
     int index = round( ( log(pitch/440.0)/log(2.0) + 5.75 ) * 12.0 );
     if (index < 0 || 120 < index) return false;
-    pressedKeys_.insert(index);
-    paintNow();
-    return true;
+    return PressKey(index);
 }
 
 
 void KeyboardWidget::ReleaseKey()
 {
+    PaintReleasedKeys(pressedKeys_);
     pressedKeys_.clear();
-    paintNow();
 }
 
 
 void KeyboardWidget::ReleaseKey(int keyIndex)
 {
     pressedKeys_.erase(keyIndex);
+    // paintNow();
+    wxRect rect;//
+    CalcKeyRect(keyIndex, &rect);
+    wxWindow::RefreshRect(rect);
 }
 
 
@@ -449,7 +523,7 @@ void ChannelPanel::DrawTimer::Notify()
 
 void ChannelPanel::Update()
 {
-    SoundDevice *soundDevice = wxGetApp().GetSoundManager();
+    SoundDriver *soundDevice = wxGetApp().GetSoundManager();
     int i = 0;
     for (wxVector<ChannelElement>::iterator it = elements.begin(), it_end = elements.end(); it != it_end; ++it) {
         int currVol = it->volumeLeft->GetValue();

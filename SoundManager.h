@@ -24,11 +24,11 @@ public:
 
 class SoundFormat;
 
-class SoundDevice
+class SoundDriver
 {
 public:
-    SoundDevice(int channelNumber);
-    virtual ~SoundDevice();
+    SoundDriver(int channelNumber);
+    virtual ~SoundDriver();
 
     virtual bool Play(SoundFormat*);
     virtual bool Stop();
@@ -65,13 +65,15 @@ private:
 };
 
 
-class WaveOutAL: public SoundDevice
+class WaveOutAL: public SoundDriver
 {
 public:
     WaveOutAL(int channelNumber);
     ~WaveOutAL();
 
+    void Init();
     bool Stop();
+    void Shutdown();
 
     // int GetEnvelopeVolume(int ch) const;
     // void SetEnvelopeVolume(int ch, int vol);
@@ -80,15 +82,17 @@ protected:
     void writeToDevice(short *data, int size);
 
 private:
-    ALCdevice *device_;
-    ALCcontext *context_;
+    static ALCdevice *device_;
+    static ALCcontext *context_;
+    static int source_number_;
+
     ALuint buffer_, source_;
 };
 
 
 #include <wx/file.h>
 
-class WaveOutDisk: public SoundDevice
+class WaveOutDisk: public SoundDriver
 {
 public:
     WaveOutDisk(int channelNumber);

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.6)
 
-SET(CMAKE_C_COMPILER clang)
-SET(CMAKE_CXX_COMPILER clang++)
+#SET(CMAKE_C_COMPILER clang)
+#SET(CMAKE_CXX_COMPILER clang++)
 
 FIND_PACKAGE(wxWidgets REQUIRED core base)
 

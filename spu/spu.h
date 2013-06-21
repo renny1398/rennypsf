@@ -295,7 +295,7 @@ protected:
     mutable pthread_cond_t process_cond_;
     mutable pthread_mutex_t dma_writable_mutex_;
 
-    mutable enum ProcessState {
+    enum ProcessState {
         STATE_SHUTDOWN = -1,
         STATE_PSX_IS_READY = 0,
         STATE_START_PROCESS,
@@ -303,8 +303,12 @@ protected:
         STATE_NOTE_OFF,
         STATE_SET_OFFSET,
         STATE_NONE
-    } process_state_;
+    };
+
+    mutable ProcessState process_state_;
     mutable int processing_channel_;
+
+    void ChangeProcessState(ProcessState state, int ch = -1);
 
 private:
     SPUListener listeners_;
@@ -388,7 +392,7 @@ public:
     int GetPCMNumber() const;
     int GetPCM(int index, void* pcm, int* loop) const;
 
-    friend class SPUThread;
+    friend class SPUThread;    
 
 private:
 

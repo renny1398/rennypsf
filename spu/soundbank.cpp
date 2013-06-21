@@ -172,7 +172,6 @@ void SamplingTone::ADPCM2LPCM()
         }
 
         processedBlockNumber_ = 0xffffffff;
-        Spu.SoundBank_.FourierTransform(const_cast<SamplingTone*>(this));
     }
 
     prev1_ = prev1;
@@ -185,6 +184,7 @@ void SamplingTone::ConvertData()
      while (processedBlockNumber_ < 0x80000000) {
         ADPCM2LPCM();
     }
+     Spu.SoundBank_.FourierTransform(this);
 }
 
 
@@ -294,6 +294,11 @@ int SamplingToneIterator::Next()
 }
 
 
+SamplingToneIterator& SamplingToneIterator::operator +=(int n) {
+    index_ += n;
+    return *this;
+}
+
 
 ////////////////////////////////////////////////////////////////////////
 // Fourier Transformer
@@ -319,10 +324,13 @@ FourierTransformer::~FourierTransformer()
 }
 
 
-void FourierTransformer::PostTransform(SamplingTone* tone)
+void FourierTransformer::PostTransform(SamplingTone* tone, int sampling_rate)
 {
+    if (0.0 < tone->GetFreq()) return;
+
     pthread_mutex_lock(&mutexQueue_);
     queue_.push_back(tone);
+    sampling_rate_ = sampling_rate;
     pthread_cond_broadcast(&condQueue_);
     pthread_mutex_unlock(&mutexQueue_);
     if (thread_ == 0) {
@@ -345,43 +353,43 @@ void* FourierTransformer::mainLoop(void *param)
     int np = 0;
 
     do {
-        pthread_mutex_lock(&ft->mutexQueue_);
-        if (ft->queue_.empty() == false) {
+        do {
+            pthread_mutex_lock(&ft->mutexQueue_);
+            if (ft->queue_.empty()) {
+                pthread_mutex_unlock(&ft->mutexQueue_);
+                break;
+            }
             tone = ft->queue_.front();
             ft->queue_.pop_front();
-        } else {
-            tone = 0;
-        }
-        pthread_mutex_unlock(&ft->mutexQueue_);
+            pthread_mutex_unlock(&ft->mutexQueue_);
 
-        if (tone != 0) {
             // const int32_t *p = tone->GetData();
-            int n = tone->GetLength();
-            int n2 = (int) pow( 2.0, floor(log(n) / log(2.0)) );
+            int len = tone->GetLength();
+            int n = (int) pow( 2.0, floor(log(len) / log(2.0)) );
 
-            if (np < n2) {
+            if (np < n) {
                 if (np) {
                     delete [] w;
                     delete [] ip;
                     delete [] a;
                 }
-                np = n2;
+                np = n;
                 a = new double[np*2];
                 ip = new int[2+(int)sqrt(np)];
                 w = new double[np];
                 ip[0] = 0;
             }
 
-            const int dn = n - n2;
-            for (int i = 0; i < n2; i++) {
-                a[i] = (double)tone->At(dn+i)/* / 32767.0*/;
+            const int dn = len - n;
+            for (int i = 0; i < n; i++) {
+                a[i] = (double)tone->At(dn+i);
             }
 
-            cdft(n2, -1, a, ip, w);
+            cdft(n, -1, a, ip, w);
 
             double valMax = 0.0;
             int indexMax = 0;
-            for (int i = 0; i < n2/4; i++) {
+            for (int i = 0; i < n/4; i++) {
                 const double re = a[2*i];
                 const double im = a[2*i+1];
                 const double val = re*re + im*im;
@@ -390,13 +398,22 @@ void* FourierTransformer::mainLoop(void *param)
                     indexMax = i;
                 }
             }
-
-            SPU* pSPU = tone->GetSoundBank()->GetSPU();
-            double freq = static_cast<double>(indexMax * pSPU->GetDefaultSamplingRate()) / n2;
+/*
+            while (0 < indexMax) {
+                const int n = indexMax / 2;
+                const double re = a[2*n];
+                const double im = a[2*n+1];
+                const double val = re*re + im*im;
+                if (val <= 7*valMax/8) break;
+                valMax = val;
+                indexMax = n;
+            }
+*/
+            double freq = static_cast<double>(ft->sampling_rate_) / n;
             tone->SetFreq(freq);
             Spu.SoundBank_.NotifyOnModify(tone);
             wxMessageOutputDebug().Printf(wxT("Finished FFT (offset = %d, freq = %d)"), tone->GetSPUOffset(), indexMax);
-        }
+        } while (true);
 
         if (ft->requiresShutdown_) break;
 
@@ -510,7 +527,7 @@ bool SoundBank::ContainsAddr(uint32_t addr) const
 
 void SoundBank::FourierTransform(SamplingTone *tone)
 {
-    fft_.PostTransform(tone);
+    fft_.PostTransform(tone, GetSPU()->GetDefaultSamplingRate());
 }
 
 

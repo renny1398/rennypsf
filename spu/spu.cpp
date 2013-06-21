@@ -186,11 +186,7 @@ void ChannelArray::SoundNew(uint32_t flags, int start)
         // channels_[i].isStopped = false;
         channels_[i].useExternalLoop = false;
 
-        pthread_mutex_lock(&pSPU_->process_mutex_);
-        pSPU_->process_state_ = SPU::STATE_NOTE_ON;
-        pSPU_->processing_channel_ = i;
-        pthread_cond_broadcast(&pSPU_->process_cond_);
-        pthread_mutex_unlock(&pSPU_->process_mutex_);
+        pSPU_->ChangeProcessState(SPU::STATE_NOTE_ON, i);
 
         channels_[i].NotifyOnNoteOn();
         pSPU_->NotifyOnChangeLoopIndex(&channels_[i]);
@@ -205,11 +201,7 @@ void ChannelArray::VoiceOff(uint32_t flags, int start)
         if ((flags & 1) == 0) continue;
         channels_[i].isStopped = true;
 
-        pthread_mutex_lock(&pSPU_->process_mutex_);
-        pSPU_->process_state_ = SPU::STATE_NOTE_OFF;
-        pSPU_->processing_channel_ = i;
-        pthread_cond_broadcast(&pSPU_->process_cond_);
-        pthread_mutex_unlock(&pSPU_->process_mutex_);
+        pSPU_->ChangeProcessState(SPU::STATE_NOTE_OFF, i);
 
         channels_[i].NotifyOnNoteOff();
     }
@@ -255,6 +247,27 @@ void SPUBase::NotifyOnChangeLoopIndex(ChannelInfo *pChannel) const
         (*itr)->AddPendingEvent(event);
     }
 }
+
+
+void SPUBase::ChangeProcessState(ProcessState state, int ch) {
+    pthread_mutex_lock(&process_mutex_);
+    process_state_ = state;
+    processing_channel_ = ch;
+    pthread_cond_broadcast(&process_cond_);
+    pthread_mutex_unlock(&process_mutex_);
+
+    pthread_mutex_lock(&wait_start_mutex_);
+    while (process_state_ != STATE_START_PROCESS) {
+        pthread_cond_wait(&process_cond_, &wait_start_mutex_);
+    }
+    pthread_mutex_unlock(&wait_start_mutex_);
+}
+
+
+
+
+
+
 
 
 
@@ -312,21 +325,21 @@ void* SPUThread::Entry()
     pthread_mutex_t& wait_start_mutex = pSPU->wait_start_mutex_;
     pthread_cond_t& process_cond = pSPU->process_cond_;
     pthread_mutex_t& dma_writable_mutex = pSPU->dma_writable_mutex_;
-    SPU::ProcessState& process_state = pSPU->process_state_;
     int& processing_channel = pSPU->processing_channel_;
 
     pthread_mutex_lock(&process_mutex);
 
-    while (process_state != SPU::STATE_SHUTDOWN) {
+    do {
+        pthread_mutex_lock(&wait_start_mutex);
+        SPU::ProcessState process_state = pSPU->process_state_;
+        pSPU->process_state_ = SPU::STATE_START_PROCESS;
+        pthread_cond_broadcast(&process_cond);
+        pthread_mutex_unlock(&wait_start_mutex);
+
         switch (process_state) {
         case SPU::STATE_PSX_IS_READY:
-            pthread_mutex_lock(&wait_start_mutex);
-            process_state = SPU::STATE_START_PROCESS;
-            pthread_cond_broadcast(&process_cond);
-            pthread_mutex_unlock(&wait_start_mutex);
-            /* FALLTHRU */
-        case SPU::STATE_START_PROCESS:
             pthread_mutex_lock(&dma_writable_mutex);
+            numSamples_ = processing_channel;
             while (0 < numSamples_) {
                 --numSamples_;
                 for (int i = 0; i < 24; i++) {
@@ -360,8 +373,10 @@ void* SPUThread::Entry()
             break;
         }
 
+        if (process_state == SPU::STATE_SHUTDOWN) break;
+
         pthread_cond_wait(&process_cond, &process_mutex);
-    }
+    } while (true);
 
     pthread_mutex_unlock(&process_mutex);
 
@@ -372,9 +387,8 @@ void* SPUThread::Entry()
 
 
 SPU::SPU() :
-    SoundBank_(this), Memory(reinterpret_cast<uint8_t*>(m_spuMem)),
-    Channels(this, 24)
-
+    Memory(reinterpret_cast<uint8_t*>(m_spuMem)), Channels(this, 24),
+    SoundBank_(this)
 {
     Init();
 }
@@ -444,7 +458,6 @@ void SPU::Shutdown()
     Close();
     thread_->Wait();
     wxMessageOutputDebug().Printf(wxT("Shut down SPU."));
-    wxLogDebug(wxT("SHUT DOWN"));
 }
 
 
@@ -463,18 +476,7 @@ void SPU::Async(uint32_t cycles)
     if (do_samples == 0) return;
     poo -= do_samples * 384;
 
-    pthread_mutex_lock(&process_mutex_);
-    process_state_ = STATE_PSX_IS_READY;
-    pthread_cond_broadcast(&process_cond_);
-    thread_->numSamples_ = do_samples;
-    pthread_mutex_unlock(&process_mutex_);
-
-    pthread_mutex_lock(&wait_start_mutex_);
-    while (process_state_ != STATE_START_PROCESS) {
-        pthread_cond_wait(&process_cond_, &wait_start_mutex_);
-    }
-    pthread_mutex_unlock(&wait_start_mutex_);
-
+    ChangeProcessState(STATE_PSX_IS_READY, do_samples);
 }
 
 

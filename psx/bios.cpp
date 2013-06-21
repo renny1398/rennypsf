@@ -240,7 +240,7 @@ static void index()     // A0:1c
 {
     uint32_t a0 = A0;
     const char *src = CharPtr(a0);
-    char *ret = ::strchr(src, A1);
+    const char *ret = ::strchr(src, A1);
     if (ret) {
         V0 = a0 + (ret - src);
     } else {
@@ -253,7 +253,7 @@ static void rindex()    // A0:1d
 {
     uint32_t a0 = A0;
     const char *src = CharPtr(a0);
-    char *ret = ::strrchr(src, A1);
+    const char *ret = ::strrchr(src, A1);
     if (ret) {
         V0 = a0 + (ret - src);
     } else {
@@ -269,7 +269,7 @@ static void strpbrk()   // A0:20
 {
     uint32_t a0 = A0;
     const char *src = CharPtr(a0);
-    char *ret = ::strpbrk(src, CharPtr(A1));
+    const char *ret = ::strpbrk(src, CharPtr(A1));
     if (ret) {
         V0 = a0 + (ret - src);
     } else {
@@ -307,7 +307,7 @@ static void strstr()    // A0:24
 {
     uint32_t a0 = A0;
     const char *src = CharPtr(a0);
-    char *ret = ::strstr(src, CharPtr(A1));
+    const char *ret = ::strstr(src, CharPtr(A1));
     if (ret) {
         V0 = a0 + (ret - src);
     } else {
@@ -384,7 +384,7 @@ static void memchr()    // A0:2e
 {
     uint32_t a0 = A0;
     const char *src = CharPtr(a0);
-    char *ret = static_cast<char*>(::memchr(src, A1, A2));
+    const char *ret = static_cast<const char*>(::memchr(src, A1, A2));
     if (ret) {
         V0 = a0 + (ret - src);
     } else {

@@ -1,6 +1,8 @@
 #include "SoundManager.h"
 #include "SoundFormat.h"
 
+#include <iostream>
+
 const int NUM_BUFFERS = 8;
 const int NSSIZE = 45;
 
@@ -10,7 +12,7 @@ const int NSSIZE = 45;
 //////////////////////////////////////////////////////////////////////
 
 
-void SoundDevice::setChannelNumber(int number)
+void SoundDriver::setChannelNumber(int number)
 {
     if (chSample_) {
         delete [] chEnvelope_;
@@ -23,7 +25,7 @@ void SoundDevice::setChannelNumber(int number)
     channelNumber_ = number;
 }
 
-void SoundDevice::setBufferSize(int size)
+void SoundDriver::setBufferSize(int size)
 {
     if (buffer_) {
         delete [] buffer_;
@@ -34,38 +36,25 @@ void SoundDevice::setBufferSize(int size)
 }
 
 
-int SoundDevice::GetEnvelopeVolume(int ch) const
+int SoundDriver::GetEnvelopeVolume(int ch) const
 {
     return chEnvelope_[ch];
 }
 
-void SoundDevice::SetEnvelopeVolume(int ch, int vol)
+void SoundDriver::SetEnvelopeVolume(int ch, int vol)
 {
     chEnvelope_[ch] = vol;
 }
 
-/*
-void SoundDevice::GetEnvelopeVolume(int ch, int *left, int *right) const
-{
-    *left = chEnvelopeLeft_[ch];
-    *right = chEnvelopeRight_[ch];
-}
 
-void SoundDevice::SetEnvelopeVolume(int ch, int left, int right)
-{
-    chEnvelopeLeft_[ch] = left;
-    chEnvelopeRight_[ch] = right;
-}
-*/
-
-SoundDevice::SoundDevice(int channelNumber)
-    : chSample_(0), buffer_(0), m_sound(0)
+SoundDriver::SoundDriver(int channelNumber)
+    : m_sound(0), chSample_(0), buffer_(0)
 {
     setChannelNumber(channelNumber);
     setBufferSize(512);
 }
 
-SoundDevice::~SoundDevice()
+SoundDriver::~SoundDriver()
 {
     if (buffer_) delete [] buffer_;
     if (chSample_) {
@@ -75,7 +64,7 @@ SoundDevice::~SoundDevice()
 }
 
 
-bool SoundDevice::Play(SoundFormat *sound)
+bool SoundDriver::Play(SoundFormat *sound)
 {
     if (m_sound) {
         m_sound->Stop();
@@ -88,7 +77,7 @@ bool SoundDevice::Play(SoundFormat *sound)
 }
 
 
-bool SoundDevice::Stop()
+bool SoundDriver::Stop()
 {
     SoundFormat *sound = m_sound;
     if (sound == 0) return true;
@@ -100,7 +89,7 @@ bool SoundDevice::Stop()
 }
 
 
-void SoundDevice::WriteStereo(int ch, short left, short right)
+void SoundDriver::WriteStereo(int ch, short left, short right)
 {
     wxASSERT(chSample_ != 0 && ch < channelNumber_);
     chSample_[ch].left = left;
@@ -109,7 +98,7 @@ void SoundDevice::WriteStereo(int ch, short left, short right)
     rightSample_ += right;
 }
 
-void SoundDevice::WriteStereo(int ch, short samples[2])
+void SoundDriver::WriteStereo(int ch, short samples[2])
 {
     wxASSERT(chSample_ != 0 && ch < channelNumber_);
     chSample_[ch].left = samples[0];
@@ -119,7 +108,7 @@ void SoundDevice::WriteStereo(int ch, short samples[2])
 }
 
 
-void SoundDevice::Flush()
+void SoundDriver::Flush()
 {
     if (leftSample_ > 32767) {
         leftSample_ = 32767;
@@ -148,25 +137,50 @@ void SoundDevice::Flush()
 // WaveOutAL
 ////////////////////////////////////////////////////////////////////////
 
-WaveOutAL::WaveOutAL(int channelNumber)
-    :SoundDevice(channelNumber)
-{
-    device_ = alcOpenDevice(0);
-    context_ = alcCreateContext(device_, 0);
-    alcMakeContextCurrent(context_);
 
-    alGenSources(1, &source_);
+ALCdevice *WaveOutAL::device_ = NULL;
+ALCcontext *WaveOutAL::context_ = NULL;
+int WaveOutAL::source_number_ = 0;
+
+
+WaveOutAL::WaveOutAL(int channelNumber)
+    :SoundDriver(channelNumber)
+{
+    Init();
 }
+
 
 WaveOutAL::~WaveOutAL()
 {
-    Stop();
-    alDeleteSources(1, &source_);
-    alcMakeContextCurrent(0);
-    alcDestroyContext(context_);
-    alcCloseDevice(device_);
+    Shutdown();
 }
 
+
+void WaveOutAL::Init()
+{
+    if (device_ == NULL) {
+        device_ = alcOpenDevice(0);
+        context_ = alcCreateContext(device_, 0);
+        alcMakeContextCurrent(context_);
+    }
+    alGenSources(1, &source_);
+    source_number_++;
+}
+
+
+void WaveOutAL::Shutdown()
+{
+    if (source_ == 0) return;
+    Stop();
+    alDeleteSources(1, &source_);
+    // source = 0;
+    if (--source_number_ <= 0) {
+        alcMakeContextCurrent(0);
+        alcDestroyContext(context_);
+        alcCloseDevice(device_);
+        std::cout << "WaveOutAL: Closed a sound device." << std::endl;
+    }
+}
 
 void WaveOutAL::writeToDevice(short *data, int size)
 {
@@ -179,7 +193,7 @@ void WaveOutAL::writeToDevice(short *data, int size)
         alGetSourcei(source_, AL_SOURCE_STATE, &state);
         if (state != AL_PLAYING) {
             alSourcePlay(source_);
-            wxMessageOutputDebug().Printf(wxT("WaveOutAL: started playing. source = %d"), source_);
+            std::cout << "WaveOutAL: Started playing. source =" << source_ << std::endl;
         }
         while (alGetSourcei(source_, AL_BUFFERS_PROCESSED, &n), n == 0) {
             usleep(100);
@@ -193,12 +207,12 @@ void WaveOutAL::writeToDevice(short *data, int size)
 
 bool WaveOutAL::Stop()
 {
-    SoundDevice::Stop();
+    SoundDriver::Stop();
     ALint state, n;
     alGetSourcei(source_, AL_SOURCE_STATE, &state);
     if (state != AL_STOPPED) {
         alSourceStop(source_);
-        wxMessageOutputDebug().Printf(wxT("WaveOutAL: stopped playing."));
+        std::cout << "WaveOutAL: Stopped playing.";
     }
     while (alGetSourcei(source_, AL_SOURCE_STATE, &state), state == AL_PLAYING) {
         usleep(100);
@@ -246,7 +260,7 @@ WaveOutDisk::WaveOutFormat::WaveOutFormat()
 
 
 WaveOutDisk::WaveOutDisk(int channelNumber)
-    : SoundDevice(channelNumber)
+    : SoundDriver(channelNumber)
 {
 }
 
@@ -254,7 +268,7 @@ WaveOutDisk::WaveOutDisk(int channelNumber)
 
 bool WaveOutDisk::Play(SoundFormat *soundFormat)
 {
-    if (SoundDevice::Play(soundFormat) == false) return false;
+    if (SoundDriver::Play(soundFormat) == false) return false;
     file_.Create(soundFormat->GetFileName(), true, wxFile::write);
 
     format_.channelNumber = 2;
@@ -272,6 +286,6 @@ bool WaveOutDisk::Play(SoundFormat *soundFormat)
 
 bool WaveOutDisk::Stop()
 {
-    if (SoundDevice::Stop() == false) return false;
+    if (SoundDriver::Stop() == false) return false;
     return true;
 }

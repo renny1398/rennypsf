@@ -40,7 +40,7 @@ void update(unsigned int index)
 
 void Reset(unsigned int index)
 {
-    wxASSERT(0 <= index && index < 4);
+    wxASSERT(index < 4);
 
     counters[index].count = 0;
     update(index);
