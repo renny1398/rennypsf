@@ -172,7 +172,7 @@ public:
     //int             iLeftVolRaw;                        // left psx volume value
     unsigned int    offsetExternalLoop;
     bool            useExternalLoop;                        // ignore loop bit, if an external loop address is used
-    int             iMute;                              // mute mode
+    // int             iMute;                              // mute mode
     int             iRightVolume;                       // right volume (s15)
     //int             iRightVolRaw;                       // right psx volume value
     bool            isRightSweep;
@@ -354,7 +354,7 @@ public:
     void InitReverb();
     void SetReverb(unsigned short value);
     void StartReverb(ChannelInfo& ch);
-    void StoreReverb(ChannelInfo& ch, int ns);
+    void StoreReverb(const ChannelInfo &ch, int ns);
 
     void SetReverbDepthLeft(int depth);
     void SetReverbDepthRight(int depth);

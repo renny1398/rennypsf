@@ -137,13 +137,18 @@ void ChannelInfo::Update()
     if (bFMod == 2) {
         // TODO: FM
     } else {
-        if (iMute) sval = 0;
-        else {
-            short left = (sval * iLeftVolume) / 0x4000;
-            short right = (sval * iRightVolume) / 0x4000;
-            wxGetApp().GetSoundManager()->SetEnvelopeVolume(ch, ADSRX.lVolume);
-            wxGetApp().GetSoundManager()->WriteStereo(ch, left, right);
-        }
+        int left = (sval * iLeftVolume) / 0x4000;
+        int right = (sval * iRightVolume) / 0x4000;
+/*
+        Spu.StoreReverb(*this, 0);
+        left += Spu.MixReverbLeft(0)/3;
+        right += Spu.MixReverbRight()/3;
+        left /= 3;
+        right /= 3;
+        CLIP(left);  CLIP(right);
+ */
+        wxGetApp().GetSoundManager()->SetEnvelopeVolume(ch, ADSRX.lVolume);
+        wxGetApp().GetSoundManager()->WriteStereo(ch, left, right);
     }
     pInterpolation->spos += pInterpolation->GetSinc();
     // wxMessageOutputDebug().Printf("spos = 0x%08x", pInterpolation->spos);
@@ -286,9 +291,13 @@ void SPU::SetupStreams()
 
     SoundBank_.Reset();
 
+    sReverbStart = new int[NSSIZE*2];                       // alloc reverb buffer
+    memset(sReverbStart, 0, NSSIZE*8);
+    sReverbEnd  = sReverbStart + NSSIZE*2;
+    sReverbPlay = sReverbStart;
+
     for (int i = 0; i < 24; i++) {
         Channels[i].ADSRX.SustainLevel = 0xf << 27;
-        Channels[i].iMute = 0;
         // Channels[i].iIrqDone = 0;
         Channels[i].tone = 0;
         Channels[i].itrTone = SamplingToneIterator();
@@ -298,6 +307,7 @@ void SPU::SetupStreams()
 void SPU::RemoveStreams()
 {
     delete [] m_pSpuBuffer;
+    delete [] sReverbStart;
     m_pSpuBuffer = 0;
 }
 
@@ -400,7 +410,7 @@ void SPU::Init()
     // m_iUseTimer = 2;
     // m_iDebugMode = 0;
     // m_iRecordMode = 0;
-    // m_iUseReverb = 2;
+    m_iUseReverb = 2;
     useInterpolation = GAUSS_INTERPOLATION;
     // m_iDisStereo = 0;
     // m_iUseDBufIrq = 0;

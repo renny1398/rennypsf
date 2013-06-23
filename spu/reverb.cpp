@@ -20,6 +20,9 @@ void SPU::InitReverb()
     iReverbNum = 1;
 
     if (m_iUseReverb == 2) {
+        if (sReverbStart == NULL) {
+
+        }
         memset(sReverbStart, 0, NSSIZE*2*4);
     }
 }
@@ -79,7 +82,7 @@ void SPU::StartReverb(ChannelInfo &ch)
 }
 
 
-void SPU::StoreReverb(ChannelInfo &ch, int ns)
+void SPU::StoreReverb(const ChannelInfo &ch, int ns)
 {
     if (m_iUseReverb == 0) return;
     if (m_iUseReverb == 2) {    // Neil's reverb
