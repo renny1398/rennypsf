@@ -482,7 +482,7 @@ void SoundBank::NotifyOnRemove(SamplingTone *tone) const
 
     std::set<wxEvtHandler*>::const_iterator itrEnd = listeners_.end();
     for (std::set<wxEvtHandler*>::const_iterator itr = listeners_.begin(); itr != itrEnd; ++itr) {
-        (*itr)->AddPendingEvent(event);
+        (*itr)->ProcessEvent(event);
     }
 }
 
@@ -504,12 +504,13 @@ SamplingTone* SoundBank::GetSamplingTone(uint32_t addr) const
 
 void SoundBank::Reset()
 {
-    for (SamplingToneMap::Iterator it = tones_.begin(); it != tones_.end(); ) {
-        SamplingTone* tone = it.m_node->m_value.second;
+    while (tones_.empty() == false) {
+        uint32_t offset = (tones_.begin()).m_node->m_value.first;
+        SamplingTone* tone = (tones_.begin()).m_node->m_value.second;
         NotifyOnRemove(tone);
+        tones_.erase(offset);
         delete tone;
     }
-    tones_.clear();
 }
 
 

@@ -394,13 +394,13 @@ void write1d82(uint16_t) {
 // Set reverberation depth left
 void write1d84(uint16_t depth)
 {
-    Spu.SetReverbDepthLeft(static_cast<int16_t>(depth));
+    Spu.Reverb.SetReverbDepthLeft(static_cast<int16_t>(depth));
 }
 
 // Set reverberation depth right
 void write1d86(uint16_t depth)
 {
-    Spu.SetReverbDepthRight(static_cast<int16_t>(depth));
+    Spu.Reverb.SetReverbDepthRight(static_cast<int16_t>(depth));
 }
 
 // Voice ON (0-15)

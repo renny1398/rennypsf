@@ -3,7 +3,7 @@
 
 #include <iostream>
 
-const int NUM_BUFFERS = 8;
+const int NUM_BUFFERS = 50;
 const int NSSIZE = 45;
 
 
@@ -51,7 +51,7 @@ SoundDriver::SoundDriver(int channelNumber)
     : m_sound(0), chSample_(0), buffer_(0)
 {
     setChannelNumber(channelNumber);
-    setBufferSize(512);
+    setBufferSize(NSSIZE);
 }
 
 SoundDriver::~SoundDriver()
@@ -86,6 +86,13 @@ bool SoundDriver::Stop()
     }
     m_sound = 0;
     return true;
+}
+
+
+const Sample* SoundDriver::GetBuffer(int *size) const {
+    wxASSERT(size);
+    *size = bufferIndex_;
+    return buffer_;
 }
 
 
@@ -126,9 +133,86 @@ void SoundDriver::Flush()
     leftSample_ = 0;
     rightSample_ = 0;
     if (bufferIndex_ >= bufferSize_) {
-        writeToDevice((short*)buffer_, bufferIndex_);
+        WriteToDevice();
         bufferIndex_ = 0;
     }
+}
+
+
+
+////////////////////////////////////////////////////////////////////////
+// Command for WaveOutAL Thread
+////////////////////////////////////////////////////////////////////////
+
+
+
+class WaveOutALCommand {
+public:
+    WaveOutALCommand(WaveOutAL* sound_driver)
+        : sound_driver_(sound_driver) {}
+    virtual ~WaveOutALCommand() {}
+    virtual void Execute() = 0;
+
+protected:
+    WaveOutAL* const sound_driver_;
+};
+
+
+
+
+class InitAL : public WaveOutALCommand {
+public:
+    InitAL(WaveOutAL* sound_driver)
+        : WaveOutALCommand(sound_driver) {}
+    virtual void Execute() {
+        sound_driver_->ThisThreadInit();
+    }
+};
+
+
+class ShutdownAL : public WaveOutALCommand {
+public:
+    ShutdownAL(WaveOutAL* sound_driver)
+        : WaveOutALCommand(sound_driver) {}
+    virtual void Execute() {
+        sound_driver_->ThisThreadShutdown();
+    }
+};
+
+
+class StopAL : public WaveOutALCommand {
+public:
+    StopAL(WaveOutAL* sound_driver)
+        : WaveOutALCommand(sound_driver) {}
+    virtual void Execute() {
+        sound_driver_->ThisThreadStop();
+    }
+};
+
+
+class WriteToDeviceAL : public WaveOutALCommand {
+public:
+    WriteToDeviceAL(WaveOutAL* sound_driver)
+        : WaveOutALCommand(sound_driver) {}
+    virtual void Execute() {
+        sound_driver_->ThisThreadWriteToDevice();
+    }
+};
+
+
+wxThread::ExitCode WaveOutALThread::Entry() {
+
+    WaveOutALCommand* msg;
+
+    do {
+        command_queue_.Receive(msg);
+        msg->Execute();
+        delete msg;
+        if (WaveOutAL::device_ == 0) break;
+    } while (true);
+
+    sound_driver_->thread_ = 0;
+    return 0;
 }
 
 
@@ -141,11 +225,19 @@ void SoundDriver::Flush()
 ALCdevice *WaveOutAL::device_ = NULL;
 ALCcontext *WaveOutAL::context_ = NULL;
 int WaveOutAL::source_number_ = 0;
+WaveOutALThread* WaveOutAL::thread_ = NULL;
 
 
 WaveOutAL::WaveOutAL(int channelNumber)
-    :SoundDriver(channelNumber)
+    : SoundDriver(channelNumber),
+      write_to_device_cond_(mutex_), write_to_device_cond2_(mutex2_),
+      finished_writing_(false)
 {
+    if (thread_ == 0) {
+        thread_ = new WaveOutALThread(this);
+        thread_->Create();
+        thread_->Run();
+    }
     Init();
 }
 
@@ -156,35 +248,56 @@ WaveOutAL::~WaveOutAL()
 }
 
 
-void WaveOutAL::Init()
+void WaveOutAL::ThisThreadInit()
 {
     if (device_ == NULL) {
         device_ = alcOpenDevice(0);
         context_ = alcCreateContext(device_, 0);
         alcMakeContextCurrent(context_);
     }
-    alGenSources(1, &source_);
+    // alGenSources(1, &source_);
+    source_ = 0;
     source_number_++;
+    std::cout << "WaveOutAL: Initialized a sound device." << std::endl;
 }
 
 
-void WaveOutAL::Shutdown()
+void WaveOutAL::Init() {
+    thread_->PostMessageQueue(new InitAL(this));
+}
+
+
+void WaveOutAL::ThisThreadShutdown()
 {
     if (source_ == 0) return;
     Stop();
-    alDeleteSources(1, &source_);
-    // source = 0;
+    // alDeleteSources(1, &source_);
+    //source_ = 0;
     if (--source_number_ <= 0) {
         alcMakeContextCurrent(0);
         alcDestroyContext(context_);
         alcCloseDevice(device_);
+        device_ = 0;
         std::cout << "WaveOutAL: Closed a sound device." << std::endl;
     }
 }
 
-void WaveOutAL::writeToDevice(short *data, int size)
+
+void WaveOutAL::Shutdown() {
+    thread_->PostMessageQueue(new ShutdownAL(this));
+}
+
+
+void WaveOutAL::ThisThreadWriteToDevice()
 {
     ALint state, n;
+
+    int size;
+    const short* data = reinterpret_cast<const short*>(GetBuffer(&size));
+
+    if (source_ == 0) {
+        alGenSources(1, &source_);
+    }
 
     alGetSourcei(source_, AL_BUFFERS_QUEUED, &n);
     if (n < NUM_BUFFERS) {
@@ -196,16 +309,47 @@ void WaveOutAL::writeToDevice(short *data, int size)
             std::cout << "WaveOutAL: Started playing. source =" << source_ << std::endl;
         }
         while (alGetSourcei(source_, AL_BUFFERS_PROCESSED, &n), n == 0) {
-            usleep(100);
+            usleep(1000);
         }
         alSourceUnqueueBuffers(source_, 1, &buffer_);
     }
     alBufferData(buffer_, AL_FORMAT_STEREO16, data, size*4, 44100);
     alSourceQueueBuffers(source_, 1, &buffer_);
+
+    mutex_.Lock();
+    finished_writing_ = true;
+    write_to_device_cond_.Broadcast();
+    mutex_.Unlock();
+    mutex2_.Lock();
+    while (finished_writing_ == true) {
+        write_to_device_cond2_.Wait();
+    }
+    mutex2_.Unlock();
 }
 
 
-bool WaveOutAL::Stop()
+void WaveOutAL::WaitForWritingToDevice() {
+    mutex_.Lock();
+    while (finished_writing_ == false) {
+        write_to_device_cond_.Wait();
+    }
+    mutex_.Unlock();
+    mutex2_.Lock();
+    finished_writing_ = false;
+    write_to_device_cond2_.Broadcast();
+    mutex2_.Unlock();
+}
+
+
+
+void WaveOutAL::WriteToDevice() {
+    thread_->PostMessageQueue(new WriteToDeviceAL(this));
+    WaitForWritingToDevice();
+}
+
+
+
+bool WaveOutAL::ThisThreadStop()
 {
     SoundDriver::Stop();
     ALint state, n;
@@ -222,6 +366,15 @@ bool WaveOutAL::Stop()
         alDeleteBuffers(1, &buffer_);
     }
     // envVolume = 0;
+    alDeleteSources(1, &source_);
+    source_ = 0;
+
+    return true;
+}
+
+
+bool WaveOutAL::Stop() {
+    thread_->PostMessageQueue(new StopAL(this));
     return true;
 }
 

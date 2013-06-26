@@ -69,7 +69,7 @@ void ChannelInfo::StartSound()
     wxASSERT(bNew == true);
 
     ADSRX.Start();
-    Spu.StartReverb(*this);
+    Spu.Reverb.StartReverb(*this);
 
     // s_1 = 0;
     // s_2 = 0;
@@ -290,11 +290,7 @@ void SPU::SetupStreams()
     m_pSpuBuffer = new uint8_t[32768];
 
     SoundBank_.Reset();
-
-    sReverbStart = new int[NSSIZE*2];                       // alloc reverb buffer
-    memset(sReverbStart, 0, NSSIZE*8);
-    sReverbEnd  = sReverbStart + NSSIZE*2;
-    sReverbPlay = sReverbStart;
+    Reverb.Reset();
 
     for (int i = 0; i < 24; i++) {
         Channels[i].ADSRX.SustainLevel = 0xf << 27;
@@ -307,7 +303,6 @@ void SPU::SetupStreams()
 void SPU::RemoveStreams()
 {
     delete [] m_pSpuBuffer;
-    delete [] sReverbStart;
     m_pSpuBuffer = 0;
 }
 
@@ -398,7 +393,7 @@ void* SPUThread::Entry()
 
 SPU::SPU() :
     Memory(reinterpret_cast<uint8_t*>(m_spuMem)), Channels(this, 24),
-    SoundBank_(this)
+    Reverb(this), SoundBank_(this)
 {
     Init();
 }
@@ -421,7 +416,6 @@ void SPU::Init()
     dma_writable_mutex_ = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
 
     //::memset(&Channels, 0, sizeof(Channels));
-    ::memset(&Reverb, 0, sizeof(Reverb));
     ChannelInfo::InitADSR();
 
     wxMessageOutputDebug().Printf(wxT("Initialized SPU."));
@@ -431,7 +425,7 @@ void SPU::Open()
 {
     // m_iUseXA = 1;
     // m_iVolume = 3;
-    iReverbOff = -1;
+    Reverb.iReverbOff = -1;
     // spuIrq = 0;
     Addr = 0xffffffff;
     m_bEndThread = 0;
@@ -446,12 +440,12 @@ void SPU::Open()
     poo = 0;
     m_pS = (short*)m_pSpuBuffer;
 
-    process_state_ = STATE_NONE;
-
-    thread_ = new SPUThread(this);
-    thread_->Create();
-    process_state_ = STATE_NONE;
-    thread_->Run();
+    if (thread_ == 0) {
+        thread_ = new SPUThread(this);
+        thread_->Create();
+        process_state_ = STATE_NONE;
+        thread_->Run();
+    }
 
     wxMessageOutputDebug().Printf(wxT("Reset SPU."));
 }

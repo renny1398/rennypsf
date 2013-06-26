@@ -1,24 +1,63 @@
 #pragma once
 #include <stdint.h>
+#include <wx/ptr_scpd.h>
+
 
 namespace SPU {
 
-struct REVERBInfo
+
+class SPU;
+class ChannelInfo;
+
+class REVERBInfo
 {
 public:
-    void WorkAreaStart(uint16_t val);
+    REVERBInfo(SPU* spu);
+    ~REVERBInfo();
 
+    // Reverb
+    void InitReverb();
+    void Reset();
+
+    void SetReverb(unsigned short value);
+    void StartReverb(ChannelInfo& ch);
+    void StoreReverb(const ChannelInfo &ch, int ns);
+
+    void SetReverbDepthLeft(int depth);
+    void SetReverbDepthRight(int depth);
+
+    int ReverbGetBuffer(int ofs) const;
+    void ReverbSetBuffer(int ofs, int val);
+    void ReverbSetBufferPlus1(int ofs, int val);
+    int MixReverbLeft(int ns);
+    int MixReverbRight();
+
+    void WorkAreaStart(uint16_t val);
 
     int iStartAddr;      // reverb area start addr in samples
     int iCurrAddr;       // reverb area curr addr in samples
 
     int VolLeft;
     int VolRight;
+
+private:
+    SPU& spu_;
+
+public:
+    int *sReverbPlay;
+    int *sReverbEnd;
+    wxScopedArray<int> sReverbStart;
+    int  iReverbOff;    // reverb offset
+    int  iReverbRepeat;
+    int  iReverbNum;
+
+private:
     int iLastRVBLeft;
     int iLastRVBRight;
     int iRVBLeft;
     int iRVBRight;
 
+public:
     union {
         int Config[32];
         struct {
@@ -57,6 +96,15 @@ public:
         };
     };
 };
+
+
+inline void REVERBInfo::SetReverbDepthLeft(int depth) {
+    VolLeft = depth;
+}
+
+inline void REVERBInfo::SetReverbDepthRight(int depth) {
+    VolRight = depth;
+}
 
 inline void REVERBInfo::WorkAreaStart(uint16_t val)
 {

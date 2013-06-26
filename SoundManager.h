@@ -8,6 +8,9 @@
 #endif
 #include <wx/vector.h>
 
+#include <wx/thread.h>
+#include <wx/msgqueue.h>
+
 
 class Sample {
 public:
@@ -46,9 +49,11 @@ public:
     virtual void SetEnvelopeVolume(int ch, int vol);
 
 protected:
+    const Sample* GetBuffer(int* size) const;
+
     void setChannelNumber(int number);
     void setBufferSize(int size);
-    virtual void writeToDevice(short* buffer, int size) = 0;
+    virtual void WriteToDevice() = 0;
 
 protected:
     SoundFormat *m_sound;
@@ -65,28 +70,67 @@ private:
 };
 
 
-class WaveOutAL: public SoundDriver
+
+class WaveOutAL;
+class WaveOutALCommand;
+
+class WaveOutALThread : public wxThread {
+public:
+    WaveOutALThread(WaveOutAL* sound_driver)
+        : wxThread(wxTHREAD_DETACHED), sound_driver_(sound_driver)
+    {}
+
+    void PostMessageQueue(WaveOutALCommand* command) {
+        command_queue_.Post(command);
+    }
+
+protected:
+    virtual ExitCode Entry();
+
+private:
+    WaveOutAL* const sound_driver_;
+    wxMessageQueue<WaveOutALCommand*> command_queue_;
+};
+
+
+
+
+class WaveOutAL : public SoundDriver
 {
+    friend class WaveOutALThread;
+    friend class WaveOutALCommand;
+
 public:
     WaveOutAL(int channelNumber);
     ~WaveOutAL();
 
     void Init();
-    bool Stop();
+    virtual bool Stop();
     void Shutdown();
 
-    // int GetEnvelopeVolume(int ch) const;
-    // void SetEnvelopeVolume(int ch, int vol);
+    void ThisThreadInit();
+    bool ThisThreadStop();
+    void ThisThreadShutdown();
 
+    virtual void WriteToDevice();
+    void ThisThreadWriteToDevice();
 protected:
-    void writeToDevice(short *data, int size);
+    void WaitForWritingToDevice();
 
 private:
+    // bool is_multithreading_; // force
+
     static ALCdevice *device_;
     static ALCcontext *context_;
     static int source_number_;
 
+    static WaveOutALThread* thread_;
+
     ALuint buffer_, source_;
+    wxMutex mutex_, mutex2_;
+    wxCondition write_to_device_cond_;
+    wxCondition write_to_device_cond2_;
+    bool finished_writing_;
 };
 
 

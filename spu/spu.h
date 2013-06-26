@@ -350,15 +350,6 @@ public:
     // void StartADSR(ChannelInfo& ch);
     // int MixADSR(ChannelInfo& ch);
 
-    // Reverb
-    void InitReverb();
-    void SetReverb(unsigned short value);
-    void StartReverb(ChannelInfo& ch);
-    void StoreReverb(const ChannelInfo &ch, int ns);
-
-    void SetReverbDepthLeft(int depth);
-    void SetReverbDepthRight(int depth);
-
     // Register
     unsigned short ReadRegister(uint32_t reg);
     void WriteRegister(uint32_t reg, uint16_t val);
@@ -375,14 +366,6 @@ public:
 
     // substance
     static SPU Spu;
-
-protected:
-    // Reverb
-    int ReverbGetBuffer(int ofs) const;
-    void ReverbSetBuffer(int ofs, int val);
-    void ReverbSetBufferPlus1(int ofs, int val);
-    int MixReverbLeft(int ns);
-    int MixReverbRight();
 
     //
     // Utilities
@@ -464,14 +447,6 @@ private:
     // ADSR
     // unsigned long m_RateTable[160];
 
-    // Reverb
-    int *sReverbPlay;
-    int *sReverbEnd;
-    int *sReverbStart;
-    int  iReverbOff;    // reverb offset
-    int  iReverbRepeat;
-    int  iReverbNum;
-
     // Sound bank
 public:
     SoundBank SoundBank_;
@@ -493,6 +468,7 @@ private:
 
     friend class ChannelInfo;
     friend class ChannelArray;  // temp
+    friend class REVERBInfo;    // temp
 };
 
 
@@ -516,14 +492,6 @@ inline ChannelInfo& SPU::GetChannelInfo(int ch) {
 inline unsigned char* SPU::GetSoundBuffer() const {
     // return Memory;
     return (uint8_t*)m_spuMem;
-}
-
-inline void SPU::SetReverbDepthLeft(int depth) {
-    Reverb.VolLeft = depth;
-}
-
-inline void SPU::SetReverbDepthRight(int depth) {
-    Reverb.VolRight = depth;
 }
 
 inline uint32_t SPU::GetIRQAddress() const {
