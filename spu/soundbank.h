@@ -17,6 +17,9 @@ class wxEvtHandler;
 namespace SPU {
 
 
+typedef unsigned int SPUAddr;
+
+
 class SamplingTone;
 class ChannelInfo;
 
@@ -35,7 +38,7 @@ public:
 
     SamplingTone* GetTone() const;
     // void SetPreferredLoop(uint32_t index);
-    uint32_t GetLoopIndex() const;
+    int32_t GetLoopOffset() const;
 
 protected:
     void clone(SamplingToneIterator* itrTone) const;
@@ -59,9 +62,13 @@ public:
 
     const int32_t* GetData() const;
     const uint8_t* GetADPCM() const;
-    uint32_t GetSPUOffset() const;
+    SPUAddr GetAddr() const;
     uint32_t GetLength() const;
-    uint32_t GetLoopIndex() const;
+    uint32_t GetLoopOffset() const;
+    SPUAddr GetExternalLoopAddr() const;
+    void SetExternalLoopAddr(SPUAddr addr);
+    SPUAddr GetEndAddr() const;
+
     double GetFreq() const;
     void SetFreq(double f);
 
@@ -85,13 +92,16 @@ protected:
 private:
     const SoundBank* pSB_;
 
-    const uint8_t* pADPCM_;
+    const uint8_t* const pADPCM_;
     mutable wxVector<int32_t> LPCM_;
+    const uint8_t* current_pointer_;
 
-    mutable uint32_t indexLoop_;
+    mutable uint32_t loop_offset_;
+    uint32_t external_loop_addr_;
     bool forcesStop_;
     // bool hasFinishedConv_;
     mutable uint32_t processedBlockNumber_;
+    SPUAddr end_addr_;
     double freq_;
 
     SamplingToneIterator begin_;

@@ -115,11 +115,11 @@ uint16_t read1xxe(const ChannelInfo& channelInfo)
 {
 //    if (channelInfo.pLoop == 0) return 0;
 //    return (channelInfo.pLoop - Spu.Memory) >> 3;
-    const uint32_t offsetLoop = channelInfo.offsetExternalLoop;
+    const uint32_t offsetLoop = channelInfo.addrExternalLoop;
     if (offsetLoop <= 0x80000000) return (offsetLoop >> 3);
-    const uint32_t indexLoop = channelInfo.tone->GetLoopIndex();
+    const uint32_t indexLoop = channelInfo.tone->GetLoopOffset();
     if (0x80000000 <= indexLoop) return 0;
-    return (channelInfo.tone->GetSPUOffset() + indexLoop / 28 * 16) >> 3;
+    return (channelInfo.tone->GetAddr() + indexLoop / 28 * 16) >> 3;
 }
 
 
@@ -369,8 +369,11 @@ void (*const write1xxc)(ChannelInfo&, uint16_t) = writeChannelNOP;
 void write1xxe(ChannelInfo& channelInfo, uint16_t val)
 {
     // channelInfo.pLoop = Spu.GetSoundBuffer() + (static_cast<uint32_t>(val) << 3);
-    channelInfo.offsetExternalLoop = static_cast<uint32_t>(val) << 3;
+    channelInfo.addrExternalLoop = static_cast<uint32_t>(val) << 3;
     channelInfo.useExternalLoop = true;
+    if (channelInfo.tone) {
+        channelInfo.tone->SetExternalLoopAddr(channelInfo.addrExternalLoop);
+    }
     Spu.NotifyOnChangeLoopIndex(&channelInfo);
 }
 

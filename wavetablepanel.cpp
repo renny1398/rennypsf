@@ -45,7 +45,7 @@ WavetableList::WavetableList(wxWindow *parent) :
 
 void WavetableList::OnAdd(SPU::SamplingTone* tone)
 {
-    const unsigned int offset = tone->GetSPUOffset();
+    const unsigned int offset = tone->GetAddr();
 //    const unsigned int length = tone->GetLength() * 16 / 28;
 //    const unsigned int loop = tone->GetLoopIndex() * 16 / 28;
 
@@ -60,9 +60,9 @@ void WavetableList::OnAdd(SPU::SamplingTone* tone)
 
 void WavetableList::OnModify(SPU::SamplingTone* tone)
 {
-    const unsigned int offset = tone->GetSPUOffset();
+    const unsigned int offset = tone->GetAddr();
     const unsigned int length = tone->GetLength() * 16 / 28;
-    const unsigned int loop = tone->GetLoopIndex() * 16 / 28;
+    const unsigned int loop = tone->GetLoopOffset() * 16 / 28;
 
     wxString strOffset;
     strOffset << offset;
@@ -91,7 +91,7 @@ void WavetableList::OnModify(SPU::SamplingTone* tone)
 
 void WavetableList::OnRemove(SPU::SamplingTone* tone)
 {
-    const unsigned int offset = tone->GetSPUOffset();
+    const unsigned int offset = tone->GetAddr();
     wxString strOffset;
     strOffset << offset;
     long item = wxListCtrl::FindItem(0, strOffset);
@@ -107,7 +107,7 @@ void WavetableList::onPopupClick(wxCommandEvent &event)
 {
     using namespace SPU;
     SamplingTone *tone = reinterpret_cast<SamplingTone*>(static_cast<wxMenu *>(event.GetEventObject())->GetClientData());
-    wxMessageOutputDebug().Printf(wxT("offset: %d"), tone->GetSPUOffset());
+    wxMessageOutputDebug().Printf(wxT("offset: %d"), tone->GetAddr());
     switch (event.GetId()) {
     case ID_EXPORT_WAVE:
         ExportTone(tone);
@@ -125,7 +125,7 @@ void WavetableList::ExportTone(SPU::SamplingTone *tone)
     using namespace SPU;
 
     wxString strFileName;
-    strFileName << tone->GetSPUOffset() << ".wav";
+    strFileName << tone->GetAddr() << ".wav";
 
     wxFile file(strFileName, wxFile::write);
 

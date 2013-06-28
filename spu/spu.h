@@ -57,6 +57,9 @@ enum ADSR_STATE {
 };
 
 
+typedef uint32_t SPUAddr;
+
+
 struct ADSRInfo
 {
     int            AttackModeExp;
@@ -142,6 +145,8 @@ private:
 
 public:
     int ch;
+    wxScopedArray<short> lpcm_buffer_l;
+    wxScopedArray<short> lpcm_buffer_r;
 
     bool            bNew;                               // start flag
     // bool            isUpdating;
@@ -170,7 +175,7 @@ public:
     bool            isLeftExpSlope;
     bool            isLeftDecreased;
     //int             iLeftVolRaw;                        // left psx volume value
-    unsigned int    offsetExternalLoop;
+    SPUAddr    addrExternalLoop;
     bool            useExternalLoop;                        // ignore loop bit, if an external loop address is used
     // int             iMute;                              // mute mode
     int             iRightVolume;                       // right volume (s15)
@@ -362,7 +367,7 @@ public:
 
     // IRQ
     uint32_t GetIRQAddress() const;
-    void SetIRQAddress(uint32_t addr);
+    void SetIRQAddress(SPUAddr addr);
 
     // substance
     static SPU Spu;
@@ -421,8 +426,8 @@ private:
 public:
     unsigned short Sp0;
     unsigned short Status;
-    uint32_t IrqAddr;
-    unsigned int Addr;
+    SPUAddr IrqAddr;
+    SPUAddr Addr;
 private:
     bool m_bEndThread;
     bool m_bThreadEnded;
@@ -435,13 +440,15 @@ private:
     // void (*cddavCallback)(unsigned short, unsigned short);
     // void (*irqQSound)(unsigned char*, long*, long);
 
-    int f[5][2];
+    // int f[5][2];
 
-    int m_SSumR[NSSIZE];
-    int m_SSumL[NSSIZE];
+    // int m_SSumR[NSSIZE];
+    // int m_SSumL[NSSIZE];
     int m_iFMod[NSSIZE];
     int m_iCycle;
-    short *m_pS;
+    // short *m_pS;
+
+    int ns;
 
 
     // ADSR
@@ -498,7 +505,7 @@ inline uint32_t SPU::GetIRQAddress() const {
     return IrqAddr;
 }
 
-inline void SPU::SetIRQAddress(uint32_t addr) {
+inline void SPU::SetIRQAddress(SPUAddr addr) {
     IrqAddr = addr;
     m_pSpuIrq = GetSoundBuffer() + addr;
 }

@@ -540,5 +540,5 @@ void ChannelPanel::onChangeLoopIndex(wxCommandEvent& event)
     using namespace SPU;
     ChannelInfo *pChannel = reinterpret_cast<ChannelInfo*>(event.GetClientData());
 
-    elements[pChannel->ch].textToneLoop->SetLabel(wxString::Format(wxT("%d"), pChannel->itrTone.GetLoopIndex()));
+    elements[pChannel->ch].textToneLoop->SetLabel(wxString::Format(wxT("%d"), pChannel->itrTone.GetLoopOffset()));
 }

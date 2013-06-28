@@ -7,9 +7,10 @@
 
 namespace {
 
-inline void CLIP(int32_t& x) {
-    if (x > 32767) x = 32767;
-    if (x < -32767) x = -32767;
+inline int32_t CLIP(int32_t x) {
+    if (x > 32767) return 32767;
+    if (x < -32768) return -32768;
+    return x;
 }
 
 static int32_t poo;
@@ -139,14 +140,16 @@ void ChannelInfo::Update()
     } else {
         int left = (sval * iLeftVolume) / 0x4000;
         int right = (sval * iRightVolume) / 0x4000;
+        lpcm_buffer_l[pSPU_->ns] = CLIP(left);
+        lpcm_buffer_r[pSPU_->ns] = CLIP(right);
 /*
-        Spu.StoreReverb(*this, 0);
-        left += Spu.MixReverbLeft(0)/3;
-        right += Spu.MixReverbRight()/3;
+        Spu.Reverb.StoreReverb(*this, pSPU_->ns);
+        left += Spu.Reverb.MixReverbLeft(pSPU_->ns)/3;
+        right += Spu.Reverb.MixReverbRight()/3;
         left /= 3;
         right /= 3;
         CLIP(left);  CLIP(right);
- */
+*/
         wxGetApp().GetSoundManager()->SetEnvelopeVolume(ch, ADSRX.lVolume);
         wxGetApp().GetSoundManager()->WriteStereo(ch, left, right);
     }
@@ -171,6 +174,8 @@ ChannelArray::ChannelArray(SPU *pSPU, int channelNumber)
     for (int i = 0; i < channelNumber; i++) {
         channels_[i].pSPU_ = pSPU;
         channels_[i].ch = i;
+        channels_[i].lpcm_buffer_l.reset(new short[pSPU->NSSIZE]);
+        channels_[i].lpcm_buffer_r.reset(new short[pSPU->NSSIZE]);
         channels_[i].is_muted = false;
     }
 }
@@ -353,6 +358,9 @@ void* SPUThread::Entry()
                     channel.Update();
                 }
                 wxGetApp().GetSoundManager()->Flush();
+                if (pSPU->NSSIZE <= ++pSPU->ns) {
+                    pSPU->ns = 0;
+                }
 
                 for (int i = 0; i < 24; i++) {
                     pSPU->Channels[i].is_ready = false;
@@ -363,6 +371,7 @@ void* SPUThread::Entry()
             break;
 
         case SPU::STATE_NOTE_ON:
+            pSPU->Channels[processing_channel].tone->ConvertData();
             pSPU->Channels[processing_channel].Update();
             break;
 
@@ -371,7 +380,7 @@ void* SPUThread::Entry()
             break;
 
         case SPU::STATE_SET_OFFSET:
-            pSPU->Channels[processing_channel].tone->ConvertData();
+            // pSPU->Channels[processing_channel].tone->ConvertData();
             break;
 
         default:
@@ -435,10 +444,12 @@ void SPU::Open()
     // pSpuIrq = 0;
     // m_iSPUIRQWait = 1;
 
+    ns = 0;
+
     SetupStreams();
 
     poo = 0;
-    m_pS = (short*)m_pSpuBuffer;
+    // m_pS = (short*)m_pSpuBuffer;
 
     if (thread_ == 0) {
         thread_ = new SPUThread(this);
