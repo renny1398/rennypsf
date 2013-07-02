@@ -207,11 +207,6 @@ int GaussianInterpolation::getVal() const
     vr += (gauss_table[vl+2] * gval2) >> 9;
     vr += (gauss_table[vl+3] * gval3) >> 9;
     return vr >> 2;
-    // int vr = (gauss_table[vl] * gval0) & ~2047;
-    // vr += (gauss_table[vl+1] * gval1) & ~2047;
-    // vr += (gauss_table[vl+2] * gval2) & ~2047;
-    // vr += (gauss_table[vl+3] * gval3) & ~2047;
-    // return vr >> 11;
 }
 
 

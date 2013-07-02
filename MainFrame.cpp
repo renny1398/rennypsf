@@ -107,7 +107,10 @@ MainFrame::MainFrame(const wxString& title, const wxPoint& pos, const wxSize& si
 
 void MainFrame::OnOpen(wxCommandEvent& WXUNUSED(event))
 {
-    wxFileDialog file_dialog(this, _("Open PSF file"), "", "", "PSF files (*.psf;*.minipsf)|*.psf;*.minipsf", wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+    const wxString psf_wildcard = "PSF files (*.psf;*.minipsf)|*.psf;*.minipsf";
+    const wxString psf2_wildcard = "PSF2 files (*.psf2;*.minipsf2)|*.psf2;*.minipsf2";
+
+    wxFileDialog file_dialog(this, _("Open PSF file"), "", "", psf_wildcard + '|' + psf2_wildcard, wxFD_OPEN | wxFD_FILE_MUST_EXIST);
     if (file_dialog.ShowModal() == wxID_CANCEL) {
         return;
     }

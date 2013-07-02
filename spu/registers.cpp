@@ -177,15 +177,15 @@ uint16_t read1da4()
 // Get address
 uint16_t read1da6()
 {
-    return Spu.Addr >> 3;
+    return Spu.dma_current_addr_ >> 3;
 }
 
 // Get SPU data
 uint16_t read1da8()
 {
-    uint16_t s = ((unsigned short*)Spu.Memory)[Spu.Addr>>1];
-    Spu.Addr += 2;
-    if (Spu.Addr > 0x7ffff) Spu.Addr = 0;
+    uint16_t s = ((unsigned short*)Spu.Memory)[Spu.dma_current_addr_>>1];
+    Spu.dma_current_addr_ += 2;
+    if (Spu.dma_current_addr_ > 0x7ffff) Spu.dma_current_addr_ = 0;
     return s;
 }
 
@@ -527,15 +527,15 @@ void write1da4(uint16_t val)
 // Sound buffer address
 void write1da6(uint16_t val)
 {
-    Spu.Addr = static_cast<uint32_t>(val) << 3;
+    Spu.dma_current_addr_ = static_cast<uint32_t>(val) << 3;
 }
 
 // Set SPU data
 void write1da8(uint16_t val)
 {
-    ((uint16_t*)Spu.GetSoundBuffer())[Spu.Addr>>1] = val;
-    Spu.Addr += 2;
-    if (Spu.Addr > 0x7ffff) Spu.Addr = 0;
+    ((uint16_t*)Spu.GetSoundBuffer())[Spu.dma_current_addr_>>1] = val;
+    Spu.dma_current_addr_ += 2;
+    if (Spu.dma_current_addr_ > 0x7ffff) Spu.dma_current_addr_ = 0;
 }
 
 // Set SPU control

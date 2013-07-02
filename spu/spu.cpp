@@ -436,7 +436,7 @@ void SPU::Open()
     // m_iVolume = 3;
     Reverb.iReverbOff = -1;
     // spuIrq = 0;
-    Addr = 0xffffffff;
+    dma_current_addr_ = 0xffffffff;
     m_bEndThread = 0;
     m_bThreadEnded = 0;
     m_pMixIrq = 0;

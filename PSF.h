@@ -4,6 +4,8 @@
 #include "psx/psx.h"
 #include <stdint.h>
 #include <wx/file.h>
+#include <wx/ptr_scpd.h>
+
 
 class PSF: public SoundFormat
 {
@@ -23,6 +25,7 @@ public:
     friend class PSF1Loader;
 
 protected:
+    void LoadLibrary();
     virtual PSF *LoadLib(const wxString &path) = 0;
 
 
@@ -79,3 +82,102 @@ protected:
     bool LoadBinary();
     PSF *LoadLib(const wxString &path);
 };
+
+
+
+
+class PSF2Directory;
+
+class PSF2Entry {
+public:
+    PSF2Entry(PSF2Directory* parent, const char* name);
+
+    virtual ~PSF2Entry() {}
+
+    virtual bool IsFile() const = 0;
+    virtual bool IsDirectory() const = 0;
+    virtual bool IsRoot() const = 0;
+
+    PSF2Directory& Parent() {
+        return parent_;
+    }
+
+    const wxString& GetName() const {
+        return name_;
+    }
+
+    const wxString GetFullPath() const;
+
+    PSF2Entry* Find(const wxString& path);
+
+protected:
+    PSF2Directory& parent_;
+    wxString name_;
+};
+
+
+class PSF2File : public PSF2Entry {
+public:
+    PSF2File(PSF2Directory *parent, const char* name);
+    PSF2File(PSF2Directory *parent, const char* name, wxScopedArray<unsigned char>& data, int size);
+    virtual bool IsFile() const { return true; }
+    virtual bool IsDirectory() const { return false; }
+    virtual bool IsRoot() const { return false; }
+
+    const unsigned char* GetData() const;
+
+private:
+    wxScopedArray<unsigned char> data_;
+    int size_;
+};
+
+
+class PSF2Directory : public PSF2Entry {
+public:
+    PSF2Directory(PSF2Directory *parent, const char *name);
+    ~PSF2Directory();
+
+    virtual bool IsFile() const { return false; }
+    virtual bool IsDirectory() const { return true; }
+    virtual bool IsRoot() const { return false; }
+
+    void AddEntry(PSF2Entry* entry);
+
+private:
+    wxVector<PSF2Entry*> children_;
+
+    friend class PSF2Entry;
+};
+
+
+class PSF2RootDirectory : public PSF2Directory {
+public:
+    PSF2RootDirectory();
+    virtual bool IsFile() const { return false; }
+    virtual bool IsDirectory() const { return true; }
+    virtual bool IsRoot() const { return true; }
+};
+
+
+
+
+class wxFileInputStream;
+
+class PSF2 : public PSF {
+public:
+    PSF2();
+    // bool Play();
+    // bool Stop();
+protected:
+    bool LoadBinary();
+    bool LoadBinary(PSF2RootDirectory*);
+    PSF *LoadLib(const wxString &path);
+    unsigned int LoadELF(PSF2Entry *psf2irx);
+
+    void ReadFile(wxFileInputStream* stream, PSF2Directory* parent, const char* filename, int uncompressed_size, int block_size);
+    void ReadDirectory(wxFileInputStream* stream, PSF2Directory* parent);
+
+private:
+    unsigned int load_addr_;
+};
+

@@ -29,10 +29,20 @@ SoundFormat *PSFLoader::LoadInfo(const wxString& path)
     if (memcmp(signature, "PSF", 3) != 0) {
         signature[3] = 0;
         wxMessageOutputDebug().Printf(wxT("This file is not PSF format. (signature = ") + wxString(signature) + wxT(')'));
-        return 0;
+        return NULL;
     }
 
-    PSF *psf = new PSF1();	// TODO
+    PSF *psf;
+    switch (signature[3]) {
+    case 1:
+        psf = new PSF1();
+        break;
+    case 2:
+        psf = new PSF2();
+        break;
+    default:
+        return NULL;
+    }
     psf->m_version = signature[3];
 
     file.Read(&psf->m_lenReservedArea, 4);
@@ -135,8 +145,12 @@ PSF1Loader::~PSF1Loader()
 
 
 
-SoundLoader *PSF1Loader::GetInstance()
-{
+SoundLoader *PSF1Loader::GetInstance() {
     return new PSF1Loader();
 }
 
+
+
+SoundLoader* PSF2Loader::GetInstance() {
+    return new PSF2Loader();
+}

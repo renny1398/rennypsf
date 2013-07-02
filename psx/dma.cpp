@@ -5,10 +5,12 @@
 namespace PSX {
 namespace DMA {
 
+
 void execMDECin(uint32_t, uint32_t, uint32_t) {}
 void execMDECout(uint32_t, uint32_t, uint32_t) {}
 void execGPU(uint32_t, uint32_t, uint32_t) {}
 void execCDROM(uint32_t, uint32_t, uint32_t) {}
+
 
 void execSPU(uint32_t madr, uint32_t bcr, uint32_t chcr)
 {
@@ -25,16 +27,20 @@ void execSPU(uint32_t madr, uint32_t bcr, uint32_t chcr)
     }
 }
 
+
 void execPIO(uint32_t, uint32_t, uint32_t) {}
 void execGPU_OTC(uint32_t, uint32_t, uint32_t) {}
+
 
 void (*executeTable[7])(uint32_t, uint32_t, uint32_t) = {
     execMDECin, execMDECout, execGPU, execCDROM,
     execSPU, execPIO, execGPU_OTC
 };
 
+
 uint32_t& DPCR = u32Href(0x10f0);
 uint32_t& DICR = u32Href(0x10f4);
+
 
 }   // namespace DMA
 }   // namespace PSX

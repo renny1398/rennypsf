@@ -306,7 +306,7 @@ void WaveOutAL::ThisThreadWriteToDevice()
         alGetSourcei(source_, AL_SOURCE_STATE, &state);
         if (state != AL_PLAYING) {
             alSourcePlay(source_);
-            std::cout << "WaveOutAL: Started playing. source =" << source_ << std::endl;
+            std::cout << "WaveOutAL: Started playing. source = " << source_ << std::endl;
         }
         while (alGetSourcei(source_, AL_BUFFERS_PROCESSED, &n), n == 0) {
             usleep(1000);

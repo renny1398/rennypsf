@@ -37,6 +37,11 @@ bool RennypsfApp::OnInit()
 }
 
 
+int RennypsfApp::OnExit() {
+    delete soundDevice_;
+}
+
+
 bool RennypsfApp::Play(SoundFormat* sound)
 {
     return soundDevice_->Play(sound);

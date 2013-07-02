@@ -8,7 +8,8 @@ class SoundFormat;
 class RennypsfApp: public wxApp
 {
 public:
-    bool OnInit();
+    virtual bool OnInit();
+    virtual int OnExit();
 
     bool Play(SoundFormat*);
     bool Stop();

@@ -13,5 +13,6 @@ void SoundFormat::GetTag(const wxString &key, wxString *value) const
 
 void SoundFormat::SetTag(const wxString &key, const wxString &value)
 {
+    // wxMessageOutputDebug().Printf(wxT("set tag '%s = %s'"), key, value);
     m_info.SetTag(key, value);
 }

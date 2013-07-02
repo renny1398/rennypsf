@@ -15,7 +15,7 @@ void ChannelInfo::InitADSR()
 {
     // initialize RateTable
     // RateTable + 32 = { 4, 5, 6, 7, 8, 10, 12, 14, 16, 20, 24, 28, 32, ...}
-    memset(rateTable, 0, sizeof(uint32_t) * 32);
+    ::memset(rateTable, 0, sizeof(uint32_t) * 32);
     uint32_t r = 3, rs = 1, rd = 0;
     for (int i = 32; i < 160; i++) {
         if (r < 0x3fffffff) {
@@ -57,7 +57,7 @@ int ChannelInfo::MixADSR()
         // do Release
         disp = (ADSRX.ReleaseModeExp) ? TableDisp[(envVol >> 28) & 0x7] : -0x0c + 32;
         envVol -= rateTable[ADSRX.ReleaseRate + disp];
-        if (envVol < 0) {
+        if (envVol <= 0) {
             envVol = 0;
             isOn = false;
         }

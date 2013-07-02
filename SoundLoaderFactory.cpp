@@ -19,4 +19,6 @@ SoundLoaderFactory::SoundLoaderFactory()
 {
     table.Append(wxT("psf"), PSF1Loader::GetInstance());
     table.Append(wxT("minipsf"), PSF1Loader::GetInstance());
+    table.Append(wxT("psf2"), PSF2Loader::GetInstance());
+    table.Append(wxT("minipsf2"), PSF2Loader::GetInstance());
 }

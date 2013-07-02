@@ -396,10 +396,10 @@ bool KeyboardWidget::PressKey(int keyIndex)
     if (keyMax < keyIndex) return false;
     pressedKeys_.insert(keyIndex);
     // paintNow();
-    // wxRect rect;
-    // CalcKeyRect(keyIndex, &rect);
-    // wxWindow::RefreshRect(rect);
-    PaintPressedKeys(pressedKeys_);
+    wxRect rect;
+    CalcKeyRect(keyIndex, &rect);
+    wxWindow::RefreshRect(rect, false);
+    //PaintPressedKeys(pressedKeys_);
     return true;
 }
 
@@ -426,7 +426,7 @@ void KeyboardWidget::ReleaseKey(int keyIndex)
     // paintNow();
     wxRect rect;//
     CalcKeyRect(keyIndex, &rect);
-    wxWindow::RefreshRect(rect);
+    wxWindow::RefreshRect(rect, false);
 }
 
 
@@ -479,16 +479,16 @@ ChannelPanel::ChannelPanel(wxWindow *parent)
         element.channelSizer = new wxBoxSizer(wxHORIZONTAL);
 
         element.muteButton = new MuteButton(this, i);
-        element.channelSizer->Add(element.muteButton);
+        element.channelSizer->Add(element.muteButton, 0, wxEXPAND);
 
         element.volumeSizer = new wxBoxSizer(wxVERTICAL);
 
         element.keyboard = new KeyboardWidget(this, i, 8, 20);
-        element.volumeSizer->Add(element.keyboard, wxFIXED_MINSIZE);
+        element.volumeSizer->Add(element.keyboard, 0, wxTOP | wxFIXED_MINSIZE, 1);
 
         element.volumeLeft = new VolumeBar(this, wxHORIZONTAL, 1024);
         element.volumeSizer->Add(element.volumeLeft);
-        element.channelSizer->Add(element.volumeSizer, wxFIXED_MINSIZE);
+        element.channelSizer->Add(element.volumeSizer, 0, wxTOP | wxBOTTOM | wxFIXED_MINSIZE, 1);
 
         element.textToneOffset = new wxStaticText(this, wxID_ANY, wxT("0"), wxDefaultPosition, wxSize(48, -1));
         element.channelSizer->Add(element.textToneOffset);
@@ -517,7 +517,8 @@ ChannelPanel::DrawTimer::DrawTimer(wxWindow* parent): parent(parent)
 
 void ChannelPanel::DrawTimer::Notify()
 {
-    parent->Update();
+//    parent->Update();
+//    parent->Refresh();
 }
 
 

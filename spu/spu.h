@@ -427,7 +427,7 @@ public:
     unsigned short Sp0;
     unsigned short Status;
     SPUAddr IrqAddr;
-    SPUAddr Addr;
+    SPUAddr dma_current_addr_;
 private:
     bool m_bEndThread;
     bool m_bThreadEnded;

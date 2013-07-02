@@ -47,3 +47,13 @@ public:
 
     friend class PSF1;
 };
+
+
+class PSF2;
+
+class PSF2Loader : public PSFLoader
+{
+public:
+    static SoundLoader *GetInstance();
+    friend class PSF2;
+};
