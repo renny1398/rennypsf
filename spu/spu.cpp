@@ -27,7 +27,7 @@ namespace SPU {
 wxDEFINE_SCOPED_PTR(InterpolationBase, InterpolationPtr)
 
 ChannelInfo::ChannelInfo(SPU *pSPU) :
-    pSPU_(pSPU), pInterpolation(new GaussianInterpolation(*this))
+    spu_(*pSPU), pInterpolation(new GaussianInterpolation(*this))
     // TODO: how to generate GaussianInterpolation
 {
     is_ready = false;
@@ -70,7 +70,7 @@ void ChannelInfo::StartSound()
     wxASSERT(bNew == true);
 
     ADSRX.Start();
-    Spu.Reverb.StartReverb(*this);
+    spu_.Reverb().StartReverb(*this);
 
     // s_1 = 0;
     // s_2 = 0;
@@ -140,8 +140,8 @@ void ChannelInfo::Update()
     } else {
         int left = (sval * iLeftVolume) / 0x4000;
         int right = (sval * iRightVolume) / 0x4000;
-        lpcm_buffer_l[pSPU_->ns] = CLIP(left);
-        lpcm_buffer_r[pSPU_->ns] = CLIP(right);
+        lpcm_buffer_l[spu_.ns] = CLIP(left);
+        lpcm_buffer_r[spu_.ns] = CLIP(right);
 /*
         Spu.Reverb.StoreReverb(*this, pSPU_->ns);
         left += Spu.Reverb.MixReverbLeft(pSPU_->ns)/3;
@@ -169,15 +169,16 @@ int ChannelArray::GetChannelNumber() const
 
 
 ChannelArray::ChannelArray(SPU *pSPU, int channelNumber)
-    : pSPU_(pSPU), channels_(new ChannelInfo[channelNumber]), channelNumber_(channelNumber)
+    : pSPU_(pSPU), channelNumber_(channelNumber)
 {
     for (int i = 0; i < channelNumber; i++) {
-        channels_[i].pSPU_ = pSPU;
-        channels_[i].ch = i;
-        channels_[i].lpcm_buffer_l.reset(new short[pSPU->NSSIZE]);
-        channels_[i].lpcm_buffer_r.reset(new short[pSPU->NSSIZE]);
-        channels_[i].is_muted = false;
-    }
+        ChannelInfo* channel = new ChannelInfo(pSPU);
+        channel->ch = i;
+        channel->lpcm_buffer_l.reset(new short[pSPU->NSSIZE]);
+        channel->lpcm_buffer_r.reset(new short[pSPU->NSSIZE]);
+        channel->is_muted = false;
+        channels_.push_back(channel);
+      }
 }
 
 
@@ -191,15 +192,15 @@ void ChannelArray::SoundNew(uint32_t flags, int start)
     wxASSERT(flags < 0x01000000);
     flagNewChannels_ |= flags << start;
     for (int i = start; flags != 0; i++, flags >>= 1) {
-        if (!(flags & 1) || (channels_[i].tone->GetADPCM() == 0)) continue;
-        channels_[i].bNew = true;
+        if (!(flags & 1) || (channels_[i]->tone->GetADPCM() == 0)) continue;
+        channels_[i]->bNew = true;
         // channels_[i].isStopped = false;
-        channels_[i].useExternalLoop = false;
+        channels_[i]->useExternalLoop = false;
 
         pSPU_->ChangeProcessState(SPU::STATE_NOTE_ON, i);
 
-        channels_[i].NotifyOnNoteOn();
-        pSPU_->NotifyOnChangeLoopIndex(&channels_[i]);
+        channels_[i]->NotifyOnNoteOn();
+        pSPU_->NotifyOnChangeLoopIndex(channels_[i]);
     }
 }
 
@@ -209,18 +210,18 @@ void ChannelArray::VoiceOff(uint32_t flags, int start)
     wxASSERT(flags < 0x01000000);
     for (int i = start; flags != 0; i++, flags >>= 1) {
         if ((flags & 1) == 0) continue;
-        channels_[i].isStopped = true;
+        channels_[i]->isStopped = true;
 
         pSPU_->ChangeProcessState(SPU::STATE_NOTE_OFF, i);
 
-        channels_[i].NotifyOnNoteOff();
+        channels_[i]->NotifyOnNoteOff();
     }
 }
 
 
 
 ChannelInfo& ChannelArray::operator [](int i) {
-    return channels_[i];
+    return *channels_[i];
 }
 
 
@@ -295,7 +296,7 @@ void SPU::SetupStreams()
     m_pSpuBuffer = new uint8_t[32768];
 
     SoundBank_.Reset();
-    Reverb.Reset();
+    reverb_.Reset();
 
     for (int i = 0; i < 24; i++) {
         Channels[i].ADSRX.SustainLevel = 0xf << 27;
@@ -400,9 +401,10 @@ void* SPUThread::Entry()
 
 
 
-SPU::SPU() :
+SPU::SPU(PSX::Composite *composite)
+  : SPUBase(composite),
     Memory(reinterpret_cast<uint8_t*>(m_spuMem)), Channels(this, 24),
-    Reverb(this), SoundBank_(this)
+    reverb_(this), SoundBank_(this)
 {
     Init();
 }
@@ -434,7 +436,7 @@ void SPU::Open()
 {
     // m_iUseXA = 1;
     // m_iVolume = 3;
-    Reverb.iReverbOff = -1;
+    reverb_.iReverbOff = -1;
     // spuIrq = 0;
     dma_current_addr_ = 0xffffffff;
     m_bEndThread = 0;
@@ -496,8 +498,8 @@ void SPU::Async(uint32_t cycles)
 
 
 
-SPU SPU::Spu;
+// SPU SPU::Spu;
 
 }   // namespace SPU
 
-SPU::SPU& Spu = SPU::SPU::Spu;
+// SPU::SPU& Spu = SPU::SPU::Spu;

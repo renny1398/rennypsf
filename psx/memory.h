@@ -1,265 +1,170 @@
 #pragma once
-#include <stdint.h>
 
-
-template <class T>
-inline T pointer_cast(void* p)
-{
-    return static_cast<T>(p);
-}
-
-
-////////////////////////////////
-// BFLIP Macros
-////////////////////////////////
-
-template<typename T> inline T BFLIP(T x)
-{
-    return x;
-}
-
-#ifdef MSB_FIRST    // for big-endian architecture
-template<> inline uint16_t BFLIP(uint16_t x)
-{
-    return ((x >> 8) & 0xff) | ((x & 0xff) << 8);
-}
-template<> inline uint32_t BFLIP(uint32_t x)
-{
-    return (x >> 24) | ((x >> 8) & 0xff00) | ((x << 8) & 0xff0000) | (x << 24);
-}
-//#else   // for little-endian architecture
-#endif
-
-inline uint16_t BFLIP16(uint16_t x) {
-    return BFLIP(x);
-}
-inline uint32_t BFLIP32(uint32_t x) {
-    return BFLIP(x);
-}
+#include "common.h"
 
 
 namespace PSX {
-namespace Memory {
+
+
+  class Memory : public Component {
+
+   public:
+    Memory(Composite* composite)
+      : Component(composite) {}
 
     void Init();
-    bool IsInited();
     void Reset();
 
-    void Load(uint32_t address, int32_t length, char *data);
+    template<typename T> T Read(PSXAddr addr);
+    template<typename T> void Write(PSXAddr addr, T value);
 
-//    uint8_t LoadUserMemory8(uint32_t);
-//    uint32_t LoadUserMemory32(uint32_t);
+    u8 Read8(PSXAddr addr);
+    u16 Read16(PSXAddr addr);
+    u32 Read32(PSXAddr addr);
 
-    void* VoidPtr(uint32_t);
-    char* CharPtr(uint32_t);
-    uint16_t* Uint16Ptr(uint32_t);
-    uint32_t* Uint32Ptr(uint32_t);
+    void Write8(PSXAddr addr, u8 value);
+    void Write16(PSXAddr addr, u16 value);
+    void Write32(PSXAddr addr, u32 value);
 
-    template<typename T> T Read(uint32_t addr);
-    template<typename T> void Write(uint32_t addr, T value);
+    void Copy(PSXAddr dest, const void* src, int length);
+    void Copy(void* dest, PSXAddr src, int length) const;
 
-    uint8_t Load8(uint32_t);
-    uint16_t Load16(uint32_t);
-    uint32_t Load32(uint32_t);
+   public:
+    template<typename T> T& M_ref(PSXAddr addr);
+    void* M_ptr(PSXAddr addr);
 
+    template<typename T> T& H_ref(PSXAddr addr);
+    void* H_ptr(PSXAddr addr);
 
-    extern uint8_t *SegmentLUT[0x10000];
-    extern uint8_t memUser[0x200000];
-    extern uint8_t memParallelPort[0x10000];
-    extern uint8_t memHardware[0x3000];   // Scratch Pad [0x0000 - 0x03ff] + Hardware Registers [0x1000 - 0x2fff]
-    extern uint8_t memBIOS[0x80000];
+    template<typename T> T& R_ref(PSXAddr addr);
+    virtual void* R_ptr(PSXAddr addr);
 
-}   // namespace Memory
+    virtual u8& U8M_ref(PSXAddr addr);
+    virtual u16& U16M_ref(PSXAddr addr);
+    virtual u32& U32M_ref(PSXAddr addr);
 
+    virtual s8* S8M_ptr(PSXAddr addr);
+    virtual u8* U8M_ptr(PSXAddr addr);
+    virtual u16* U16M_ptr(PSXAddr addr);
+    virtual u32* U32M_ptr(PSXAddr addr);
 
-////////////////////////////////////////////////////////////////
-// Memory access macro
-////////////////////////////////////////////////////////////////
+    virtual u8& U8H_ref(PSXAddr addr);
+    virtual u16& U16H_ref(PSXAddr addr);
+    virtual u32& U32H_ref(PSXAddr addr);
 
-template<typename T>
-inline T Mu(uint32_t addr) {
-    return BFLIP( *pointer_cast<T*>(Memory::memUser + (addr & 0x1fffff)) );
-}
+    virtual u8* U8H_ptr(PSXAddr addr);
+    virtual u16* U16H_ptr(PSXAddr addr);
+    virtual u32* U32H_ptr(PSXAddr addr);
 
-template<typename T>
-inline T& Mref(uint32_t addr) {
-    return *pointer_cast<T*>(Memory::memUser + (addr & 0x1fffff));
-}
+    virtual u32& U32R_ref(PSXAddr addr);
 
-inline void* Mptr(uint32_t addr) {
-    return static_cast<void*>(Memory::memUser + (addr & 0x1fffff));
-}
-
-template<typename T>
-inline T Hwm(uint32_t addr) {
-    return BFLIP( *pointer_cast<T*>(PSX::Memory::memHardware + (addr & 0x3fff)) );
-}
-
-template<typename T>
-inline T& psxHref(uint32_t addr) {
-    return *pointer_cast<T*>(PSX::Memory::memHardware + (addr & 0x3fff));
-}
-
-template<typename T>
-inline T& Rref(uint32_t addr) {
-    return *pointer_cast<T*>(PSX::Memory::memBIOS + (addr & 0xffff));
-}
+   private:
+    u8* segment_LUT_[0x10000];
+    u8 mem_user_[0x200000];
+    u8 mem_parallel_port_[0x10000];
+    u8 mem_hardware_registers_[0x3000];
+    u8 mem_bios_[0x80000];
+  };
 
 
-inline uint8_t u8M(uint32_t addr) {
-    return Mu<uint8_t>(addr);
-}
+  ////////////////////////////////////////////////////////////////
+  // Memory access macro
+  ////////////////////////////////////////////////////////////////
 
-inline uint16_t u16M(uint32_t addr) {
-    return Mu<uint16_t>(addr);
-}
+  template<typename T>
+  inline T& Memory::M_ref(PSXAddr addr) {
+      return *reinterpret_cast<T*>(mem_user_ + (addr & 0x1fffff));
+  }
 
-inline uint32_t u32M(uint32_t addr) {
-    return Mu<uint32_t>(addr);
-}
+  inline void* Memory::M_ptr(PSXAddr addr) {
+      return static_cast<void*>(mem_user_ + (addr & 0x1fffff));
+  }
 
+  /*
+  template<typename T>
+  inline T Hwm(u32 addr) {
+      return BFLIP( *pointer_cast<T*>(PSX::Memory::memHardware + (addr & 0x3fff)) );
+  }
+  */
 
-inline uint8_t& u8Mref(uint32_t addr) {
-    return Mref<uint8_t>(addr);
-}
+  template<typename T>
+  inline T& Memory::H_ref(PSXAddr addr) {
+    return *reinterpret_cast<T*>(mem_hardware_registers_ + (addr & 0x3fff));
+  }
 
-inline uint16_t& u16Mref(uint32_t addr) {
-    return Mref<uint16_t>(addr);
-}
-
-inline uint32_t& u32Mref(uint32_t addr) {
-    return Mref<uint32_t>(addr);
-}
-
-
-inline int8_t* s8Mptr(uint32_t addr) {
-    return static_cast<int8_t*>(Mptr(addr));
-}
-
-inline uint16_t* u16Mptr(uint32_t addr) {
-    return static_cast<uint16_t*>(Mptr(addr));
-}
-
-inline uint32_t* u32Mptr(uint32_t addr) {
-    return static_cast<uint32_t*>(Mptr(addr));
-}
+  inline void* Memory::H_ptr(PSXAddr addr) {
+    return static_cast<void*>(mem_hardware_registers_ + (addr & 0x3fff));
+  }
 
 
-inline uint8_t u8H(uint32_t addr) {
-    return Hwm<uint8_t>(addr);
-}
+  template<typename T>
+  inline T& Memory::R_ref(PSXAddr addr) {
+      return *reinterpret_cast<T*>(mem_bios_ + (addr & 0xffff));
+  }
 
-inline uint16_t u16H(uint32_t addr) {
-    return Hwm<uint16_t>(addr);
-}
-
-inline uint32_t u32H(uint32_t addr) {
-    return Hwm<uint32_t>(addr);
-}
+  inline void* Memory::R_ptr(PSXAddr addr) {
+    return static_cast<void*>(mem_bios_ + (addr & 0xffff));
+  }
 
 
-inline uint8_t& u8Href(uint32_t addr) {
-    return psxHref<uint8_t>(addr);
-}
+  inline u8& Memory::U8M_ref(PSXAddr addr) {
+      return M_ref<u8>(addr);
+  }
 
-inline uint16_t& u16Href(uint32_t addr) {
-    return psxHref<uint16_t>(addr);
-}
+  inline u16& Memory::Memory::U16M_ref(PSXAddr addr) {
+      return M_ref<u16>(addr);
+  }
 
-inline uint32_t& u32Href(uint32_t addr) {
-    return psxHref<uint32_t>(addr);
-}
-
-
-inline uint32_t& u32Rref(uint32_t addr) {
-    return Rref<uint32_t>(addr);
-}
+  inline u32& Memory::U32M_ref(PSXAddr addr) {
+      return M_ref<u32>(addr);
+  }
 
 
+  inline s8* Memory::S8M_ptr(PSXAddr addr) {
+      return static_cast<s8*>(M_ptr(addr));
+  }
 
-}   // namespace PSX
+  inline u8* Memory::U8M_ptr(PSXAddr addr) {
+    return static_cast<u8*>(M_ptr(addr));
+  }
 
+  inline u16* Memory::U16M_ptr(PSXAddr addr) {
+      return static_cast<u16*>(M_ptr(addr));
+  }
 
-
-/*
-inline uint8_t PSXMemory::LoadUserMemory8(uint32_t addr)
-{
-    return memUser[addr & 0x1fffff];
-}
-
-inline uint32_t PSXMemory::LoadUserMemory32(uint32_t addr)
-{
-    return BFLIP(*(reinterpret_cast<uint32_t*>(memUser + (addr & 0x1fffff))));
-}
-*/
-
-inline void* PSX::Memory::VoidPtr(uint32_t addr) {
-    return static_cast<void*>(memUser + (addr & 0x1fffff));
-}
-
-inline char* PSX::Memory::CharPtr(uint32_t addr) {
-    return static_cast<char*>(VoidPtr(addr));
-}
-
-inline uint16_t* PSX::Memory::Uint16Ptr(uint32_t addr) {
-    return static_cast<uint16_t*>(VoidPtr(addr));
-}
-
-inline uint32_t* PSX::Memory::Uint32Ptr(uint32_t addr) {
-    return static_cast<uint32_t*>(VoidPtr(addr));
-}
+  inline u32* Memory::U32M_ptr(PSXAddr addr) {
+      return static_cast<u32*>(M_ptr(addr));
+  }
 
 
-////////////////////////////////////////
-// Read from & Write into PSX memory
-////////////////////////////////////////
+  inline u8& Memory::U8H_ref(PSXAddr addr) {
+      return H_ref<u8>(addr);
+  }
 
-#include "hardware.h"
-#include <wx/msgout.h>
+  inline u16& Memory::U16H_ref(PSXAddr addr) {
+      return H_ref<u16>(addr);
+  }
 
-// for debug
-#ifdef __WXDEBUG__
-#include "r3000a.h"
-#include "disassembler.h"
-#endif
+  inline u32& Memory::U32H_ref(PSXAddr addr) {
+      return H_ref<u32>(addr);
+  }
 
-template<typename T>
-T PSX::Memory::Read(uint32_t addr)
-{
-    uint32_t segment = addr >> 16;
-    if (segment == 0x1f80) {
-        if (addr < 0x1f801000)  // Scratch Pad
-            return Hwm<T>(addr);
-        // Hardware Registers
-        return Hardware::Read<T>(addr);
-    }
-    uint8_t *base_addr = SegmentLUT[segment];
-    uint32_t offset = addr & 0xffff;
-    if (base_addr == 0) {
-        wxMessageOutputDebug().Printf(wxT("PSX::Memory::Read : bad segment: %04x"), segment);
-        //PSX::Disasm.DumpRegisters();
-        return 0;
-    }
-    return BFLIP(*pointer_cast<T*>(base_addr + offset));
-}
 
-template<typename T>
-void PSX::Memory::Write(uint32_t addr, T value)
-{
-    uint32_t segment = addr >> 16;
-    if (segment == 0x1f80) {
-        if (addr < 0x1f801000) {
-            psxHref<T>(addr) = BFLIP(value);
-            return;
-        }
-        Hardware::Write(addr, value);
-        return;
-    }
-    uint8_t *base_addr = SegmentLUT[segment];
-    uint32_t offset = addr & 0xffff;
-    if (base_addr == 0) {
-        wxMessageOutputDebug().Printf(wxT("PSX::Memory::Write : bad segment: %04x"), segment);
-        return;
-    }
-    *pointer_cast<T*>(base_addr + offset) = BFLIP(value);
+  inline u8* Memory::U8H_ptr(PSXAddr addr) {
+    return static_cast<u8*>(H_ptr(addr));
+  }
+
+  inline u16* Memory::U16H_ptr(PSXAddr addr) {
+    return static_cast<u16*>(H_ptr(addr));
+  }
+
+  inline u32* Memory::U32H_ptr(PSXAddr addr) {
+    return static_cast<u32*>(H_ptr(addr));
+  }
+
+
+  inline u32& Memory::U32R_ref(PSXAddr addr) {
+      return R_ref<u32>(addr);
+  }
+
 }

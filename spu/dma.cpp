@@ -6,7 +6,7 @@ namespace SPU {
 
 using namespace PSX;
 
-uint16_t SPU::ReadDMA()
+uint16_t SPU::ReadDMA4()
 {
     SPUAddr spuAddr = dma_current_addr_;
     uint16_t s = m_spuMem[spuAddr >> 1];
@@ -18,10 +18,10 @@ uint16_t SPU::ReadDMA()
 }
 
 
-void SPU::ReadDMAMemory(uint32_t psxAddr, uint32_t size)
+void SPU::ReadDMA4Memory(uint32_t psxAddr, uint32_t size)
 {
     SPUAddr spuAddr = dma_current_addr_;
-    uint16_t* p = u16Mptr(psxAddr);
+    uint16_t* p = U16M_ptr(psxAddr);
     // wxMessageOutputDebug().Printf(wxT("Transfer Sound Buffer from SPU(0x%08x) to PSX(0x%08x) by 0x%05x bytes"), spuAddr, psxAddr, size);
 
 #ifdef MSB_FIRST    // for big-endian architecture
@@ -48,7 +48,7 @@ void SPU::ReadDMAMemory(uint32_t psxAddr, uint32_t size)
 }
 
 
-void SPU::WriteDMA(uint16_t value)
+void SPU::WriteDMA4(uint16_t value)
 {
     SPUAddr spuAddr = dma_current_addr_;
     m_spuMem[dma_current_addr_ >> 1] = value;
@@ -60,11 +60,11 @@ void SPU::WriteDMA(uint16_t value)
 }
 
 
-void SPU::WriteDMAMemory(uint32_t psxAddr, uint32_t size)
+void SPU::WriteDMA4Memory(uint32_t psxAddr, uint32_t size)
 {
     wxASSERT(size < 0x80000);
     SPUAddr spuAddr = dma_current_addr_;
-    uint16_t* p = u16Mptr(psxAddr);
+    uint16_t* p = U16M_ptr(psxAddr);
 
     // wxMessageOutputDebug().Printf(wxT("Transfer Sound Buffer from PSX(0x%08x) to SPU(0x%08x) by 0x%05x bytes"), psxAddr, spuAddr, size);
 

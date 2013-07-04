@@ -1,17 +1,18 @@
 #pragma once
+#include "common.h"
 #include <wx/string.h>
 #include <wx/vector.h>
-#include <stdint.h>
+
 
 namespace PSX {
 namespace R3000A {
 
 class Instruction;
 
-class Disassembler /*: public Processor*/
+class Disassembler : public Component
 {
 public:
-    Disassembler();
+    Disassembler(Composite *composite);
 
     bool Parse(Instruction code);
     void PrintCode();

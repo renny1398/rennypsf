@@ -12,8 +12,8 @@ class PSF: public SoundFormat
 public:
     virtual ~PSF();
 
-    static void Init();
-    static void Reset();
+    void Init();
+    void Reset();
 
     bool Play();
     // bool Pause();
@@ -54,6 +54,8 @@ protected:
     };
 
     virtual bool LoadBinary() = 0;
+
+    PSX::PSX psx_;
 
     PSXEXEHeader m_header;
     void *m_memory;

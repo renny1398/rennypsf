@@ -1,5 +1,5 @@
 #pragma once
-#include <stdint.h>
+#include "common.h"
 #include <wx/thread.h>
 #include <wx/msgout.h>
 
@@ -13,31 +13,31 @@ namespace R3000A {
 
 union GeneralPurposeRegisters {
     struct {
-        uint32_t ZR, AT;
+        u32 ZR, AT;
         union {
-            struct { uint32_t V0, V1; };
-            uint32_t V[2];
+            struct { u32 V0, V1; };
+            u32 V[2];
         };
         union {
-            struct { uint32_t A0, A1, A2, A3; };
-            uint32_t A[4];
+            struct { u32 A0, A1, A2, A3; };
+            u32 A[4];
         };
         union {
-            struct { uint32_t T0, T1, T2, T3, T4, T5, T6, T7; };
-            uint32_t T[8];
+            struct { u32 T0, T1, T2, T3, T4, T5, T6, T7; };
+            u32 T[8];
         };
         union {
-            struct { uint32_t S0, S1, S2, S3, S4, S5, S6, S7; };
-            uint32_t S[8];
+            struct { u32 S0, S1, S2, S3, S4, S5, S6, S7; };
+            u32 S[8];
         };
-        uint32_t T8, T9;
+        u32 T8, T9;
         union {
-            struct { uint32_t K0, K1; };
-            uint32_t K[2];
+            struct { u32 K0, K1; };
+            u32 K[2];
         };
-        uint32_t GP, SP, FP, RA, HI, LO, PC;
+        u32 GP, SP, FP, RA, HI, LO, PC;
     };
-    uint32_t R[35];
+    u32 R[35];
     GeneralPurposeRegisters(): ZR(0) {}
 };
 
@@ -53,10 +53,10 @@ extern const char *strGPR[35];
 
 union Cop0Registers {
     struct {
-        uint32_t INDX, RAND, TLBL, BPC, CTXT, BDA, PIDMASK, DCIC,
+        u32 INDX, RAND, TLBL, BPC, CTXT, BDA, PIDMASK, DCIC,
         BADV, BDAM, TLBH, BPCM, SR, CAUSE, EPC, PRID, ERREG;
     };
-    uint32_t R[17];
+    u32 R[17];
 };
 
 
@@ -88,57 +88,89 @@ enum BCOND_ENUM {
 };
 
 
+class Processor;
+
 class Instruction
 {
 public:
-    Instruction(uint32_t);
+    Instruction(Processor*, u32);
 
-    uint32_t Opcode() const;
-    uint32_t Rs() const;
-    uint32_t Rt() const;
-    uint32_t Rd() const;
+    u32 Opcode() const;
+    u32 Rs() const;
+    u32 Rt() const;
+    u32 Rd() const;
     int32_t Imm() const;
-    uint32_t ImmU() const;
-    uint32_t Target() const;
-    uint32_t Shamt() const;
-    uint32_t Funct() const;
+    u32 ImmU() const;
+    u32 Target() const;
+    u32 Shamt() const;
+    u32 Funct() const;
 
-    uint32_t& RsVal() const;
-    uint32_t& RtVal() const;
-    uint32_t& RdVal() const;
+    u32& RsVal() const;
+    u32& RtVal() const;
+    u32& RdVal() const;
 
-    uint32_t Addr() const;
+    u32 Addr() const;
 
-    operator uint32_t() const;
+    operator u32() const;
 
 private:
-    uint32_t code_;
+    Processor& cpu_;
+    u32 code_;
 };
 
 
-inline Instruction::Instruction(uint32_t code) : code_(code) {}
+inline Instruction::Instruction(Processor* cpu, u32 code)
+  : cpu_(*cpu), code_(code) {}
 
-inline Instruction::operator uint32_t() const {
+inline Instruction::operator u32() const {
     return code_;
 }
+
+
+
+////////////////////////////////////////////////////////////////////////
+// R3000A Registers Composite
+////////////////////////////////////////////////////////////////////////
+
+
+struct Registers {
+  GeneralPurposeRegisters GPR;
+  Cop0Registers CP0;
+  u32& HI;
+  u32& LO;
+  u32& PC;
+  u32 Cycle;  // clock count
+  u32 Interrupt;
+
+  Registers() : HI(GPR.HI), LO(GPR.LO), PC(GPR.PC) {}
+};
+
+
+
 
 
 ////////////////////////////////////////////////////////////////////////
 // implement of R3000A processor
 ////////////////////////////////////////////////////////////////////////
 
-class Processor
+class Processor : public Component
 {
-private:
-    Processor() {}
+public:
+    Processor(Composite* composite)
+      : Component(composite),
+        GPR(R3000ARegs().GPR),
+        CP0(R3000ARegs().CP0),
+        HI(R3000ARegs().HI), LO(R3000ARegs().LO),
+        PC(R3000ARegs().PC),
+        Cycle(R3000ARegs().Cycle),
+        Interrupt(R3000ARegs().Interrupt) {}
     ~Processor() {}
 
-public:
     void Init();
     void Reset();
     void Execute();
     void ExecuteBlock();
-    // void Clear(uint32_t addr, uint32_t size);
+    // void Clear(u32 addr, u32 size);
     void Shutdown();
 
     static Processor& GetInstance();
@@ -153,17 +185,19 @@ public:
     bool isDoingBranch() const;
 
 public:
-    static GeneralPurposeRegisters GPR;
-    static Cop0Registers CP0;
-    static uint32_t& HI;
-    static uint32_t& LO;
-    static uint32_t& PC;
-    static uint32_t Cycle;  // clock count
-    static uint32_t Interrupt;
+    Registers Regs;
 
 private:
-    static bool inDelaySlot;    // for SYSCALL
-    static bool doingBranch;    // set when doBranch is called
+    GeneralPurposeRegisters& GPR;
+    Cop0Registers& CP0;
+    u32& HI;
+    u32& LO;
+    u32& PC;
+    u32& Cycle;
+    u32& Interrupt;
+
+    bool inDelaySlot;    // for SYSCALL
+    bool doingBranch;    // set when doBranch is called
 
     friend class Interpreter;
     friend class Recompiler;
@@ -189,7 +223,7 @@ inline bool Processor::isDoingBranch() const {
 } // namespace R3000A
 
 // an alias of R3000A instance
-extern R3000A::Processor& R3000a;
+// extern R3000A::Processor& R3000a;
 
 
 ////////////////////////////////
@@ -199,33 +233,33 @@ extern R3000A::Processor& R3000a;
 
 namespace R3000A {
 
-inline uint32_t Instruction::Opcode() const {
+inline u32 Instruction::Opcode() const {
     return code_ >> 26;
 }
 
-inline uint32_t Instruction::Rs() const {
+inline u32 Instruction::Rs() const {
     return (code_ >> 21) & 0x01f;
 }
 
-inline uint32_t Instruction::Rt() const {
+inline u32 Instruction::Rt() const {
     return (code_ >> 16) & 0x001f;
 }
 
-inline uint32_t Instruction::Rd() const {
+inline u32 Instruction::Rd() const {
     return (code_ >> 11) & 0x0001f;
 }
 
 
-inline uint32_t& Instruction::RsVal() const {
-    return R3000a.GPR.R[Rs()];
+inline u32& Instruction::RsVal() const {
+    return cpu_.Regs.GPR.R[Rs()];
 }
 
-inline uint32_t& Instruction::RtVal() const {
-    return R3000a.GPR.R[Rt()];
+inline u32& Instruction::RtVal() const {
+    return cpu_.Regs.GPR.R[Rt()];
 }
 
-inline uint32_t& Instruction::RdVal() const {
-    return R3000a.GPR.R[Rd()];
+inline u32& Instruction::RdVal() const {
+    return cpu_.Regs.GPR.R[Rd()];
 }
 
 
@@ -233,23 +267,23 @@ inline int32_t Instruction::Imm() const {
     return static_cast<int32_t>( static_cast<int16_t>(code_ & 0xffff) );
 }
 
-inline uint32_t Instruction::ImmU() const {
+inline u32 Instruction::ImmU() const {
     return code_ & 0xffff;
 }
 
-inline uint32_t Instruction::Target() const {
+inline u32 Instruction::Target() const {
     return code_ & 0x03ffffff;
 }
 
-inline uint32_t Instruction::Shamt() const {
+inline u32 Instruction::Shamt() const {
     return (code_ >> 6) & 0x1f;
 }
 
-inline uint32_t Instruction::Funct() const {
+inline u32 Instruction::Funct() const {
     return code_ & 0x3f;
 }
 
-inline uint32_t Instruction::Addr() const {
+inline u32 Instruction::Addr() const {
     return RsVal() + Imm();
 }
 

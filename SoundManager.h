@@ -8,8 +8,27 @@
 #endif
 #include <wx/vector.h>
 
+#include <wx/event.h>
 #include <wx/thread.h>
 #include <wx/msgqueue.h>
+
+
+// for wxThreadEvent
+
+struct NoteInfo {
+  bool is_on;
+  int tone_number_;
+  float pitch;
+  float velocity;
+};
+
+
+
+wxDECLARE_EVENT(wxEVT_NOTE_ON, wxThreadEvent);
+wxDECLARE_EVENT(wxEVT_NOTE_OFF, wxThreadEvent);
+wxDECLARE_EVENT(wxEVT_CHANGE_TONE_NUMBER, wxThreadEvent);
+wxDECLARE_EVENT(wxEVT_CHANGE_PITCH, wxThreadEvent);
+wxDECLARE_EVENT(wxEVT_CHANGE_VELOCITY, wxThreadEvent);
 
 
 class Sample {
@@ -27,7 +46,7 @@ public:
 
 class SoundFormat;
 
-class SoundDriver
+class SoundDriver : public wxEvtHandler
 {
 public:
     SoundDriver(int channelNumber);
@@ -45,6 +64,9 @@ public:
 
     // int GetChannelNumber() const;
 
+    void AddListener(wxEvtHandler* listener, int ch);
+
+    // deprecated
     virtual int GetEnvelopeVolume(int ch) const;
     virtual void SetEnvelopeVolume(int ch, int vol);
 
@@ -54,6 +76,13 @@ protected:
     void setChannelNumber(int number);
     void setBufferSize(int size);
     virtual void WriteToDevice() = 0;
+
+    void OnNoteOn(wxThreadEvent& event);
+    void OnNoteOff(wxThreadEvent& event);
+    void OnChangeToneNumber(wxThreadEvent& event);
+    void OnChangePitch(wxThreadEvent& event);
+    void OnChangeVelocity(wxThreadEvent& event);
+    void Notify(wxThreadEvent &event);
 
 protected:
     SoundFormat *m_sound;
@@ -67,6 +96,8 @@ private:
     Sample* buffer_;
     int bufferSize_;
     int bufferIndex_;
+
+    wxVector< wxVector<wxEvtHandler*> > listeners_;
 };
 
 

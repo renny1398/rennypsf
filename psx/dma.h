@@ -1,95 +1,53 @@
 #pragma once
-#include "memory.h"
-#include <wx/debug.h>
+#include "common.h"
+
 
 namespace PSX {
-namespace DMA {
 
-// 0x1f80_1080: DMA0 MDECin
-// 0x1f80_1090: DMA1 MDECout
-// 0x1f80_10a0: DMA2 GPU
-// 0x1f80_10b0: DMA3 CD-ROM
-// 0x1f80_10c0: DMA4 SPU
-// 0x1f80_10d0: DMA5 PIO
-// 0x1f80_10e0: DMA6 GPU OTC
+  class DMA : public Component {
 
-inline uint32_t& D_MADR(uint32_t n)
-{
-    // wxASSERT(n < 7);
-    return u32Href(0x1080 + (n << 4));
-}
-inline uint32_t& D_BCR(uint32_t n)
-{
-    // wxASSERT(n < 7);
-    return u32Href(0x1084 + (n << 4));
-}
-inline uint32_t& D_CHCR(uint32_t n)
-{
-    // wxASSERT(n < 7);
-    return u32Href(0x1088 + (n << 4));
-}
+    // 0x1f80_1080: DMA0 MDECin
+    // 0x1f80_1090: DMA1 MDECout
+    // 0x1f80_10a0: DMA2 GPU
+    // 0x1f80_10b0: DMA3 CD-ROM
+    // 0x1f80_10c0: DMA4 SPU
+    // 0x1f80_10d0: DMA5 PIO
+    // 0x1f80_10e0: DMA6 GPU OTC
 
-inline bool isDMATransferBusy(uint32_t n)
-{
-    // wxASSERT(n < 7);
-    return ( BFLIP32(D_CHCR(n)) & 0x01000000 ) != 0;
-}
-/*
-inline void startDMATransfer()
-{
-    // wxASSERT(n < 7);
-    D_CHCR(n) &= BFLIP32(~0x01000000);
-}
-*/
-inline void endDMATransfer(uint32_t n)
-{
-    D_CHCR(n) &= BFLIP32(~0x01000000);
-}
+   public:
+    DMA(Composite* composite);
 
+    bool DMAEnabled(u32 n);
 
-// DMA4 Registers
-/*
-uint32_t& DMA4_MADR = D_MADR(4);
-uint32_t& DMA4_BCR = D_BCR(4);
-uint32_t& DMA4_CHCR = D_CHCR(4);
-*/
+    void Interrupt(u32 n);
 
-// DMA Primary Control Register (DPCR)
-extern uint32_t& DPCR;
-extern uint32_t& DICR;
+    void Execute(u32 n);
 
-inline bool DMAEnabled(uint32_t n)
-{
-    wxASSERT(n < 7);
-    return ( BFLIP32(DPCR) & (8 << (4*n)) ) != 0;
-}
+    void Write(u32 n, u32 value);
 
+    u32& DPCR;
+    u32& DICR;
 
-inline void Interrupt(uint32_t n)
-{
-    if ( BFLIP32(DICR) & (1 << (16 + n)) ) {
-        DICR |= BFLIP32(1 << (24 + n));
-        u32Href(0x1070) |= BFLIP32(8);
-    }
-}
+   protected:
+    u32& D_MADR(u32 n);
+    u32& D_BCR(u32 n);
+    u32& D_CHCR(u32 n);
 
-extern void (*executeTable[7])(uint32_t, uint32_t, uint32_t);
+    bool isDMATransferBusy(u32 n);
 
-inline void Execute(uint32_t n)
-{
-    if (isDMATransferBusy(n) && DMAEnabled(n)) {
-        executeTable[n]( BFLIP32(D_MADR(n)), BFLIP32(D_BCR(n)), BFLIP32(D_CHCR(n)) );
-        endDMATransfer(n);
-        Interrupt(n);
-    }
-}
+    void startDMATransfer(u32 n);
+    void endDMATransfer(u32 n);
 
-inline void Write(uint32_t n, uint32_t value)
-{
-    wxASSERT(n < 7);
-    D_CHCR(n) = BFLIP32(value);
-    Execute(n);
-}
+    void execMDECin(u32, u32, u32);
+    void execMDECout(u32, u32, u32);
+    void execGPU(u32, u32, u32);
+    void execCDROM(u32, u32, u32);
+    void execSPU(u32 madr, u32 bcr, u32 chcr);
+    void execPIO(u32, u32, u32);
+    void execGPU_OTC(u32, u32, u32);
 
-}   // namespace DMA
+   private:
+    // DMA Primary Control Register (DPCR)
+    void (DMA::*executeTable[7])(u32, u32, u32);
+  };
 }   // namespace PSX

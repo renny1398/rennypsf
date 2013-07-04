@@ -174,6 +174,7 @@ void WavetableList::ExportTone(SPU::SamplingTone *tone)
 
 void WavetableList::onListRightClick(wxListEvent &event)
 {
+  /*
     wxListItem item = event.GetItem();
     long offset;
     item.GetText().ToLong(&offset);
@@ -181,6 +182,7 @@ void WavetableList::onListRightClick(wxListEvent &event)
     SPU::SamplingTone *tone = Spu.SoundBank_.GetSamplingTone(offset);
     menuPopup_.SetClientData(tone);
     PopupMenu(&menuPopup_);
+  */
 }
 
 
@@ -210,7 +212,7 @@ WavetablePanel::WavetablePanel(wxWindow *parent) :
     listCtrl_ = listCtrl;
     mainSizer_ = mainSizer;
 
-    Spu.SoundBank_.AddListener(this);
+    // Spu.SoundBank_.AddListener(this);
 }
 
 

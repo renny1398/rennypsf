@@ -159,7 +159,7 @@ void InterpolationBase::StoreValue(int fa)
         currSample = fa;
         return;
     }
-    if ( (Spu.Sp0 & 0x4000) == 0 ) {    // warning: Spu
+    if ( (channelInfo.Spu().Sp0 & 0x4000) == 0 ) {    // warning: Spu
         fa = 0;
     } else {
         if (fa > 32767) fa = 32767;

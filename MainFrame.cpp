@@ -121,7 +121,7 @@ void MainFrame::OnOpen(wxCommandEvent& WXUNUSED(event))
 
 void MainFrame::OnExit(wxCommandEvent& WXUNUSED(event))
 {
-    Spu.Shutdown();
+	// Spu.Shutdown();
 	Close(true);
 }
 

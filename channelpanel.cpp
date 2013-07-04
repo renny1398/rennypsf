@@ -88,6 +88,7 @@ void MuteButton::onLeave(wxMouseEvent& WXUNUSED(event))
 void MuteButton::onClick(wxMouseEvent &)
 {
     muted_ = !muted_;
+/*
     Spu.Channels[channel_number_].is_muted = muted_;
     if (muted_) {
         wxMessageOutputDebug().Printf(wxT("Mute on ch.%d"), channel_number_);
@@ -95,6 +96,7 @@ void MuteButton::onClick(wxMouseEvent &)
         wxMessageOutputDebug().Printf(wxT("Mute off ch.%d"), channel_number_);
     }
     paintNow();
+*/
 }
 
 
@@ -182,8 +184,6 @@ wxDEFINE_EVENT(wxEVENT_SPU_CHANNEL_NOTE_OFF, wxCommandEvent);
 
 wxBEGIN_EVENT_TABLE(KeyboardWidget, wxPanel)
 EVT_PAINT(KeyboardWidget::paintEvent)
-EVT_COMMAND(wxID_ANY, wxEVENT_SPU_CHANNEL_NOTE_ON, KeyboardWidget::OnNoteOn)
-EVT_COMMAND(wxID_ANY, wxEVENT_SPU_CHANNEL_NOTE_OFF, KeyboardWidget::OnNoteOff)
 wxEND_EVENT_TABLE()
 
 
@@ -207,8 +207,11 @@ KeyboardWidget::KeyboardWidget(wxWindow* parent, int ch, int keyWidth, int keyHe
     // wxSize size = wxWindow::GetSize();
     // wxMessageOutputDebug().Printf(wxT("(%d, %d)"), size.GetWidth(), size.GetHeight());
 
-    // temp
-    Spu.Channels[ch].AddListener(this);
+    wxEvtHandler::Bind(wxEVT_NOTE_ON, &KeyboardWidget::OnNoteOn, this);
+    wxEvtHandler::Bind(wxEVT_NOTE_OFF, &KeyboardWidget::OnNoteOff, this);
+
+    // Spu.Channels[ch].AddListener(this);
+    wxGetApp().GetSoundManager()->AddListener(this, ch);
 }
 
 
@@ -431,28 +434,14 @@ void KeyboardWidget::ReleaseKey(int keyIndex)
 
 
 
-void KeyboardWidget::OnNoteOn(wxCommandEvent &event) {
-    SPU::ChannelInfo* ch = reinterpret_cast<SPU::ChannelInfo*>(event.GetClientData());
-    PressKey(ch->Pitch);
+void KeyboardWidget::OnNoteOn(wxThreadEvent &event) {
+  NoteInfo note = event.GetPayload<NoteInfo>();
+  PressKey(note.pitch);
 }
 
 
-void KeyboardWidget::OnNoteOff(wxCommandEvent& WXUNUSED(event)) {
+void KeyboardWidget::OnNoteOff(wxThreadEvent& WXUNUSED(event)) {
     ReleaseKey();
-}
-
-
-void KeyboardWidget::OnNoteOn(const SPU::ChannelInfo &ch) {
-    wxCommandEvent event(wxEVENT_SPU_CHANNEL_NOTE_ON);
-    event.SetClientData(const_cast<SPU::ChannelInfo*>(&ch));
-    wxEvtHandler::AddPendingEvent(event);
-}
-
-
-void KeyboardWidget::OnNoteOff(const SPU::ChannelInfo &ch) {
-    wxCommandEvent event(wxEVENT_SPU_CHANNEL_NOTE_OFF);
-    event.SetClientData(const_cast<SPU::ChannelInfo*>(&ch));
-    wxEvtHandler::AddPendingEvent(event);
 }
 
 
@@ -460,11 +449,6 @@ void KeyboardWidget::OnNoteOff(const SPU::ChannelInfo &ch) {
 ////////////////////////////////////////////////////////////////////////
 // Channel Panel
 ////////////////////////////////////////////////////////////////////////
-
-
-wxBEGIN_EVENT_TABLE(ChannelPanel, wxPanel)
-EVT_COMMAND(wxID_ANY, wxEVENT_SPU_CHANNEL_CHANGE_LOOP, ChannelPanel::onChangeLoopIndex)
-wxEND_EVENT_TABLE()
 
 
 ChannelPanel::ChannelPanel(wxWindow *parent)
@@ -504,7 +488,7 @@ ChannelPanel::ChannelPanel(wxWindow *parent)
     SetAutoLayout(true);
     wholeSizer->Fit(this);
 
-    Spu.AddListener(this);
+    // Spu.AddListener(this);
 
     timer.Start(50, wxTIMER_CONTINUOUS);
 }
@@ -533,13 +517,4 @@ void ChannelPanel::Update()
         it->volumeLeft->SetValue(nextVol);
         it->volumeLeft->Refresh();
     }
-}
-
-
-void ChannelPanel::onChangeLoopIndex(wxCommandEvent& event)
-{
-    using namespace SPU;
-    ChannelInfo *pChannel = reinterpret_cast<ChannelInfo*>(event.GetClientData());
-
-    elements[pChannel->ch].textToneLoop->SetLabel(wxString::Format(wxT("%d"), pChannel->itrTone.GetLoopOffset()));
 }

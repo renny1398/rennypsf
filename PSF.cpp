@@ -53,23 +53,19 @@ void PSF::LoadLibrary() {
 
 void PSF::Init()
 {
+  psx_.Init();
 }
 
 void PSF::Reset()
 {
-    PSX::R3000a.Init();
-//    PSX::Hardware::Reset();
-    PSX::RootCounter::Init();
-    Spu.Open();
+  psx_.Reset();
 }
 
 
 bool PSF::Play()
 {
 	LoadBinary();
-    Reset();
-    PSX::BIOS::Init();
-    m_thread = PSX::Interpreter_.Execute();
+	m_thread = psx_.Run();
 
     return true;
 }
@@ -77,10 +73,8 @@ bool PSF::Play()
 
 bool PSF::Stop()
 {
-    PSX::Interpreter_.Shutdown();
+    psx_.Terminate();
     m_thread = 0;
-    // Spu.Close();
-    PSX::Memory::Reset();
     wxMessageOutputDebug().Printf(wxT("PSF is stopped."));
     return true;
 }
@@ -115,16 +109,16 @@ bool PSF1::LoadBinary()
         return 0;
     }
 
-    PSX::R3000a.GPR.PC = header.pc0;
-    PSX::R3000a.GPR.GP = header.gp0;
-    PSX::R3000a.GPR.SP = header.sp0;
-    // wxMessageOutputDebug().Printf("PC0 = 0x%08x, GP0 = 0x%08x, SP0 = 0x%08x", header.pc0, header.gp0, header.sp0);
+    psx_.R3000ARegs().GPR.PC = header.pc0;
+    psx_.R3000ARegs().GPR.GP = header.gp0;
+    psx_.R3000ARegs().GPR.SP = header.sp0;
+    wxMessageOutputDebug().Printf("PC0 = 0x%08x, GP0 = 0x%08x, SP0 = 0x%08x", header.pc0, header.gp0, header.sp0);
 
     LoadLibrary();
 
     zlib_stream.Read(uncompressed + 0x800, 0x200000);
-    PSX::Memory::Init();
-    PSX::Memory::Load(header.text_addr, header.text_size, uncompressed + 0x800);
+    psx_.InitMemory();
+    psx_.Memcpy(header.text_addr, uncompressed + 0x800, header.text_size);
 
     m_header = header;
 
@@ -351,7 +345,7 @@ unsigned int PSF2::LoadELF(PSF2Entry* psf2irx) {
             break;
 
         case 1:
-            ::memcpy(PSX::u32Mptr(load_addr_ + addr), &data[offset], size);
+            psx_.Memcpy(load_addr_ + addr, &data[offset], size);
             totallen += size;
             break;
 
@@ -362,7 +356,7 @@ unsigned int PSF2::LoadELF(PSF2Entry* psf2irx) {
             break;
 
         case 8:
-            ::memset(PSX::u32Mptr(load_addr_ + addr), 0, size);
+            psx_.Memset(load_addr_ + addr, 0, size);
             totallen += size;
             break;
 
@@ -373,7 +367,7 @@ unsigned int PSF2::LoadELF(PSF2Entry* psf2irx) {
 
                 offs = *(reinterpret_cast<const unsigned int*>(data + offset + (rec*8)));
                 info = *(reinterpret_cast<const unsigned int*>(data + offset + (rec*8) + 4));
-                target = BFLIP32(PSX::u32M(load_addr_ + offs));
+                target = BFLIP32(psx_.U32M_ref(load_addr_ + offs));
 
                 switch (info & 0xff) {
                 case 2:
@@ -405,14 +399,14 @@ unsigned int PSF2::LoadELF(PSF2Entry* psf2irx) {
                     val = load_addr_ + vallo;
                     target = (target & ~0xffff) | (val & 0xffff);
 
-                    PSX::u32Mref(load_addr_ + hi16offs) = BFLIP32(hi16target);
+                    psx_.U32M_ref(load_addr_ + hi16offs) = BFLIP32(hi16target);
                     break;
 
                 default:
                     break;
                 }
 
-                PSX::u32Mref(load_addr_ + offs) = BFLIP32(target);
+                psx_.U32M_ref(load_addr_ + offs) = BFLIP32(target);
             }
             break;
 
@@ -484,19 +478,19 @@ bool PSF2::LoadBinary() {
         return false;
     }
 
-    PSX::R3000a.GPR.PC = LoadELF(irx);
-    PSX::R3000a.GPR.SP = 0x801ffff0;
-    PSX::R3000a.GPR.FP = 0x801ffff0;
-    if (PSX::R3000a.GPR.PC == 0xffffffff) {
+    psx_.R3000ARegs().GPR.PC = LoadELF(irx);
+    psx_.R3000ARegs().GPR.SP = 0x801ffff0;
+    psx_.R3000ARegs().GPR.FP = 0x801ffff0;
+    if (psx_.R3000ARegs().GPR.PC == 0xffffffff) {
         return false;
     }
 
-    PSX::R3000a.GPR.RA = 0x80000000;
-    PSX::R3000a.GPR.A0 = 2;
-    PSX::R3000a.GPR.A1 = 0x80000004;
-    PSX::u32Mref(4) = BFLIP32(0x80000008);
-    PSX::u32Mref(0) = BFLIP32(PSX::R3000A::OPCODE_HLECALL);
-    ::strcpy((char *)PSX::u32Mptr(8), "psf2:/");
+    psx_.R3000ARegs().GPR.RA = 0x80000000;
+    psx_.R3000ARegs().GPR.A0 = 2;
+    psx_.R3000ARegs().GPR.A1 = 0x80000004;
+    psx_.U32M_ref(4) = BFLIP32(0x80000008);
+    psx_.U32M_ref(0) = BFLIP32(PSX::R3000A::OPCODE_HLECALL);
+    ::strcpy(psx_.S8M_ptr(8), "psf2:/");
 
     return true;
 }

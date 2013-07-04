@@ -2,11 +2,13 @@
 #include <stdint.h>
 #include <pthread.h>
 #include <set>
+#include <new>
 
 #include <wx/ptr_scpd.h>
 #include <wx/thread.h>
 #include <wx/hashset.h>
 
+#include "../psx/common.h"
 #include "reverb.h"
 #include "interpolation.h"
 #include "soundbank.h"
@@ -17,7 +19,7 @@ class wxEvtHandler;
 
 namespace SPU
 {
-/*
+  /*
 class Volume
 {
     int32_t volume;
@@ -49,19 +51,19 @@ public:
 };
 */
 
-enum ADSR_STATE {
+  enum ADSR_STATE {
     ADSR_STATE_ATTACK,
     ADSR_STATE_DECAY,
     ADSR_STATE_SUSTAIN,
     ADSR_STATE_RELEASE
-};
+  };
 
 
-typedef uint32_t SPUAddr;
+  typedef uint32_t SPUAddr;
 
 
-struct ADSRInfo
-{
+  struct ADSRInfo
+  {
     int            AttackModeExp;
     long           AttackTime;
     long           DecayTime;
@@ -76,15 +78,15 @@ struct ADSRInfo
     long           ReleaseVol;
     long           lTime;
     long           lVolume; // from -1024 to 1023
-};
+  };
 
 
-class ADSRInfoEx
-{
-public:
+  class ADSRInfoEx
+  {
+  public:
     void Start();
 
-public:
+  public:
 
     ADSR_STATE     State;
     bool           AttackModeExp;
@@ -100,50 +102,54 @@ public:
     long           lVolume;
     long           lDummy1;
     long           lDummy2;
-};
+  };
 
 
 
-class ChannelInfo;
+  class ChannelInfo;
 
-class ChannelInfoListener {
+  class ChannelInfoListener {
 
     friend class ChannelInfo;
 
-public:
+  public:
     virtual ~ChannelInfoListener() {}
 
-protected:
+  protected:
     virtual void OnNoteOn(const ChannelInfo&) {}
     virtual void OnNoteOff(const ChannelInfo&) {}
-};
+  };
 
 
 
 
-class InterpolationBase;
+  class InterpolationBase;
 
-wxDECLARE_SCOPED_PTR(InterpolationBase, InterpolationPtr)
+  wxDECLARE_SCOPED_PTR(InterpolationBase, InterpolationPtr)
 
-class ChannelArray;
+  class ChannelArray;
 
-class ChannelInfo
-{
-public:
+  class ChannelInfo
+  {
+  public:
     ChannelInfo(SPU* pSPU = 0);
     void StartSound();
     static void InitADSR();
     int MixADSR();
 
     void Update();
-protected:
+
+    SPU& Spu() { return spu_; }
+    const SPU& Spu() const { return spu_; }
+
+  protected:
     void VoiceChangeFrequency();
     // void ADPCM2LPCM();
 
-private:
-    SPU* pSPU_;
+  private:
+    SPU& spu_;
 
-public:
+  public:
     int ch;
     wxScopedArray<short> lpcm_buffer_l;
     wxScopedArray<short> lpcm_buffer_r;
@@ -202,27 +208,27 @@ public:
     void NotifyOnNoteOn() const;
     void NotifyOnNoteOff() const;
 
-private:
+  private:
     static uint32_t rateTable[160];
 
     std::set<ChannelInfoListener*> listeners_;
 
     friend class ChannelArray;
-};
+  };
 
 
 
-class IChannelArray
-{
-public:
+  class IChannelArray
+  {
+  public:
     virtual ~IChannelArray() {}
 
     virtual int GetChannelNumber() const = 0;
-};
+  };
 
-class ChannelArray: public IChannelArray
-{
-public:
+  class ChannelArray: public IChannelArray
+  {
+  public:
     ChannelArray(SPU* pSPU, int channelNumber);
 
     int GetChannelNumber() const;
@@ -232,61 +238,77 @@ public:
 
     ChannelInfo& operator[](int i);
 
-private:
+  private:
     SPU* pSPU_;
-    ChannelInfo* channels_;
+    // ChannelInfo* channels_;
+    wxVector<ChannelInfo*> channels_;
     int channelNumber_;
     uint32_t flagNewChannels_;
 
     friend class ChannelInfo;
-};
+  };
 
 
 
 
-////////////////////////////////////////////////////////////////////////
-// Enums
-////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////
+  // Enums
+  ////////////////////////////////////////////////////////////////////////
 
 
 
-////////////////////////////////////////////////////////////////////////
-// SPU Thread
-////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////
+  // SPU Thread
+  ////////////////////////////////////////////////////////////////////////
 
-class SPU;
+  class SPU;
 
-class SPUThread : public wxThread
-{
-public:
+  class SPUThread : public wxThread
+  {
+  public:
     SPUThread(SPU* pSPU);
 
-protected:
+  protected:
     virtual void* Entry();
 
-private:
+  private:
     SPU* pSPU_;
     int numSamples_;
 
     friend class SPU;
-};
+  };
 
 
 
-////////////////////////////////////////////////////////////////////////
-// SPU interface (experimental)
-////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////
+  // SPU abstract class
+  ////////////////////////////////////////////////////////////////////////
 
 
-WX_DECLARE_HASH_SET(wxEvtHandler*, wxPointerHash, wxPointerEqual, SPUListener);
+  WX_DECLARE_HASH_SET(wxEvtHandler*, wxPointerHash, wxPointerEqual, SPUListener);
 
 
-class SPUBase
-{
-public:
+  class SPUBase : public PSX::Component
+  {
+  public:
+    SPUBase(PSX::Composite* composite) : Component(composite) {}
     virtual ~SPUBase() {}
+
+    virtual void Close() = 0;
+
     virtual uint32_t GetDefaultSamplingRate() const = 0;
 
+    virtual ChannelInfo& Channel(int ch) = 0;
+
+    virtual REVERBInfo& Reverb() = 0;
+    virtual const REVERBInfo& Reverb() const = 0;
+
+
+    // Register
+    virtual unsigned short ReadRegister(uint32_t reg) = 0;
+    virtual void WriteRegister(uint32_t reg, uint16_t val) = 0;
+
+    // Listener Registration
     void AddListener(wxEvtHandler* listener);
     void RemoveListener(wxEvtHandler* listener);
 
@@ -294,20 +316,20 @@ public:
     void NotifyOnUpdateStartAddress(int ch) const;
     void NotifyOnChangeLoopIndex(ChannelInfo* pChannel) const;
 
-protected:
+  protected:
     mutable pthread_mutex_t process_mutex_;
     mutable pthread_mutex_t wait_start_mutex_;
     mutable pthread_cond_t process_cond_;
     mutable pthread_mutex_t dma_writable_mutex_;
 
     enum ProcessState {
-        STATE_SHUTDOWN = -1,
-        STATE_PSX_IS_READY = 0,
-        STATE_START_PROCESS,
-        STATE_NOTE_ON,
-        STATE_NOTE_OFF,
-        STATE_SET_OFFSET,
-        STATE_NONE
+      STATE_SHUTDOWN = -1,
+      STATE_PSX_IS_READY = 0,
+      STATE_START_PROCESS,
+      STATE_NOTE_ON,
+      STATE_NOTE_OFF,
+      STATE_SET_OFFSET,
+      STATE_NONE
     };
 
     mutable ProcessState process_state_;
@@ -315,19 +337,19 @@ protected:
 
     void ChangeProcessState(ProcessState state, int ch = -1);
 
-private:
+  private:
     SPUListener listeners_;
-};
+  };
 
 
 
-class PSF;
-class PSF1;
+  class PSF;
+  class PSF1;
 
-class SPU: public SPUBase
-{
-public:
-    SPU();
+  class SPU: public SPUBase
+  {
+  public:
+    SPU(PSX::Composite* composite);
 
     void Init();
     void Open();
@@ -338,16 +360,17 @@ public:
 
     bool IsRunning() const;
 
-protected:
+  protected:
     void SetupStreams();
     void RemoveStreams();
 
-public:
+  public:
     void Async(uint32_t);
 
     uint32_t GetDefaultSamplingRate() const { return 44100; }
 
-    ChannelInfo& GetChannelInfo(int ch);
+    ChannelInfo& Channel(int ch);
+    // const ChannelInfo& GetChannelInfo(int ch) const;
     unsigned char* GetSoundBuffer() const;
 
     // ADSR
@@ -355,34 +378,35 @@ public:
     // void StartADSR(ChannelInfo& ch);
     // int MixADSR(ChannelInfo& ch);
 
+    // Reverb
+    virtual REVERBInfo& Reverb() { return reverb_; }
+    virtual const REVERBInfo& Reverb() const { return reverb_; }
+
     // Register
     unsigned short ReadRegister(uint32_t reg);
     void WriteRegister(uint32_t reg, uint16_t val);
 
     // DMA
-    uint16_t ReadDMA(void);
-    void ReadDMAMemory(uint32_t psxAddr, uint32_t size);
-    void WriteDMA(uint16_t);
-    void WriteDMAMemory(uint32_t psxAddr, uint32_t size);
+    uint16_t ReadDMA4(void);
+    void ReadDMA4Memory(uint32_t psxAddr, uint32_t size);
+    void WriteDMA4(uint16_t);
+    void WriteDMA4Memory(uint32_t psxAddr, uint32_t size);
 
     // IRQ
     uint32_t GetIRQAddress() const;
     void SetIRQAddress(SPUAddr addr);
 
-    // substance
-    static SPU Spu;
-
     //
     // Utilities
     //
-public:
+  public:
     SamplingTone* GetSamplingTone(uint32_t addr) const;
     int GetPCMNumber() const;
     int GetPCM(int index, void* pcm, int* loop) const;
 
-    friend class SPUThread;    
+    friend class SPUThread;
 
-private:
+  private:
 
     static const int NSSIZE = 45;
 
@@ -393,15 +417,15 @@ private:
     // PSX Buffer & Addresses
     // unsigned short m_regArea[10000];
     unsigned short m_spuMem[256*1024];
-public:
+  public:
     uint8_t* const Memory;   // uchar* version of spuMem
 
-public:
+  public:
     unsigned char* m_pSpuIrq;
     unsigned char* m_pSpuBuffer;
     unsigned char* m_pMixIrq;
 
-private:
+  private:
     // User settings
     // int m_iUseXA;
     //int m_iVolume;
@@ -416,19 +440,20 @@ private:
     //int m_iUseDBufIrq;
 
     // MAIN infos struct for each channel
-public:
+  public:
     ChannelArray Channels;
-    REVERBInfo Reverb;
 
-private:
+  private:
+    REVERBInfo reverb_;
+
     unsigned long m_noiseVal;
 
-public:
+  public:
     unsigned short Sp0;
     unsigned short Status;
     SPUAddr IrqAddr;
-    SPUAddr dma_current_addr_;
-private:
+    mutable SPUAddr dma_current_addr_;
+  private:
     bool m_bEndThread;
     bool m_bThreadEnded;
     bool m_bSpuInit;
@@ -455,11 +480,11 @@ private:
     // unsigned long m_RateTable[160];
 
     // Sound bank
-public:
+  public:
     SoundBank SoundBank_;
 
     // DMA
-private:
+  private:
     wxCriticalSection csDMAReadable_;
     wxCriticalSection csDMAWritable_;
 
@@ -476,10 +501,10 @@ private:
     friend class ChannelInfo;
     friend class ChannelArray;  // temp
     friend class REVERBInfo;    // temp
-};
+  };
 
 
-/*
+  /*
 class SPUListener {
 public:
     virtual ~SPUListener() {}
@@ -492,23 +517,23 @@ protected:
 
 
 
-inline ChannelInfo& SPU::GetChannelInfo(int ch) {
+  inline ChannelInfo& SPU::Channel(int ch) {
     return Channels[ch];
-}
+  }
 
-inline unsigned char* SPU::GetSoundBuffer() const {
+  inline unsigned char* SPU::GetSoundBuffer() const {
     // return Memory;
     return (uint8_t*)m_spuMem;
-}
+  }
 
-inline uint32_t SPU::GetIRQAddress() const {
+  inline uint32_t SPU::GetIRQAddress() const {
     return IrqAddr;
-}
+  }
 
-inline void SPU::SetIRQAddress(SPUAddr addr) {
+  inline void SPU::SetIRQAddress(SPUAddr addr) {
     IrqAddr = addr;
     m_pSpuIrq = GetSoundBuffer() + addr;
-}
+  }
 
 
 }   // namespace SPU
@@ -519,4 +544,4 @@ inline void SPU::SetIRQAddress(SPUAddr addr) {
 wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVENT_SPU_CHANNEL_CHANGE_LOOP, wxCommandEvent);
 
 
-extern SPU::SPU& Spu;
+// extern SPU::SPU& Spu;

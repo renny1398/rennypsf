@@ -58,7 +58,10 @@ class SoundBank;
 class SamplingTone
 {
 public:
-    SamplingTone(const SoundBank *pSB, uint8_t* pADPCM);
+    SamplingTone(SoundBank *soundbank, uint8_t* pADPCM);
+
+    SoundBank& Soundbank() { return soundbank_; }
+    const SoundBank& Soundbank() const { return soundbank_; }
 
     const int32_t* GetData() const;
     const uint8_t* GetADPCM() const;
@@ -76,8 +79,6 @@ public:
 
     void ConvertData();
 
-    const SoundBank *GetSoundBank() const;
-
     // iterators
     SamplingToneIterator Iterator(ChannelInfo *pChannel) const;
     // const SamplingToneIterator& Begin() const;
@@ -90,7 +91,7 @@ protected:
 
 
 private:
-    const SoundBank* pSB_;
+    SoundBank& soundbank_;
 
     const uint8_t* const pADPCM_;
     mutable wxVector<int32_t> LPCM_;

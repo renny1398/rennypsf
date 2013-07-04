@@ -14,8 +14,8 @@ wxDEFINE_EVENT(wxEVENT_SPU_REMOVE_TONE, wxCommandEvent);
 namespace SPU {
 
 
-SamplingTone::SamplingTone(const SoundBank *pSB, uint8_t *pADPCM) :
-    pSB_(pSB), pADPCM_(pADPCM), loop_offset_(0xffffffff), forcesStop_(false),
+SamplingTone::SamplingTone(SoundBank *soundbank, uint8_t *pADPCM) :
+    soundbank_(*soundbank), pADPCM_(pADPCM), loop_offset_(0xffffffff), forcesStop_(false),
     processedBlockNumber_(0), freq_(0.0), begin_(this), prev1_(0), prev2_(0)
 {
     wxASSERT(pADPCM_ != 0);
@@ -39,7 +39,7 @@ const int32_t* SamplingTone::GetData() const
 
 SPUAddr SamplingTone::GetAddr() const
 {
-    return ( pADPCM_ - pSB_->GetSPU()->GetSoundBuffer() );
+    return ( pADPCM_ - soundbank_.GetSPU()->GetSoundBuffer() );
 }
 
 
@@ -113,12 +113,6 @@ int SamplingTone::At(int index) const
 }
 
 
-const SoundBank* SamplingTone::GetSoundBank() const
-{
-    return pSB_;
-}
-
-
 void SamplingTone::ADPCM2LPCM()
 {
     wxASSERT(current_pointer_ != NULL);
@@ -183,15 +177,15 @@ void SamplingTone::ADPCM2LPCM()
         // pLoop = start - 16;
         // loop_offset_ = (processedBlockNumber_ - 1) * 28;
         loop_offset_ = ((p - 16) - GetADPCM()) * 28 / 16;
-        pSB_->NotifyOnModify(this);
+        soundbank_.NotifyOnModify(this);
     } else if ( flags & 1 ) {
         if (external_loop_addr_ != 0xffffffff &&
                 external_loop_addr_ < GetAddr() &&
                 0 < current_pointer_ - GetADPCM()) {
-            current_pointer_ = pSB_->GetSPU()->GetSoundBuffer() + external_loop_addr_;
+            current_pointer_ = soundbank_.GetSPU()->GetSoundBuffer() + external_loop_addr_;
         } else {
                     // the end of this tone
-            pSB_->NotifyOnModify(this);
+            soundbank_.NotifyOnModify(this);
 
             if (flags != 3) {
                 forcesStop_ = true;
@@ -213,7 +207,7 @@ void SamplingTone::ConvertData()
      while (hasFinishedConv() == false) {
         ADPCM2LPCM();
     }
-     Spu.SoundBank_.FourierTransform(this);
+    soundbank_.FourierTransform(this);
 }
 
 
@@ -444,7 +438,7 @@ void* FourierTransformer::mainLoop(void *param)
 
             double freq = static_cast<double>(ft->sampling_rate_) * indexMax / n;
             tone->SetFreq(freq);
-            Spu.SoundBank_.NotifyOnModify(tone);
+            tone->Soundbank().NotifyOnModify(tone);
             // wxMessageOutputDebug().Printf(wxT("Finished FFT (offset = %d, freq = %d)"), tone->GetAddr(), indexMax);
         } while (true);
 
@@ -526,7 +520,7 @@ SamplingTone* SoundBank::GetSamplingTone(uint32_t addr) const
     if (it != tones_.end()) {
         return it.m_node->m_value.second;
     }
-    SamplingTone* tone = new SamplingTone(this, pSPU_->GetSoundBuffer() + addr);
+    SamplingTone* tone = new SamplingTone(const_cast<SoundBank*>(this), pSPU_->GetSoundBuffer() + addr);
     // tones_.insert(addr, tone);
     tones_[addr] = tone;
     const_cast<SoundBank*>(this)->NotifyOnAdd(tone);

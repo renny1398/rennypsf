@@ -27,11 +27,11 @@ bool RennypsfApp::OnInit()
     wxASSERT(0);
     MainFrame *frame = new MainFrame("Rennypsf", wxPoint(50,50), wxSize(640,480));
 #endif
+    soundDevice_ = new WaveOutAL(24);
+
     ChannelFrame* ch_frame = new ChannelFrame(frame);
     frame->Show(true);
     ch_frame->Show(true);
-
-    soundDevice_ = new WaveOutAL(24);
 
 	return true;
 }

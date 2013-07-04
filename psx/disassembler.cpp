@@ -9,7 +9,7 @@
 
 namespace {
 
-const uint32_t& PC = PSX::R3000a.PC;
+// const uint32_t& PC = R3000ARegs().PC;
 
 const wxChar strSPECIAL[] = wxT("_SPECIAL");
 const wxChar strBCOND[] = wxT("_BCOND");
@@ -43,10 +43,12 @@ const wxChar *bcondLowerList[24] = {
     wxT("bltzal"), wxT("bgezal"), strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN
 };
 
+/*
 const wxChar *copzLowerList[16] = {
     wxT("mfc"), strUNKNOWN, wxT("cfc"), strUNKNOWN, wxT("mtc"), strUNKNOWN, wxT("ctc"), strUNKNOWN,
     wxT("bcc"), strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN, strUNKNOWN
 };
+*/
 
 const wxChar *regNames[] = {
     wxT("zr"), wxT("at"), wxT("v0"), wxT("v1"), wxT("a0"), wxT("a1"), wxT("a2"), wxT("a3"),
@@ -159,7 +161,7 @@ bool Disassembler::parseHILO(Instruction code)
 bool Disassembler::parseJ(Instruction code)
 {
     wxString addr;
-    addr.Printf(wxT("0x%08x"), code.Target() << 2 | ((R3000a.PC-4) & 0xf0000000));
+    addr.Printf(wxT("0x%08x"), code.Target() << 2 | ((R3000ARegs().PC-4) & 0xf0000000));
     operands.push_back(addr);
     changedRegisters.push_back(regNames[R3000A::GPR_PC]);
     return true;
@@ -192,7 +194,7 @@ bool Disassembler::parseBranch(Instruction code)
 {
     wxString strRs = regNames[code.Rs()];
     wxString strRt = regNames[code.Rt()];
-    uint32_t addr = (PC-4) + (code.Imm() << 2);
+    uint32_t addr = (R3000ARegs().PC-4) + (code.Imm() << 2);
     wxString strAddr;
     strAddr.Printf(wxT("0x%08x"), addr);
     operands.push_back(strRs);
@@ -205,7 +207,7 @@ bool Disassembler::parseBranch(Instruction code)
 bool Disassembler::parseBranchZ(Instruction code)
 {
     wxString strRs = regNames[code.Rs()];
-    uint32_t addr = (PC-4) + (code.Imm() << 2);
+    uint32_t addr = (R3000ARegs().PC-4) + (code.Imm() << 2);
     wxString strAddr;
     strAddr.Printf(wxT("0x%08x"), addr);
     operands.push_back(strRs);
@@ -264,7 +266,8 @@ bool (Disassembler::*const Disassembler::OPCODES[64])(Instruction) = {
 
 
 
-Disassembler::Disassembler()
+Disassembler::Disassembler(Composite* composite)
+  : Component(composite)
 {
     operands.reserve(4);
 }
@@ -273,7 +276,7 @@ Disassembler::Disassembler()
 
 bool Disassembler::Parse(Instruction code)
 {
-    pc0 = R3000a.PC - 4;
+    pc0 = R3000ARegs().PC - 4;
     operands.clear();
     changedRegisters.clear();
 
@@ -294,7 +297,7 @@ bool Disassembler::Parse(Instruction code)
 void Disassembler::PrintCode()
 {
     wxString addr;
-    addr.Printf(wxT("%08X:  "), PC-4);
+    addr.Printf(wxT("%08X:  "), R3000ARegs().PC-4);
     wxStringOutputStream ss;
     ss.Write(addr, addr.size());
     ss.Write(opcodeName, opcodeName.size());
@@ -319,12 +322,12 @@ void Disassembler::PrintChangedRegisters()
         if ((*it)[0] == _T('0') && (*it)[1] == _T('x')) {
             unsigned long addr;
             it->ToULong(&addr);  // warning: this code may be wrong
-            strAddr.Printf(wxT("0x%08x"), Memory::Read<uint32_t>(addr));
+            strAddr.Printf(wxT("0x%08x"), ReadMemory32(addr));
             ss.Write(strAddr, strAddr.size());
         } else {
             for (int i = 0; i < 35; i++) {
                 if (it->Cmp(regNames[i]) == 0) {
-                    strAddr.Printf(wxT("0x%08x"), R3000a.GPR.R[i]);
+                    strAddr.Printf(wxT("0x%08x"), R3000ARegs().GPR.R[i]);
                     ss.Write(strAddr, strAddr.size());
                     break;
                 }
@@ -338,9 +341,9 @@ void Disassembler::PrintChangedRegisters()
 void Disassembler::DumpRegisters()
 {
     wxString line;
-    line.Printf(wxT("%s=0x%08x "), regNames[R3000A::GPR_PC], R3000a.PC);
+    line.Printf(wxT("%s=0x%08x "), regNames[R3000A::GPR_PC], R3000ARegs().PC);
     for (int i = 1; i < 34; i++) {
-        line.Printf(wxT("%s%s=0x%08x "), line.c_str(), regNames[i], R3000a.GPR.R[i]);
+        line.Printf(wxT("%s%s=0x%08x "), line.c_str(), regNames[i], R3000ARegs().GPR.R[i]);
         if (i % 4 == 3) {
             wxMessageOutputDebug().Printf(line);
             line.Clear();
@@ -349,7 +352,7 @@ void Disassembler::DumpRegisters()
     wxMessageOutputDebug().Printf(line);
     line.Clear();
 
-    line.Printf(wxT("epc=0x%08x cause=0x%08x status=0x%08x"), R3000a.CP0.EPC, R3000a.CP0.CAUSE, R3000a.CP0.SR);
+    line.Printf(wxT("epc=0x%08x cause=0x%08x status=0x%08x"), R3000ARegs().CP0.EPC, R3000ARegs().CP0.CAUSE, R3000ARegs().CP0.SR);
     wxMessageOutputDebug().Printf(line);
     line.Clear();
 
@@ -357,12 +360,13 @@ void Disassembler::DumpRegisters()
 //    wxMessageOutputDebug().Printf(line);
 }
 
-
+/*
 Disassembler& Disassembler::GetInstance()
 {
     static Disassembler instance;
     return instance;
 }
+*/
 
 }   // namespace R3000A
 
