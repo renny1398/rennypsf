@@ -7,11 +7,11 @@ const int NUM_BUFFERS = 50;
 const int NSSIZE = 45;
 
 
-wxDEFINE_EVENT(wxEVT_NOTE_ON, wxThreadEvent);
-wxDEFINE_EVENT(wxEVT_NOTE_OFF, wxThreadEvent);
-wxDEFINE_EVENT(wxEVT_CHANGE_TONE_NUMBER, wxThreadEvent);
-wxDEFINE_EVENT(wxEVT_CHANGE_PITCH, wxThreadEvent);
-wxDEFINE_EVENT(wxEVT_CHANGE_VELOCITY, wxThreadEvent);
+wxDEFINE_EVENT(wxEVT_NOTE_ON, wxCommandEvent);
+wxDEFINE_EVENT(wxEVT_NOTE_OFF, wxCommandEvent);
+wxDEFINE_EVENT(wxEVT_CHANGE_TONE_NUMBER, wxCommandEvent);
+wxDEFINE_EVENT(wxEVT_CHANGE_PITCH, wxCommandEvent);
+wxDEFINE_EVENT(wxEVT_CHANGE_VELOCITY, wxCommandEvent);
 
 
 
@@ -162,7 +162,7 @@ void SoundDriver::AddListener(wxEvtHandler *listener, int ch) {
 
 
 
-void SoundDriver::Notify(wxThreadEvent& event) {
+void SoundDriver::Notify(wxCommandEvent& event) {
   const int ch = event.GetInt();
   wxVector<wxEvtHandler*>& listeners = listeners_[ch];
   wxVector<wxEvtHandler*>::iterator itr = listeners.begin();
@@ -174,23 +174,23 @@ void SoundDriver::Notify(wxThreadEvent& event) {
 }
 
 
-void SoundDriver::OnNoteOn(wxThreadEvent& event) {
+void SoundDriver::OnNoteOn(wxCommandEvent &event) {
   Notify(event);
 }
 
-void SoundDriver::OnNoteOff(wxThreadEvent& event) {
+void SoundDriver::OnNoteOff(wxCommandEvent& event) {
   Notify(event);
 }
 
-void SoundDriver::OnChangeToneNumber(wxThreadEvent& event) {
+void SoundDriver::OnChangeToneNumber(wxCommandEvent& event) {
   Notify(event);
 }
 
-void SoundDriver::OnChangePitch(wxThreadEvent& event) {
+void SoundDriver::OnChangePitch(wxCommandEvent& event) {
   Notify(event);
 }
 
-void SoundDriver::OnChangeVelocity(wxThreadEvent& event) {
+void SoundDriver::OnChangeVelocity(wxCommandEvent& event) {
   Notify(event);
 }
 

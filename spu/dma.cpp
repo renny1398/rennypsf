@@ -66,7 +66,7 @@ void SPU::WriteDMA4Memory(uint32_t psxAddr, uint32_t size)
     SPUAddr spuAddr = dma_current_addr_;
     uint16_t* p = U16M_ptr(psxAddr);
 
-    // wxMessageOutputDebug().Printf(wxT("Transfer Sound Buffer from PSX(0x%08x) to SPU(0x%08x) by 0x%05x bytes"), psxAddr, spuAddr, size);
+    wxMessageOutputDebug().Printf(wxT("Transfer Sound Buffer from PSX(0x%08x) to SPU(0x%08x) by 0x%05x bytes"), psxAddr, spuAddr, size);
 
 #ifdef MSB_FIRST    // for big-endian architecture
     size /= 2;

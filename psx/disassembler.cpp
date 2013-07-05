@@ -322,7 +322,7 @@ void Disassembler::PrintChangedRegisters()
         if ((*it)[0] == _T('0') && (*it)[1] == _T('x')) {
             unsigned long addr;
             it->ToULong(&addr);  // warning: this code may be wrong
-            strAddr.Printf(wxT("0x%08x"), ReadMemory32(addr));
+            strAddr.Printf(wxT("0x%08x"), U32M_ref(addr));
             ss.Write(strAddr, strAddr.size());
         } else {
             for (int i = 0; i < 35; i++) {
@@ -370,6 +370,6 @@ Disassembler& Disassembler::GetInstance()
 
 }   // namespace R3000A
 
-R3000A::Disassembler& Disasm = R3000A::Disassembler::GetInstance();
+// R3000A::Disassembler& Disasm = R3000A::Disassembler::GetInstance();
 
 }   // namespace PSX

@@ -158,12 +158,13 @@ class Processor : public Component
 public:
     Processor(Composite* composite)
       : Component(composite),
-        GPR(R3000ARegs().GPR),
-        CP0(R3000ARegs().CP0),
-        HI(R3000ARegs().HI), LO(R3000ARegs().LO),
-        PC(R3000ARegs().PC),
-        Cycle(R3000ARegs().Cycle),
-        Interrupt(R3000ARegs().Interrupt) {}
+        Regs(R3000ARegs()),
+        GPR(Regs.GPR),
+        CP0(Regs.CP0),
+        HI(Regs.GPR.HI), LO(Regs.GPR.LO),
+        PC(Regs.GPR.PC),
+        Cycle(Regs.Cycle),
+        Interrupt(Regs.Interrupt) {}
     ~Processor() {}
 
     void Init();
@@ -185,7 +186,7 @@ public:
     bool isDoingBranch() const;
 
 public:
-    Registers Regs;
+    Registers& Regs;
 
 private:
     GeneralPurposeRegisters& GPR;

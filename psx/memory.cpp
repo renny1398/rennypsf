@@ -15,8 +15,8 @@ namespace PSX {
 
     // Kuseg (for 4 threads?)
     for (i = 0; i < 0x80; i++) {
-        segment_LUT_[0x0000 + i] = mem_user_ + ((i & 0x1f) << 16);
-      }
+      segment_LUT_[0x0000 + i] = mem_user_ + ((i & 0x1f) << 16);
+    }
     // Kseg0, Kseg1
     ::memcpy(segment_LUT_ + 0x8000, segment_LUT_, 0x20 * sizeof (char*));
     ::memcpy(segment_LUT_ + 0xa000, segment_LUT_, 0x20 * sizeof (char*));
@@ -37,51 +37,50 @@ namespace PSX {
   }
 
 
-  // name 'Load' is not right?
   void Memory::Copy(PSXAddr dest, const void* src, int length)
   {
     wxASSERT_MSG(src != 0, "ERROR");
-    // wxMessageOutputDebug().Printf(wxT("Load data (length: %d) at 0x%08p into 0x%08x"), length, data, address);
+    wxMessageOutputDebug().Printf(wxT("Load data (length: %06x) at 0x%08p into 0x%08x"), length, src, dest);
 
     const char* p_src = static_cast<const char*>(src);
 
     uint32_t offset = dest & 0xffff;
     if (offset) {
-        uint32_t len = (0x10000 - offset) > static_cast<uint32_t>(length) ? length : 0x10000 - offset;
-        ::memcpy(segment_LUT_[dest << 16] + offset, src, len);
-        dest += len;
-        p_src += len;
-        length -= len;
-      }
+      uint32_t len = (0x10000 - offset) > static_cast<uint32_t>(length) ? length : 0x10000 - offset;
+      ::memcpy(segment_LUT_[dest >> 16] + offset, src, len);
+      dest += len;
+      p_src += len;
+      length -= len;
+    }
 
     uint32_t segment = dest >> 16;
     while (length > 0) {
-        wxASSERT_MSG(segment_LUT_[segment] != 0, "Invalid PSX memory address");
-        memcpy(segment_LUT_[segment++], src, length < 0x10000 ? length : 0x10000);
-        p_src += 0x10000;
-        length -= 0x10000;
-      }
+      wxASSERT_MSG(segment_LUT_[segment] != 0, "Invalid PSX memory address");
+      ::memcpy(segment_LUT_[segment++], p_src, length < 0x10000 ? length : 0x10000);
+      p_src += 0x10000;
+      length -= 0x10000;
+    }
   }
 
 
   template<typename T>
   T Memory::Read(PSXAddr addr)
   {
-      u32 segment = addr >> 16;
-      if (segment == 0x1f80) {
-          if (addr < 0x1f801000)  // Scratch Pad
-              return H_ref<T>(addr);
-          // Hardware Registers
-          return HwRegs().Read<T>(addr);
-      }
-      u8 *base_addr = segment_LUT_[segment];
-      u32 offset = addr & 0xffff;
-      if (base_addr == 0) {
-          wxMessageOutputDebug().Printf(wxT("PSX::Memory::Read : bad segment: %04x"), segment);
-          //PSX::Disasm.DumpRegisters();
-          return 0;
-      }
-      return BFLIP(*reinterpret_cast<T*>(base_addr + offset));
+    u32 segment = addr >> 16;
+    if (segment == 0x1f80) {
+      if (addr < 0x1f801000)  // Scratch Pad
+        return H_ref<T>(addr);
+      // Hardware Registers
+      return HwRegs().Read<T>(addr);
+    }
+    u8 *base_addr = segment_LUT_[segment];
+    u32 offset = addr & 0xffff;
+    if (base_addr == 0) {
+      wxMessageOutputDebug().Printf(wxT("PSX::Memory::Read : bad segment: %04x"), segment);
+      //PSX::Disasm.DumpRegisters();
+      return 0;
+    }
+    return BFLIP(*reinterpret_cast<T*>(base_addr + offset));
   }
 
   template u8 Memory::Read<u8>(PSXAddr addr);
@@ -105,22 +104,22 @@ namespace PSX {
   template<typename T>
   void Memory::Write(PSXAddr addr, T value)
   {
-      u32 segment = addr >> 16;
-      if (segment == 0x1f80) {
-          if (addr < 0x1f801000) {
-              H_ref<T>(addr) = BFLIP(value);
-              return;
-          }
-          HwRegs().Write(addr, value);
-          return;
+    u32 segment = addr >> 16;
+    if (segment == 0x1f80) {
+      if (addr < 0x1f801000) {
+        H_ref<T>(addr) = BFLIP(value);
+        return;
       }
-      u8 *base_addr = segment_LUT_[segment];
-      u32 offset = addr & 0xffff;
-      if (base_addr == 0) {
-          wxMessageOutputDebug().Printf(wxT("PSX::Memory::Write : bad segment: %04x"), segment);
-          return;
-      }
-      *reinterpret_cast<T*>(base_addr + offset) = BFLIP(value);
+      HwRegs().Write(addr, value);
+      return;
+    }
+    u8 *base_addr = segment_LUT_[segment];
+    u32 offset = addr & 0xffff;
+    if (base_addr == 0) {
+      wxMessageOutputDebug().Printf(wxT("PSX::Memory::Write : bad segment: %04x"), segment);
+      return;
+    }
+    *reinterpret_cast<T*>(base_addr + offset) = BFLIP(value);
   }
 
   template void Memory::Write<u8>(PSXAddr addr, u8 value);

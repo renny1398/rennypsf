@@ -17,7 +17,7 @@ const wxString &PSFLoader::GetPath() const {
 
 
 
-SoundFormat *PSFLoader::LoadInfo(const wxString& path)
+SoundFormat *PSFLoader::LoadInfo(const wxString& path, PSX::Composite* psx)
 {
     wxFile file(path);
     if (file.IsOpened() == false) {
@@ -35,10 +35,10 @@ SoundFormat *PSFLoader::LoadInfo(const wxString& path)
     PSF *psf;
     switch (signature[3]) {
     case 1:
-        psf = new PSF1();
+        psf = new PSF1(psx);
         break;
     case 2:
-        psf = new PSF2();
+        psf = new PSF2(psx);
         break;
     default:
         return NULL;
@@ -75,6 +75,11 @@ SoundFormat *PSFLoader::LoadInfo(const wxString& path)
     psf->file_.Attach(fd);
     psf->path_ = path;
     return psf;
+}
+
+
+SoundFormat *PSFLoader::LoadInfo(const wxString& path) {
+  return LoadInfo(path, NULL);
 }
 
 

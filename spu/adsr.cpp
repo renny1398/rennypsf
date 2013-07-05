@@ -114,7 +114,7 @@ int ChannelInfo::MixADSR()
         return envVol;
 
     case ADSR_STATE_RELEASE:
-        break;
+        return 0;
     }
     wxMessageOutputDebug().Printf(wxT("WARNING: SPUChannel state is wrong."));
     return 0;

@@ -211,20 +211,6 @@ namespace PSX {
       (this->*OPCODES[code.Opcode()])(code);
     }
 
-    inline void Interpreter::ExecuteOnce()
-    {
-      u32 pc = R3000ARegs().PC;
-      Instruction code(&cpu_, U32M_ref(pc));
-      pc += 4;
-      ++R3000ARegs().Cycle;
-      R3000ARegs().PC = pc;
-      //last_code = code;
-      //if (pc == 0x00001e94 - 4) {
-      //    wxMessageOutputDebug().Printf("Int8");
-      //}
-      ExecuteOpcode(code);
-    }
-
   }   // namespace Interpreter
 
   // an alias of InterpretImpl instance

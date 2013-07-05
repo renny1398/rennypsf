@@ -24,11 +24,11 @@ struct NoteInfo {
 
 
 
-wxDECLARE_EVENT(wxEVT_NOTE_ON, wxThreadEvent);
-wxDECLARE_EVENT(wxEVT_NOTE_OFF, wxThreadEvent);
-wxDECLARE_EVENT(wxEVT_CHANGE_TONE_NUMBER, wxThreadEvent);
-wxDECLARE_EVENT(wxEVT_CHANGE_PITCH, wxThreadEvent);
-wxDECLARE_EVENT(wxEVT_CHANGE_VELOCITY, wxThreadEvent);
+wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_NOTE_ON, wxCommandEvent);
+wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_NOTE_OFF, wxCommandEvent);
+wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_CHANGE_TONE_NUMBER, wxCommandEvent);
+wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_CHANGE_PITCH, wxCommandEvent);
+wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_CHANGE_VELOCITY, wxCommandEvent);
 
 
 class Sample {
@@ -77,12 +77,12 @@ protected:
     void setBufferSize(int size);
     virtual void WriteToDevice() = 0;
 
-    void OnNoteOn(wxThreadEvent& event);
-    void OnNoteOff(wxThreadEvent& event);
-    void OnChangeToneNumber(wxThreadEvent& event);
-    void OnChangePitch(wxThreadEvent& event);
-    void OnChangeVelocity(wxThreadEvent& event);
-    void Notify(wxThreadEvent &event);
+    void OnNoteOn(wxCommandEvent& event);
+    void OnNoteOff(wxCommandEvent& event);
+    void OnChangeToneNumber(wxCommandEvent& event);
+    void OnChangePitch(wxCommandEvent& event);
+    void OnChangeVelocity(wxCommandEvent& event);
+    void Notify(wxCommandEvent &event);
 
 protected:
     SoundFormat *m_sound;

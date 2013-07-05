@@ -94,8 +94,8 @@ protected:
 protected:
   int calcKeyboardWidth();
 
-  void OnNoteOn(wxThreadEvent& event);
-  void OnNoteOff(wxThreadEvent& event);
+  void OnNoteOn(wxCommandEvent& event);
+  void OnNoteOff(wxCommandEvent& event);
 
 private:
   int keyWidth_, keyHeight_;

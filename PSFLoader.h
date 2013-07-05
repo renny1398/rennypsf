@@ -13,7 +13,7 @@ public:
     const wxString &GetPath() const;
 
     SoundFormat* LoadInfo(const wxString& path);
-    //SoundFormat* Load();
+    SoundFormat* LoadInfo(const wxString& path, PSX::Composite* psx);
 
     friend class PSF;
 

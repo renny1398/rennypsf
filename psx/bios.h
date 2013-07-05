@@ -101,7 +101,7 @@ namespace PSX {
 
    private:
     R3000A::GeneralPurposeRegisters& GPR;
-    R3000A::Cop0Registers CP0;
+    R3000A::Cop0Registers& CP0;
 
     u32& PC;
     u32& A0, &A1, &A2, &A3;

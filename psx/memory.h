@@ -111,7 +111,7 @@ namespace PSX {
       return M_ref<u8>(addr);
   }
 
-  inline u16& Memory::Memory::U16M_ref(PSXAddr addr) {
+  inline u16& Memory::U16M_ref(PSXAddr addr) {
       return M_ref<u16>(addr);
   }
 

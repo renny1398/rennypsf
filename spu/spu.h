@@ -1,12 +1,10 @@
 #pragma once
 #include <stdint.h>
 #include <pthread.h>
-#include <set>
-#include <new>
 
+#include <wx/vector.h>
 #include <wx/ptr_scpd.h>
 #include <wx/thread.h>
-#include <wx/hashset.h>
 
 #include "../psx/common.h"
 #include "reverb.h"
@@ -15,7 +13,7 @@
 
 
 class wxEvtHandler;
-
+class SoundDriver;
 
 namespace SPU
 {
@@ -202,8 +200,8 @@ public:
     ADSRInfoEx      ADSRX;                              // next ADSR settings (will be moved to active on sample start)
 
 
-    void AddListener(ChannelInfoListener* listener);
-    void RemoveListener(ChannelInfoListener* listener);
+    void AddListener(wxEvtHandler* listener);
+    void RemoveListener(wxEvtHandler* listener);
 
     void NotifyOnNoteOn() const;
     void NotifyOnNoteOff() const;
@@ -211,7 +209,7 @@ public:
   private:
     static uint32_t rateTable[160];
 
-    std::set<ChannelInfoListener*> listeners_;
+    wxVector<wxEvtHandler*> listeners_;
 
     friend class ChannelArray;
   };
@@ -285,13 +283,14 @@ public:
   ////////////////////////////////////////////////////////////////////////
 
 
-  WX_DECLARE_HASH_SET(wxEvtHandler*, wxPointerHash, wxPointerEqual, SPUListener);
+  // WX_DECLARE_HASH_SET(wxEvtHandler*, wxPointerHash, wxPointerEqual, SPUListener);
 
 
   class SPUBase : public PSX::Component
   {
   public:
-    SPUBase(PSX::Composite* composite) : Component(composite) {}
+    SPUBase(PSX::Composite* composite)
+      : Component(composite), sound_driver_(NULL) {}
     virtual ~SPUBase() {}
 
     virtual void Close() = 0;
@@ -303,6 +302,9 @@ public:
     virtual REVERBInfo& Reverb() = 0;
     virtual const REVERBInfo& Reverb() const = 0;
 
+    SoundDriver* GetSoundDriver();
+    void SetSoundDriver(SoundDriver* sound_driver_);
+
 
     // Register
     virtual unsigned short ReadRegister(uint32_t reg) = 0;
@@ -312,11 +314,16 @@ public:
     void AddListener(wxEvtHandler* listener);
     void RemoveListener(wxEvtHandler* listener);
 
+    void AddListener(wxEvtHandler *listener, int ch);
+    void RemoveListener(wxEvtHandler *listener, int ch);
+
     // Notify functions
     void NotifyOnUpdateStartAddress(int ch) const;
     void NotifyOnChangeLoopIndex(ChannelInfo* pChannel) const;
 
   protected:
+    SoundDriver* sound_driver_;
+
     mutable pthread_mutex_t process_mutex_;
     mutable pthread_mutex_t wait_start_mutex_;
     mutable pthread_cond_t process_cond_;
@@ -338,7 +345,7 @@ public:
     void ChangeProcessState(ProcessState state, int ch = -1);
 
   private:
-    SPUListener listeners_;
+    // SPUListener listeners_;
   };
 
 

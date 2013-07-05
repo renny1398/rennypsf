@@ -51,6 +51,10 @@ namespace PSX {
     u16 ReadMemory16(PSXAddr addr);
     u32 ReadMemory32(PSXAddr addr);
 
+    void WriteMemory8(PSXAddr addr, u8 value);
+    void WriteMemory16(PSXAddr addr, u16 value);
+    void WriteMemory32(PSXAddr addr, u32 value);
+
     void Memcpy(PSXAddr dest, const void* src, int length);
     void Memcpy(void* dest, PSXAddr src, int length) const;
     void Memset(PSXAddr dest, int data, int length);
