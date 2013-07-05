@@ -44,16 +44,16 @@ namespace PSX {
 
     const char* p_src = static_cast<const char*>(src);
 
-    uint32_t offset = dest & 0xffff;
+    u32 offset = dest & 0xffff;
     if (offset) {
-      uint32_t len = (0x10000 - offset) > static_cast<uint32_t>(length) ? length : 0x10000 - offset;
+      u32 len = (0x10000 - offset) > static_cast<u32>(length) ? length : 0x10000 - offset;
       ::memcpy(segment_LUT_[dest >> 16] + offset, src, len);
       dest += len;
       p_src += len;
       length -= len;
     }
 
-    uint32_t segment = dest >> 16;
+    u32 segment = dest >> 16;
     while (length > 0) {
       wxASSERT_MSG(segment_LUT_[segment] != 0, "Invalid PSX memory address");
       ::memcpy(segment_LUT_[segment++], p_src, length < 0x10000 ? length : 0x10000);

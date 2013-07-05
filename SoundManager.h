@@ -24,11 +24,11 @@ struct NoteInfo {
 
 
 
-wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_NOTE_ON, wxCommandEvent);
-wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_NOTE_OFF, wxCommandEvent);
-wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_CHANGE_TONE_NUMBER, wxCommandEvent);
-wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_CHANGE_PITCH, wxCommandEvent);
-wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_CHANGE_VELOCITY, wxCommandEvent);
+wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_NOTE_ON, wxThreadEvent);
+wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_NOTE_OFF, wxThreadEvent);
+wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_CHANGE_TONE_NUMBER, wxThreadEvent);
+wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_CHANGE_PITCH, wxThreadEvent);
+wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_CHANGE_VELOCITY, wxThreadEvent);
 
 
 class Sample {
@@ -70,19 +70,19 @@ public:
     virtual int GetEnvelopeVolume(int ch) const;
     virtual void SetEnvelopeVolume(int ch, int vol);
 
+    void OnNoteOn(wxThreadEvent& event);
+    void OnNoteOff(wxThreadEvent& event);
+    void OnChangeToneNumber(wxThreadEvent& event);
+    void OnChangePitch(wxThreadEvent& event);
+    void OnChangeVelocity(wxThreadEvent& event);
+    void Notify(wxThreadEvent &event);
+
 protected:
     const Sample* GetBuffer(int* size) const;
 
     void setChannelNumber(int number);
     void setBufferSize(int size);
     virtual void WriteToDevice() = 0;
-
-    void OnNoteOn(wxCommandEvent& event);
-    void OnNoteOff(wxCommandEvent& event);
-    void OnChangeToneNumber(wxCommandEvent& event);
-    void OnChangePitch(wxCommandEvent& event);
-    void OnChangeVelocity(wxCommandEvent& event);
-    void Notify(wxCommandEvent &event);
 
 protected:
     SoundFormat *m_sound;
@@ -98,6 +98,8 @@ private:
     int bufferIndex_;
 
     wxVector< wxVector<wxEvtHandler*> > listeners_;
+
+    // wxDECLARE_EVENT_TABLE();
 };
 
 

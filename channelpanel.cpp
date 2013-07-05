@@ -108,10 +108,14 @@ void MuteButton::onClick(wxMouseEvent &)
 // Volume bar
 ////////////////////////////////////////////////////////////////////////
 
-VolumeBar::VolumeBar(wxWindow *parent, wxOrientation orientation, int max)
-  : wxPanel(parent, wxID_ANY, wxDefaultPosition, wxSize(512, 4)), orientation_(orientation), max_(max)
+VolumeBar::VolumeBar(wxWindow *parent, wxOrientation orientation, int ch)
+  : wxPanel(parent, wxID_ANY, wxDefaultPosition, wxSize(512, 4)), orientation_(orientation)
 {
+  ch_ = ch;
   value_ = 0;
+
+  wxEvtHandler::Bind(wxEVT_CHANGE_VELOCITY, &VolumeBar::OnChangeVelocity, this);
+  wxGetApp().GetSoundManager()->AddListener(this, ch);
 }
 
 wxBEGIN_EVENT_TABLE(VolumeBar, wxPanel)
@@ -122,18 +126,7 @@ wxEND_EVENT_TABLE()
 void VolumeBar::paintEvent(wxPaintEvent &)
 {
   wxPaintDC dc(this);
-  render(dc);
-}
 
-void VolumeBar::paintNow()
-{
-  wxClientDC dc(this);
-  render(dc);
-}
-
-
-void VolumeBar::render(wxDC &dc)
-{
   wxASSERT(orientation_ == wxHORIZONTAL);
 
   int barWidth, barHeight;
@@ -147,7 +140,7 @@ void VolumeBar::render(wxDC &dc)
   const int gapHeight = 1;
   const int blockHeight = barHeight - gapHeight*2;
 
-  int val = value_ * barWidth / max_;
+  int val = static_cast<int>(value_ * barWidth);
 
   wxPen greenPen(*wxGREEN, 1);
   wxPen yellowPen(*wxYELLOW, 1);
@@ -171,6 +164,29 @@ void VolumeBar::render(wxDC &dc)
   }
   dc.DrawRectangle(val, gapHeight, barWidth-val, blockHeight);
 }
+
+
+void VolumeBar::OnChangeVelocity(wxThreadEvent& event) {
+    NoteInfo note = event.GetPayload<NoteInfo>();
+    const float prev_vel = GetValue();
+    if (note.velocity != prev_vel) {
+        SetValue(note.velocity);
+        int width, height;
+        GetSize(&width, &height);
+        wxRect rect;
+        if (prev_vel <= note.velocity) {
+            rect.SetLeft(prev_vel);
+            rect.SetRight(note.velocity);
+        } else {
+            rect.SetLeft(note.velocity);
+            rect.SetRight(prev_vel);
+        }
+        rect.SetTop(0);
+        rect.SetBottom(height);
+        // RefreshRect(rect);
+    }
+}
+
 
 
 
@@ -197,7 +213,7 @@ int KeyboardWidget::calcKeyboardWidth()
 
 KeyboardWidget::KeyboardWidget(wxWindow* parent, int ch, int keyWidth, int keyHeight) :
   wxPanel(parent, wxID_ANY, wxDefaultPosition, wxSize(513, keyHeight)),
-  octaveMin_(defaultOctaveMin), octaveMax_(defaultOctaveMax), muted_(false)
+  octaveMin_(defaultOctaveMin), octaveMax_(defaultOctaveMax), muted_(false), update_keyboard_(true)
 {
   if (keyWidth < 7) keyWidth_ = 6;
   else keyWidth_ = 8;
@@ -210,7 +226,6 @@ KeyboardWidget::KeyboardWidget(wxWindow* parent, int ch, int keyWidth, int keyHe
   wxEvtHandler::Bind(wxEVT_NOTE_ON, &KeyboardWidget::OnNoteOn, this);
   wxEvtHandler::Bind(wxEVT_NOTE_OFF, &KeyboardWidget::OnNoteOff, this);
 
-  // Spu.Channels[ch].AddListener(this);
   wxGetApp().GetSoundManager()->AddListener(this, ch);
 }
 
@@ -364,29 +379,34 @@ void KeyboardWidget::PaintReleasedKeys(const IntSet &keys)
 
 void KeyboardWidget::render(wxDC &dc)
 {
-  wxASSERT(keyWidth_ == 8);
+  if (update_keyboard_ == true) {
 
-  const int numOctaves = octaveMax_ - octaveMin_ - 1;
+    wxASSERT(keyWidth_ == 8);
 
-  wxPen blackPen(*wxBLACK, 1);
-  dc.SetPen(blackPen);
-  dc.SetBrush(*wxWHITE_BRUSH);
+    const int numOctaves = octaveMax_ - octaveMin_ - 1;
 
-  for (int i = 0; i < numOctaves * 7 + 1; i++) {
-    dc.DrawRectangle(i*keyWidth_, 0, keyWidth_+1, keyHeight_);
-  }
+    wxPen blackPen(*wxBLACK, 1);
+    dc.SetPen(blackPen);
+    dc.SetBrush(*wxWHITE_BRUSH);
 
-  dc.SetBrush(*wxBLACK_BRUSH);
-  for (int i = 0; i < numOctaves * 7; i++) {
-    switch (i % 7) {
-    case 0: /* FALLTHRU */
-    case 1: /* FALLTHRU */
-    case 3: /* FALLTHRU */
-    case 4: /* FALLTHRU */
-    case 5:
-      dc.DrawRectangle(i*keyWidth_+6, 0, 6, keyHeight_/2);
-      break;
+    for (int i = 0; i < numOctaves * 7 + 1; i++) {
+      dc.DrawRectangle(i*keyWidth_, 0, keyWidth_+1, keyHeight_);
     }
+
+    dc.SetBrush(*wxBLACK_BRUSH);
+    for (int i = 0; i < numOctaves * 7; i++) {
+      switch (i % 7) {
+      case 0: /* FALLTHRU */
+      case 1: /* FALLTHRU */
+      case 3: /* FALLTHRU */
+      case 4: /* FALLTHRU */
+      case 5:
+        dc.DrawRectangle(i*keyWidth_+6, 0, 6, keyHeight_/2);
+        break;
+      }
+    }
+
+    // update_keyboard_ = false;
   }
 
   PaintPressedKeys(pressedKeys_);
@@ -434,13 +454,13 @@ void KeyboardWidget::ReleaseKey(int keyIndex)
 
 
 
-void KeyboardWidget::OnNoteOn(wxCommandEvent &event) {
-  // NoteInfo note = event.GetPayload<NoteInfo>();
-  // PressKey(note.pitch);
+void KeyboardWidget::OnNoteOn(wxThreadEvent &event) {
+  NoteInfo note = event.GetPayload<NoteInfo>();
+  PressKey(note.pitch);
 }
 
 
-void KeyboardWidget::OnNoteOff(wxCommandEvent& WXUNUSED(event)) {
+void KeyboardWidget::OnNoteOff(wxThreadEvent &WXUNUSED) {
   ReleaseKey();
 }
 
@@ -452,9 +472,7 @@ void KeyboardWidget::OnNoteOff(wxCommandEvent& WXUNUSED(event)) {
 
 
 ChannelPanel::ChannelPanel(wxWindow *parent)
-  : wxPanel(parent, -1, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL, "channel_panel"),
-    timer(this)
-{
+  : wxPanel(parent, -1, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL, "channel_panel") {
   wholeSizer = new wxBoxSizer(wxVERTICAL);
 
   for (int i = 0; i < 24; i++) {
@@ -470,7 +488,7 @@ ChannelPanel::ChannelPanel(wxWindow *parent)
     element.keyboard = new KeyboardWidget(this, i, 8, 20);
     element.volumeSizer->Add(element.keyboard, 0, wxTOP | wxFIXED_MINSIZE, 1);
 
-    element.volumeLeft = new VolumeBar(this, wxHORIZONTAL, 1024);
+    element.volumeLeft = new VolumeBar(this, wxHORIZONTAL, i);
     element.volumeSizer->Add(element.volumeLeft);
     element.channelSizer->Add(element.volumeSizer, 0, wxTOP | wxBOTTOM | wxFIXED_MINSIZE, 1);
 
@@ -489,32 +507,4 @@ ChannelPanel::ChannelPanel(wxWindow *parent)
   wholeSizer->Fit(this);
 
   // Spu.AddListener(this);
-
-  timer.Start(50, wxTIMER_CONTINUOUS);
-}
-
-
-ChannelPanel::DrawTimer::DrawTimer(wxWindow* parent): parent(parent)
-{
-}
-
-
-void ChannelPanel::DrawTimer::Notify()
-{
-  //    parent->Update();
-  //    parent->Refresh();
-}
-
-
-void ChannelPanel::Update()
-{
-  SoundDriver *soundDevice = wxGetApp().GetSoundManager();
-  int i = 0;
-  for (wxVector<ChannelElement>::iterator it = elements.begin(), it_end = elements.end(); it != it_end; ++it) {
-    int currVol = it->volumeLeft->GetValue();
-    int nextVol = soundDevice->GetEnvelopeVolume(i++);
-    if (currVol == nextVol) continue;
-    it->volumeLeft->SetValue(nextVol);
-    it->volumeLeft->Refresh();
-  }
 }

@@ -7,14 +7,21 @@ const int NUM_BUFFERS = 50;
 const int NSSIZE = 45;
 
 
-wxDEFINE_EVENT(wxEVT_NOTE_ON, wxCommandEvent);
-wxDEFINE_EVENT(wxEVT_NOTE_OFF, wxCommandEvent);
-wxDEFINE_EVENT(wxEVT_CHANGE_TONE_NUMBER, wxCommandEvent);
-wxDEFINE_EVENT(wxEVT_CHANGE_PITCH, wxCommandEvent);
-wxDEFINE_EVENT(wxEVT_CHANGE_VELOCITY, wxCommandEvent);
+wxDEFINE_EVENT(wxEVT_NOTE_ON, wxThreadEvent);
+wxDEFINE_EVENT(wxEVT_NOTE_OFF, wxThreadEvent);
+wxDEFINE_EVENT(wxEVT_CHANGE_TONE_NUMBER, wxThreadEvent);
+wxDEFINE_EVENT(wxEVT_CHANGE_PITCH, wxThreadEvent);
+wxDEFINE_EVENT(wxEVT_CHANGE_VELOCITY, wxThreadEvent);
 
-
-
+/*
+wxBEGIN_EVENT_TABLE(SoundDriver, wxEvtHandler)
+EVT_THREAD(wxID_ANY, wxEVT_NOTE_ON, SoundDriver::OnNoteOn)
+EVT_THREAD(wxID_ANY, wxEVT_NOTE_OFF, SoundDriver::OnNoteOff)
+EVT_THREAD(wxID_ANY, wxEVT_CHANGE_TONE_NUMBER, SoundDriver::OnChangeToneNumber)
+EVT_THREAD(wxID_ANY, wxEVT_CHANGE_PITCH, SoundDriver::OnChangePitch)
+EVT_THREAD(wxID_ANY, wxEVT_CHANGE_VELOCITY, SoundDriver::OnChangeVelocity)
+wxEND_EVENT_TABLE()
+*/
 
 
 //////////////////////////////////////////////////////////////////////
@@ -162,35 +169,35 @@ void SoundDriver::AddListener(wxEvtHandler *listener, int ch) {
 
 
 
-void SoundDriver::Notify(wxCommandEvent& event) {
+void SoundDriver::Notify(wxThreadEvent &event) {
   const int ch = event.GetInt();
-  wxVector<wxEvtHandler*>& listeners = listeners_[ch];
+  wxVector<wxEvtHandler*>& listeners = listeners_.at(ch);
   wxVector<wxEvtHandler*>::iterator itr = listeners.begin();
   const wxVector<wxEvtHandler*>::iterator itrEnd = listeners.end();
   while (itr != itrEnd) {
-    (*itr)->QueueEvent(&event);
+    (*itr)->AddPendingEvent(event);
     ++itr;
   }
 }
 
 
-void SoundDriver::OnNoteOn(wxCommandEvent &event) {
+void SoundDriver::OnNoteOn(wxThreadEvent &event) {
   Notify(event);
 }
 
-void SoundDriver::OnNoteOff(wxCommandEvent& event) {
+void SoundDriver::OnNoteOff(wxThreadEvent& event) {
   Notify(event);
 }
 
-void SoundDriver::OnChangeToneNumber(wxCommandEvent& event) {
+void SoundDriver::OnChangeToneNumber(wxThreadEvent& event) {
   Notify(event);
 }
 
-void SoundDriver::OnChangePitch(wxCommandEvent& event) {
+void SoundDriver::OnChangePitch(wxThreadEvent& event) {
   Notify(event);
 }
 
-void SoundDriver::OnChangeVelocity(wxCommandEvent& event) {
+void SoundDriver::OnChangeVelocity(wxThreadEvent& event) {
   Notify(event);
 }
 

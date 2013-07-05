@@ -39,6 +39,7 @@ bool RennypsfApp::OnInit()
 
 int RennypsfApp::OnExit() {
     delete soundDevice_;
+    return 0;
 }
 
 
