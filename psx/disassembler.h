@@ -47,7 +47,7 @@ private:
     // void HLECALL(Instruction);
 
 private:
-    uint32_t pc0;
+    u32 pc0;
     wxString opcodeName;
     wxVector<wxString> operands;
     wxVector<wxString> changedRegisters;

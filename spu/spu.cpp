@@ -35,61 +35,47 @@ namespace SPU {
   }
 
 
-  void ChannelInfo::AddListener(wxEvtHandler* listener) {
-    listeners_.push_back(listener);
-  }
-
-
-  void ChannelInfo::RemoveListener(wxEvtHandler* listener) {
-    wxVector<wxEvtHandler*>::iterator itr = listeners_.begin();
-    const wxVector<wxEvtHandler*>::const_iterator itrEnd = listeners_.end();
-    while (itr != itrEnd) {
-      if (*itr == listener) {
-        listeners_.erase(itr);
-        break;
-      }
-      ++itr;
-    }
-  }
-
-
   void ChannelInfo::NotifyOnNoteOn() const {
 
-    wxCommandEvent event(wxEVT_NOTE_ON);
+    wxThreadEvent event(wxEVT_NOTE_ON);
     NoteInfo note;
     note.is_on = true;
     note.tone_number_ = tone->GetAddr();
     note.pitch = Pitch;
     note.velocity = ADSRX.EnvelopeVol / 1024.0;
     event.SetInt(ch);
-    // event.SetPayload(note);
+    event.SetPayload(note);
 
-    wxVector<wxEvtHandler*>::const_iterator itr = listeners_.begin();
-    const wxVector<wxEvtHandler*>::const_iterator itrEnd = listeners_.end();
-    while (itr != itrEnd) {
-      // (*itr)->AddPendingEvent(event);
-      ++itr;
-    }
+    Spu().sound_driver_->OnNoteOn(event);
   }
 
 
   void ChannelInfo::NotifyOnNoteOff() const {
 
-    wxCommandEvent event(wxEVT_NOTE_OFF);
+    wxThreadEvent event(wxEVT_NOTE_OFF);
     NoteInfo note;
     note.is_on = false;
     note.tone_number_ = -1;
-    // note.pitch = Pitch;
+    note.pitch = 0.0;
     // note.velocity = ADSRX.EnvelopeVol / 1024.0;
     event.SetInt(ch);
-    // event.SetPayload(note);
+    event.SetPayload(note);
 
-    wxVector<wxEvtHandler*>::const_iterator itr = listeners_.begin();
-    const wxVector<wxEvtHandler*>::const_iterator itrEnd = listeners_.end();
-    while (itr != itrEnd) {
-      // (*itr)->ProcessEvent(event);
-      ++itr;
-    }
+    Spu().sound_driver_->OnNoteOff(event);
+  }
+
+
+  void ChannelInfo::NotifyOnChangeVelocity() const {
+
+    wxThreadEvent event(wxEVT_CHANGE_VELOCITY);
+    NoteInfo note;
+    note.is_on = isOn;
+    note.tone_number_ = -1;
+    note.velocity = static_cast<float>(ADSRX.EnvelopeVol) / 1024.0;
+    event.SetInt(ch);
+    event.SetPayload(note);
+
+    Spu().sound_driver_->OnChangeVelocity(event);
   }
 
 
@@ -162,7 +148,12 @@ namespace SPU {
       fa = pInterpolation->GetValue();
     }
 
-    sval = (MixADSR() * fa) / 1023;
+    u32 prev_envvol = ADSRX.EnvelopeVol;
+    u32 curr_envvol = MixADSR();
+    sval = (curr_envvol * fa) / 1023;
+    if (prev_envvol != curr_envvol) {
+        NotifyOnChangeVelocity();
+    }
 
     if (bFMod == 2) {
       // TODO: FM
@@ -260,15 +251,10 @@ namespace SPU {
   }
 
   void SPUBase::SetSoundDriver(SoundDriver *sound_driver) {
-    // TODO: channel number to more robust
-    for (int i = 0; i < 24; i++) {
-      Channel(i).RemoveListener(sound_driver_);
-      Channel(i).AddListener(sound_driver);
-    }
     sound_driver_ = sound_driver;
   }
 
-
+/*
   void SPUBase::AddListener(wxEvtHandler *listener) {
     // listeners_.insert(listener);
   }
@@ -285,7 +271,7 @@ namespace SPU {
   void SPUBase::RemoveListener(wxEvtHandler *listener, int ch) {
     Channel(ch).RemoveListener(listener);
   }
-
+*/
 
   void SPUBase::NotifyOnUpdateStartAddress(int ch) const {
     pthread_mutex_lock(&process_mutex_);
@@ -323,12 +309,6 @@ namespace SPU {
     }
     pthread_mutex_unlock(&wait_start_mutex_);
   }
-
-
-
-
-
-
 
 
 

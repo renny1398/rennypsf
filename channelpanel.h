@@ -36,22 +36,19 @@ private:
 class VolumeBar : public wxPanel
 {
 public:
-  VolumeBar(wxWindow* parent, wxOrientation orientation, int max);
+  VolumeBar(wxWindow* parent, wxOrientation orientation, int ch);
 
-  void paintEvent(wxPaintEvent&);
-  void paintNow();
+  float GetValue() const;
+  void SetValue(float value);
 
 protected:
-  void render(wxDC& dc);
-
-public:
-  int GetValue() const;
-  void SetValue(int value);
+  void paintEvent(wxPaintEvent&);
+  void OnChangeVelocity(wxThreadEvent& event);
 
 private:
   wxOrientation orientation_;
-  int value_;
-  int max_;
+  int ch_;
+  float value_;
 
 
   wxDECLARE_EVENT_TABLE();
@@ -94,8 +91,8 @@ protected:
 protected:
   int calcKeyboardWidth();
 
-  void OnNoteOn(wxCommandEvent& event);
-  void OnNoteOff(wxCommandEvent& event);
+  void OnNoteOn(wxThreadEvent &event);
+  void OnNoteOff(wxThreadEvent& event);
 
 private:
   int keyWidth_, keyHeight_;
@@ -112,11 +109,11 @@ private:
 
 
 
-inline int VolumeBar::GetValue() const {
+inline float VolumeBar::GetValue() const {
   return value_;
 }
 
-inline void VolumeBar::SetValue(int value) {
+inline void VolumeBar::SetValue(float value) {
   value_ = value;
 }
 
@@ -129,9 +126,6 @@ public:
   ChannelPanel(wxWindow* parent);
 
   void ChangeChannelNumber(int n);
-
-protected:
-  void Update();
 
   // void onChangeLoopIndex(wxCommandEvent& event);
 
@@ -148,15 +142,6 @@ private:
     wxStaticText* textToneLoop;
   };
 
-  class DrawTimer: public wxTimer {
-  public:
-    DrawTimer(wxWindow* parent);
-    void Notify();
-  private:
-    wxWindow* parent;
-  };
-
   wxBoxSizer* wholeSizer;
   wxVector<ChannelElement> elements;
-  DrawTimer timer;
 };

@@ -200,16 +200,12 @@ public:
     ADSRInfoEx      ADSRX;                              // next ADSR settings (will be moved to active on sample start)
 
 
-    void AddListener(wxEvtHandler* listener);
-    void RemoveListener(wxEvtHandler* listener);
-
     void NotifyOnNoteOn() const;
     void NotifyOnNoteOff() const;
+    void NotifyOnChangeVelocity() const;
 
   private:
     static uint32_t rateTable[160];
-
-    wxVector<wxEvtHandler*> listeners_;
 
     friend class ChannelArray;
   };
@@ -311,11 +307,8 @@ public:
     virtual void WriteRegister(uint32_t reg, uint16_t val) = 0;
 
     // Listener Registration
-    void AddListener(wxEvtHandler* listener);
-    void RemoveListener(wxEvtHandler* listener);
-
-    void AddListener(wxEvtHandler *listener, int ch);
-    void RemoveListener(wxEvtHandler *listener, int ch);
+    // void AddListener(wxEvtHandler *listener, int ch);
+    // void RemoveListener(wxEvtHandler *listener, int ch);
 
     // Notify functions
     void NotifyOnUpdateStartAddress(int ch) const;

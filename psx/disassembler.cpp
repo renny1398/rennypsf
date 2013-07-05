@@ -194,7 +194,7 @@ bool Disassembler::parseBranch(Instruction code)
 {
     wxString strRs = regNames[code.Rs()];
     wxString strRt = regNames[code.Rt()];
-    uint32_t addr = (R3000ARegs().PC-4) + (code.Imm() << 2);
+    u32 addr = (R3000ARegs().PC-4) + (code.Imm() << 2);
     wxString strAddr;
     strAddr.Printf(wxT("0x%08x"), addr);
     operands.push_back(strRs);
@@ -207,7 +207,7 @@ bool Disassembler::parseBranch(Instruction code)
 bool Disassembler::parseBranchZ(Instruction code)
 {
     wxString strRs = regNames[code.Rs()];
-    uint32_t addr = (R3000ARegs().PC-4) + (code.Imm() << 2);
+    u32 addr = (R3000ARegs().PC-4) + (code.Imm() << 2);
     wxString strAddr;
     strAddr.Printf(wxT("0x%08x"), addr);
     operands.push_back(strRs);

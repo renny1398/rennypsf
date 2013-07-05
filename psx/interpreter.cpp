@@ -41,7 +41,7 @@ namespace PSX {
       R3000a().LeaveDelaySlot();
     }
 
-    void Interpreter::delayWrite(Instruction, u32 /*reg*/, u32 branch_pc)
+    void Interpreter::delayWrite(Instruction, u32 reg, u32 branch_pc)
     {
       wxASSERT(reg < 32);
       // OPCODES[code >> 26]();
@@ -50,7 +50,7 @@ namespace PSX {
       R3000a().BranchTest();
     }
 
-    void Interpreter::delayReadWrite(Instruction, u32 /*reg*/, u32 branch_pc)
+    void Interpreter::delayReadWrite(Instruction, u32 reg, u32 branch_pc)
     {
       wxASSERT(reg < 32);
       R3000a().LeaveDelaySlot();

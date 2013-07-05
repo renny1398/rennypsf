@@ -108,14 +108,14 @@ uint_fast32_t interrupt;
 
       CP0.CAUSE = code;
 
-      uint32_t pc = GPR.PC;
+      u32 pc = GPR.PC;
       if (branch_delay) {
           CP0.CAUSE |= 0x80000000;    // set Branch Delay
           pc -= 4;
         }
       CP0.EPC = pc;
 
-      uint32_t status = CP0.SR;
+      u32 status = CP0.SR;
       if (status & 0x400000) { // BEV
           PC = 0xbfc00180;
         } else {
