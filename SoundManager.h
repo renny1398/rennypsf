@@ -18,7 +18,8 @@
 struct NoteInfo {
   bool is_on;
   int tone_number_;
-  float pitch;
+  // float pitch;
+  int pitch;
   float velocity;
 };
 

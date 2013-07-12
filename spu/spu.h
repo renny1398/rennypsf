@@ -202,6 +202,8 @@ public:
 
     void NotifyOnNoteOn() const;
     void NotifyOnNoteOff() const;
+    // void NotifyOnChangeToneNumber() const;
+    void NotifyOnChangePitch() const;
     void NotifyOnChangeVelocity() const;
 
   private:

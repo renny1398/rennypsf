@@ -213,7 +213,7 @@ int KeyboardWidget::calcKeyboardWidth()
 
 KeyboardWidget::KeyboardWidget(wxWindow* parent, int ch, int keyWidth, int keyHeight) :
   wxPanel(parent, wxID_ANY, wxDefaultPosition, wxSize(513, keyHeight)),
-  octaveMin_(defaultOctaveMin), octaveMax_(defaultOctaveMax), muted_(false)
+  octaveMin_(defaultOctaveMin), octaveMax_(defaultOctaveMax), muted_(false), update_keyboard_(true)
 {
   if (keyWidth < 7) keyWidth_ = 6;
   else keyWidth_ = 8;
@@ -379,29 +379,34 @@ void KeyboardWidget::PaintReleasedKeys(const IntSet &keys)
 
 void KeyboardWidget::render(wxDC &dc)
 {
-  wxASSERT(keyWidth_ == 8);
+  if (update_keyboard_ == true) {
 
-  const int numOctaves = octaveMax_ - octaveMin_ - 1;
+    wxASSERT(keyWidth_ == 8);
 
-  wxPen blackPen(*wxBLACK, 1);
-  dc.SetPen(blackPen);
-  dc.SetBrush(*wxWHITE_BRUSH);
+    const int numOctaves = octaveMax_ - octaveMin_ - 1;
 
-  for (int i = 0; i < numOctaves * 7 + 1; i++) {
-    dc.DrawRectangle(i*keyWidth_, 0, keyWidth_+1, keyHeight_);
-  }
+    wxPen blackPen(*wxBLACK, 1);
+    dc.SetPen(blackPen);
+    dc.SetBrush(*wxWHITE_BRUSH);
 
-  dc.SetBrush(*wxBLACK_BRUSH);
-  for (int i = 0; i < numOctaves * 7; i++) {
-    switch (i % 7) {
-    case 0: /* FALLTHRU */
-    case 1: /* FALLTHRU */
-    case 3: /* FALLTHRU */
-    case 4: /* FALLTHRU */
-    case 5:
-      dc.DrawRectangle(i*keyWidth_+6, 0, 6, keyHeight_/2);
-      break;
+    for (int i = 0; i < numOctaves * 7 + 1; i++) {
+      dc.DrawRectangle(i*keyWidth_, 0, keyWidth_+1, keyHeight_);
     }
+
+    dc.SetBrush(*wxBLACK_BRUSH);
+    for (int i = 0; i < numOctaves * 7; i++) {
+      switch (i % 7) {
+      case 0: /* FALLTHRU */
+      case 1: /* FALLTHRU */
+      case 3: /* FALLTHRU */
+      case 4: /* FALLTHRU */
+      case 5:
+        dc.DrawRectangle(i*keyWidth_+6, 0, 6, keyHeight_/2);
+        break;
+      }
+    }
+
+    // update_keyboard_ = false;
   }
 
   PaintPressedKeys(pressedKeys_);
@@ -462,6 +467,51 @@ void KeyboardWidget::OnNoteOff(wxThreadEvent &WXUNUSED) {
 
 
 ////////////////////////////////////////////////////////////////////////
+// Rate text
+////////////////////////////////////////////////////////////////////////
+
+
+RateText::RateText(wxWindow *parent, int ch)
+  : wxStaticText(parent, wxID_ANY, wxT("00000"), wxDefaultPosition)
+{
+  wxEvtHandler::Bind(wxEVT_PAINT, &RateText::OnPaint, this);
+
+  this->SetBackgroundColour(wxColor(255, 255, 255));
+
+  wxEvtHandler::Bind(wxEVT_CHANGE_PITCH, &RateText::OnChangeRate, this);
+  wxGetApp().GetSoundManager()->AddListener(this, ch);
+}
+
+
+void RateText::OnPaint(wxPaintEvent &event) {
+  wxPaintDC dc(this);
+
+  wxString str_rate = wxString::Format(wxT("%d"), rate_);
+  dc.DrawText(str_rate, 0, 0);
+}
+
+
+
+void RateText::OnChangeRate(wxThreadEvent &event) {
+  rate_ = event.GetPayload<NoteInfo>().pitch;
+  if (rate_ > 0x7fff) {
+    rate_ |= 0xffff0000;
+  }
+  // Refresh(false);
+
+  wxClientDC dc(this);
+  // dc.SetBrush(wxWHITE_BRUSH);
+  wxString str_rate = wxString::Format(wxT("%d"), rate_);
+  wxSize size = dc.GetTextExtent(str_rate);
+  dc.SetPen(*wxWHITE_PEN);
+  dc.DrawRectangle(0, 0, size.GetWidth(), size.GetHeight());
+  dc.SetPen(*wxBLACK_PEN);
+  dc.DrawText(str_rate, 0, 0);
+}
+
+
+
+////////////////////////////////////////////////////////////////////////
 // Channel Panel
 ////////////////////////////////////////////////////////////////////////
 
@@ -492,6 +542,9 @@ ChannelPanel::ChannelPanel(wxWindow *parent)
 
     element.textToneLoop = new wxStaticText(this, wxID_ANY, wxT("0"), wxDefaultPosition, wxSize(40, -1));
     element.channelSizer->Add(element.textToneLoop);
+
+    element.rate_text = new RateText(this, i);
+    element.channelSizer->Add(element.rate_text);
 
     wholeSizer->Add(element.channelSizer);
     elements.push_back(element);

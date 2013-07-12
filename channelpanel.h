@@ -100,6 +100,7 @@ private:
 
   IntSet pressedKeys_;
   bool muted_;
+  bool update_keyboard_;
 
   static const int defaultOctaveMin = -1;
   static const int defaultOctaveMax = 9;
@@ -116,6 +117,24 @@ inline float VolumeBar::GetValue() const {
 inline void VolumeBar::SetValue(float value) {
   value_ = value;
 }
+
+
+#include <wx/stattext.h>
+
+class RateText : public wxStaticText {
+
+public:
+  RateText(wxWindow* parent, int ch);
+
+protected:
+  void OnPaint(wxPaintEvent &event);
+  void OnChangeRate(wxThreadEvent& event);
+
+private:
+  int rate_;
+};
+
+
 
 
 #include <wx/event.h>
@@ -140,6 +159,7 @@ private:
     VolumeBar *volumeLeft;
     wxStaticText* textToneOffset;
     wxStaticText* textToneLoop;
+    wxStaticText* rate_text;
   };
 
   wxBoxSizer* wholeSizer;

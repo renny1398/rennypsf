@@ -175,7 +175,8 @@ void SoundDriver::Notify(wxThreadEvent &event) {
   wxVector<wxEvtHandler*>::iterator itr = listeners.begin();
   const wxVector<wxEvtHandler*>::iterator itrEnd = listeners.end();
   while (itr != itrEnd) {
-    (*itr)->AddPendingEvent(event);
+    (*itr)->ProcessEvent(event);
+    //(*itr)->AddPendingEvent(event);
     ++itr;
   }
 }

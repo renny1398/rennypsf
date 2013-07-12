@@ -319,7 +319,10 @@ void write1xx2(ChannelInfo& channelInfo, uint16_t volume)
 void write1xx4(ChannelInfo& channelInfo, uint16_t val)
 {
   int NP = (val > 0x3fff) ? 0x3fff : val;
-  channelInfo.iRawPitch = NP;
+  if (channelInfo.iRawPitch != NP) {
+    channelInfo.iRawPitch = NP;
+    channelInfo.NotifyOnChangePitch();
+  }
   NP = 44100*NP/0x1000;
   if (NP < 1) NP = 1;
   channelInfo.iActFreq = NP;

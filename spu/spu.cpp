@@ -31,7 +31,11 @@ namespace SPU {
     spu_(*pSPU), pInterpolation(new GaussianInterpolation(*this))
   // TODO: how to generate GaussianInterpolation
   {
+    isOn = false;
     is_ready = false;
+    lpcm_buffer_l.reset(new short[pSPU->NSSIZE]);
+    lpcm_buffer_r.reset(new short[pSPU->NSSIZE]);
+    is_muted = false;
   }
 
 
@@ -65,6 +69,19 @@ namespace SPU {
   }
 
 
+  void ChannelInfo::NotifyOnChangePitch() const {
+    wxThreadEvent event(wxEVT_CHANGE_PITCH);
+    NoteInfo note;
+    note.is_on = isOn;
+    note.tone_number_ = -1;
+    note.pitch = iRawPitch;
+    note.velocity = static_cast<float>(ADSRX.EnvelopeVol) / 1024.0;
+    event.SetInt(ch);
+    event.SetPayload(note);
+
+    Spu().sound_driver_->OnChangePitch(event);
+  }
+
   void ChannelInfo::NotifyOnChangeVelocity() const {
 
     wxThreadEvent event(wxEVT_CHANGE_VELOCITY);
@@ -75,7 +92,7 @@ namespace SPU {
     event.SetInt(ch);
     event.SetPayload(note);
 
-    Spu().sound_driver_->OnChangeVelocity(event);
+    // Spu().sound_driver_->OnChangeVelocity(event);
   }
 
 
@@ -148,8 +165,9 @@ namespace SPU {
       fa = pInterpolation->GetValue();
     }
 
-    u32 prev_envvol = ADSRX.EnvelopeVol;
-    u32 curr_envvol = MixADSR();
+    // sval = (MixADSR() * fa) / 1023;
+    int prev_envvol = ADSRX.EnvelopeVol;
+    int curr_envvol = MixADSR();
     sval = (curr_envvol * fa) / 1023;
     if (prev_envvol != curr_envvol) {
         NotifyOnChangeVelocity();
@@ -194,9 +212,6 @@ namespace SPU {
     for (int i = 0; i < channelNumber; i++) {
       ChannelInfo* channel = new ChannelInfo(pSPU);
       channel->ch = i;
-      channel->lpcm_buffer_l.reset(new short[pSPU->NSSIZE]);
-      channel->lpcm_buffer_r.reset(new short[pSPU->NSSIZE]);
-      channel->is_muted = false;
       channels_.push_back(channel);
     }
   }
@@ -517,11 +532,12 @@ namespace SPU {
   {
     int32_t do_samples;
 
+    const int SPEED = 384;
     // 384 = PSXCLK / (44100*2)
     poo += cycles;
-    do_samples = poo / 384;
+    do_samples = poo / SPEED;
     if (do_samples == 0) return;
-    poo -= do_samples * 384;
+    poo -= do_samples * SPEED;
 
     ChangeProcessState(STATE_PSX_IS_READY, do_samples);
   }
