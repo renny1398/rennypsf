@@ -18,14 +18,14 @@ namespace PSX {
   {
     counters[index].sCycle = R3000ARegs().Cycle;
     if ( (!(counters[index].mode & 1) || (index != 2)) && counters[index].mode & 0x30 ) {
-        if (counters[index].mode & 0x10) {  // interrupt on target
-            counters[index].Cycle = (counters[index].target - counters[index].count) * counters[index].rate / BIAS;
-          } else {    // interrupt on 0xffff
-            counters[index].Cycle = (0xffff - counters[index].count) * counters[index].rate / BIAS;
-          }
-      } else {
-        counters[index].Cycle = 0xffffffff;
+      if (counters[index].mode & 0x10) {  // interrupt on target
+        counters[index].Cycle = (counters[index].target - counters[index].count) * counters[index].rate / BIAS;
+      } else {    // interrupt on 0xffff
+        counters[index].Cycle = (0xffff - counters[index].count) * counters[index].rate / BIAS;
       }
+    } else {
+      counters[index].Cycle = 0xffffffff;
+    }
 
   }
 
@@ -38,8 +38,8 @@ namespace PSX {
 
     U32H_ref(0x1070) |= BFLIP32(counters[index].interrupt);
     if ( (counters[index].mode & 0x40) == 0 ) { // only 1 interrupt
-        counters[index].Cycle = 0xffffffff;
-      }
+      counters[index].Cycle = 0xffffffff;
+    }
   }
 
   void RootCounter::Set()
@@ -48,18 +48,18 @@ namespace PSX {
     nextsCounter = R3000ARegs().Cycle;
 
     for (int i = 0; i < counter_num; i++) {
-        int count;
-        if (counters[i].Cycle == 0xffffffff) continue;
+      int count;
+      if (counters[i].Cycle == 0xffffffff) continue;
 
-        count = counters[i].Cycle - (R3000ARegs().Cycle - counters[i].sCycle);
-        if (count < 0) {
-            nextCounter = 0;
-            break;
-          }
-        if (count < static_cast<int>(nextCounter)) {
-            nextCounter = count;
-          }
+      count = counters[i].Cycle - (R3000ARegs().Cycle - counters[i].sCycle);
+      if (count < 0) {
+        nextCounter = 0;
+        break;
       }
+      if (count < static_cast<int>(nextCounter)) {
+        nextCounter = count;
+      }
+    }
   }
 
 
@@ -96,18 +96,18 @@ namespace PSX {
   {
     uint32_t cycle = R3000ARegs().Cycle;
     if ( (cycle - counters[3].sCycle) >= counters[3].Cycle ) {
-        UpdateEx(3);
-        U32H_ref(0x1070) |= BFLIP32(1);
-      }
+      UpdateEx(3);
+      U32H_ref(0x1070) |= BFLIP32(1);
+    }
     if ( (cycle - counters[0].sCycle) >= counters[0].Cycle ) {
-        Reset(0);
-      }
+      Reset(0);
+    }
     if ( (cycle - counters[1].sCycle) >= counters[1].Cycle ) {
-        Reset(1);
-      }
+      Reset(1);
+    }
     if ( (cycle - counters[2].sCycle) >= counters[2].Cycle ) {
-        Reset(2);
-      }
+      Reset(2);
+    }
 
     Set();
   }
@@ -127,32 +127,32 @@ namespace PSX {
     counters[index].count = 0;
 
     if (index == 0) {   // pixel clock
-        switch (value & 0x300) {
-          case 0x100: // pixel clock
-            counters[index].rate = (counters[3].rate / 386) / 262; // seems ok
-            break;
-          default:
-            counters[index].rate = 1;
-          }
+      switch (value & 0x300) {
+      case 0x100: // pixel clock
+        counters[index].rate = (counters[3].rate / 386) / 262; // seems ok
+        break;
+      default:
+        counters[index].rate = 1;
       }
+    }
     else if (index == 1) {  // horizontal clock
-        switch (value & 0x300) {
-          case 0x100: // horizontal clock
-            counters[index].rate = (counters[3].rate) / 262; // seems ok
-            break;
-          default:
-            counters[index].rate = 1;
-          }
+      switch (value & 0x300) {
+      case 0x100: // horizontal clock
+        counters[index].rate = (counters[3].rate) / 262; // seems ok
+        break;
+      default:
+        counters[index].rate = 1;
       }
+    }
     else if (index == 2) {  // 1/8 system clock
-        switch (value & 0x300) {
-          case 0x200: // 1/8 * system clock
-            counters[index].rate = 8; // 1/8 speed
-            break;
-          default:
-            counters[index].rate = 1; // normal speed
-          }
+      switch (value & 0x300) {
+      case 0x200: // 1/8 * system clock
+        counters[index].rate = 8; // 1/8 speed
+        break;
+      default:
+        counters[index].rate = 1; // normal speed
       }
+    }
 
     UpdateEx(index);
     Set();
@@ -172,10 +172,10 @@ namespace PSX {
     unsigned int ret;
 
     if (counters[index].mode & 0x08) {  // count to value in target
-        ret = counters[index].count + BIAS*((R3000ARegs().Cycle - counters[index].sCycle) / counters[index].rate);
-      } else {    // count to 0xffff
-        ret = counters[index].count + BIAS*(R3000ARegs().Cycle / counters[index].rate);
-      }
+      ret = counters[index].count + BIAS*((R3000ARegs().Cycle - counters[index].sCycle) / counters[index].rate);
+    } else {    // count to 0xffff
+      ret = counters[index].count + BIAS*(R3000ARegs().Cycle / counters[index].rate);
+    }
 
     return ret & 0xffff;
   }
@@ -185,16 +185,16 @@ namespace PSX {
   {
     uint32_t cycles;
     if (R3000ARegs().Cycle < last) {
-        cycles = 0xffffffff - last;
-        cycles += R3000ARegs().Cycle + 1;
-      } else {
-        cycles = R3000ARegs().Cycle - last;
-      }
+      cycles = 0xffffffff - last;
+      cycles += R3000ARegs().Cycle + 1;
+    } else {
+      cycles = R3000ARegs().Cycle - last;
+    }
 
     if (cycles >= 16) {
-        Spu().Async(cycles);
-        last = R3000ARegs().Cycle;
-      }
+      Spu().Async(cycles);
+      last = R3000ARegs().Cycle;
+    }
     return 1;
   }
 
@@ -208,19 +208,19 @@ namespace PSX {
     lmin = 0x7fffffff;
 
     for (int i = 0; i < 4; i++) {
-        if (counters[i].Cycle != 0xffffffff) {
-            min = counters[i].Cycle;
-            min -= cycle - counters[i].sCycle;
-            // wxASSERT(min >= 0);
-            if (min < lmin) {
-                lmin = min;
-              }
-          }
+      if (counters[i].Cycle != 0xffffffff) {
+        min = counters[i].Cycle;
+        min -= cycle - counters[i].sCycle;
+        // wxASSERT(min >= 0);
+        if (min < lmin) {
+          lmin = min;
+        }
       }
+    }
 
     if (lmin > 0) {
-        R3000ARegs().Cycle = cycle + lmin;
-      }
+      R3000ARegs().Cycle = cycle + lmin;
+    }
   }
 
 

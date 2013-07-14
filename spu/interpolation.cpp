@@ -3,7 +3,7 @@
 
 namespace {
 
-const int gauss_table[]={
+  const int gauss_table[]={
     0x172, 0x519, 0x176, 0x000, 0x16E, 0x519, 0x17A, 0x000,
     0x16A, 0x518, 0x17D, 0x000, 0x166, 0x518, 0x181, 0x000,
     0x162, 0x518, 0x185, 0x000, 0x15F, 0x518, 0x189, 0x000,
@@ -132,71 +132,71 @@ const int gauss_table[]={
     0x000, 0x189, 0x518, 0x15F, 0x000, 0x185, 0x518, 0x162,
     0x000, 0x181, 0x518, 0x166, 0x000, 0x17D, 0x518, 0x16A,
     0x000, 0x17A, 0x519, 0x16E, 0x000, 0x176, 0x519, 0x172
-};
+  };
 
 }   // namespace
 
 
 namespace SPU {
 
-InterpolationBase::InterpolationBase(const ChannelInfo& info): channelInfo(info) {}
+  InterpolationBase::InterpolationBase(const ChannelInfo& info): channelInfo(info) {}
 
-void InterpolationBase::Start()
-{
+  void InterpolationBase::Start()
+  {
     currSample = 0;
-//    nextSample = 0;
-}
+    //    nextSample = 0;
+  }
 
-void InterpolationBase::SetSinc(uint32_t pitch)
-{
+  void InterpolationBase::SetSinc(uint32_t pitch)
+  {
     sinc = (pitch << 4);
     if (sinc == 0) sinc = 1;
-}
+  }
 
-void InterpolationBase::StoreValue(int fa)
-{
+  void InterpolationBase::StoreValue(int fa)
+  {
     if (channelInfo.bFMod == 2) {
-        currSample = fa;
-        return;
+      currSample = fa;
+      return;
     }
     if ( (channelInfo.Spu().Sp0 & 0x4000) == 0 ) {    // warning: Spu
-        fa = 0;
+      fa = 0;
     } else {
-        if (fa > 32767) fa = 32767;
-        if (fa < -32767) fa = -32767;
+      if (fa > 32767) fa = 32767;
+      if (fa < -32767) fa = -32767;
     }
     storeVal(fa);
-}
+  }
 
-int InterpolationBase::GetValue()
-{
+  int InterpolationBase::GetValue()
+  {
     if (channelInfo.bFMod == 2) {
-        return currSample;
+      return currSample;
     }
     return getVal();
-}
+  }
 
 
-void GaussianInterpolation::Start()
-{
+  void GaussianInterpolation::Start()
+  {
     InterpolationBase::Start();
     spos = 0x30000;
     gpos = 0;
     for (int i = 0; i < 4; i++) {
-        samples[i] = 0;
+      samples[i] = 0;
     }
-}
+  }
 
 
-void GaussianInterpolation::storeVal(int fa)
-{
+  void GaussianInterpolation::storeVal(int fa)
+  {
     samples[gpos] = fa;
     gpos = (gpos+1) & 3;
-}
+  }
 
 
-int GaussianInterpolation::getVal() const
-{
+  int GaussianInterpolation::getVal() const
+  {
     const int gval0 = samples[gpos];
     const int gval1 = samples[(gpos+1)&3];
     const int gval2 = samples[(gpos+2)&3];
@@ -207,29 +207,29 @@ int GaussianInterpolation::getVal() const
     vr += (gauss_table[vl+2] * gval2) >> 9;
     vr += (gauss_table[vl+3] * gval3) >> 9;
     return vr >> 2;
-}
+  }
 
 
-void CubicInterpolation::Start()
-{
+  void CubicInterpolation::Start()
+  {
     InterpolationBase::Start();
     spos = 0x30000;
     gpos = 0;
     for (int i = 0; i < 4; i++) {
-        samples[i] = 0;
+      samples[i] = 0;
     }
-}
+  }
 
 
-void CubicInterpolation::storeVal(int fa)
-{
+  void CubicInterpolation::storeVal(int fa)
+  {
     samples[gpos] = fa;
     gpos = (gpos+1) & 3;
-}
+  }
 
 
-int CubicInterpolation::getVal() const
-{
+  int CubicInterpolation::getVal() const
+  {
     const int gval0 = samples[gpos];
     const int gval1 = samples[(gpos+1)&3];
     const int gval2 = samples[(gpos+2)&3];
@@ -248,7 +248,7 @@ int CubicInterpolation::getVal() const
     fa = fa + gval0;
 
     return fa;
-}
+  }
 
 
 }   // namespace SPU

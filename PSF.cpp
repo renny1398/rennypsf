@@ -137,7 +137,7 @@ bool PSF1::LoadBinary()
   psx_->R3000ARegs().GPR.SP = header.sp0;
 
   zlib_stream.Read(uncompressed + 0x800, 0x200000);
-  psx_->InitMemory();
+  // psx_->InitMemory();
   psx_->Memcpy(header.text_addr, uncompressed + 0x800, header.text_size);
 
   m_header = header;

@@ -15,7 +15,7 @@ namespace PSX {
 
 
   void Composite::Reset() {
-    r3000a_.Init();
+    // r3000a_.Init();
     rcnt_.Init();
     spu_.Open();
   }

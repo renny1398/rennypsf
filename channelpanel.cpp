@@ -55,7 +55,9 @@ void MuteButton::render(wxDC &dc)
   }
   dc.SetBrush(*wxWHITE_BRUSH);
   const wxString label = wxString::Format(wxT("ch.%2d"), channel_number_);
-  dc.DrawLabel(label, wxRect(0, 0, width, height), wxALIGN_CENTER_VERTICAL | wxALIGN_CENTER_HORIZONTAL);
+  wxSize str_size = dc.GetTextExtent(label);
+  dc.DrawText(label, (width - str_size.GetWidth()) / 2, (height - str_size.GetHeight()) / 2);
+  // dc.DrawLabel(label, wxRect(0, 0, width, height), wxALIGN_CENTER_VERTICAL | wxALIGN_CENTER_HORIZONTAL);
 }
 
 
@@ -88,15 +90,16 @@ void MuteButton::onLeave(wxMouseEvent& WXUNUSED(event))
 void MuteButton::onClick(wxMouseEvent &)
 {
   muted_ = !muted_;
-  /*
-    Spu.Channels[channel_number_].is_muted = muted_;
-    if (muted_) {
-        wxMessageOutputDebug().Printf(wxT("Mute on ch.%d"), channel_number_);
-    } else {
-        wxMessageOutputDebug().Printf(wxT("Mute off ch.%d"), channel_number_);
-    }
-    paintNow();
-*/
+  if (muted_) {
+    wxGetApp().GetSoundManager()->Mute(channel_number_);
+    SetForegroundColour(wxColour(128, 128, 128));
+    // wxMessageOutputDebug().Printf(wxT("Mute on ch.%d"), channel_number_);
+  } else {
+    wxGetApp().GetSoundManager()->Unmute(channel_number_);
+    SetForegroundColour(wxColour(0, 0, 0));
+    // wxMessageOutputDebug().Printf(wxT("Mute off ch.%d"), channel_number_);
+  }
+  Refresh(false);
 }
 
 
@@ -213,7 +216,7 @@ int KeyboardWidget::calcKeyboardWidth()
 
 KeyboardWidget::KeyboardWidget(wxWindow* parent, int ch, int keyWidth, int keyHeight) :
   wxPanel(parent, wxID_ANY, wxDefaultPosition, wxSize(513, keyHeight)),
-  octaveMin_(defaultOctaveMin), octaveMax_(defaultOctaveMax), muted_(false), update_keyboard_(true)
+  octaveMin_(defaultOctaveMin), octaveMax_(defaultOctaveMax), muted_(false), update_key_(true)
 {
   if (keyWidth < 7) keyWidth_ = 6;
   else keyWidth_ = 8;
@@ -223,8 +226,11 @@ KeyboardWidget::KeyboardWidget(wxWindow* parent, int ch, int keyWidth, int keyHe
   // wxSize size = wxWindow::GetSize();
   // wxMessageOutputDebug().Printf(wxT("(%d, %d)"), size.GetWidth(), size.GetHeight());
 
+  SetBackgroundColour(*wxWHITE);
+
   wxEvtHandler::Bind(wxEVT_NOTE_ON, &KeyboardWidget::OnNoteOn, this);
   wxEvtHandler::Bind(wxEVT_NOTE_OFF, &KeyboardWidget::OnNoteOff, this);
+  wxEvtHandler::Bind(wxEVT_CHANGE_PITCH, &KeyboardWidget::OnChangePitch, this);
 
   wxGetApp().GetSoundManager()->AddListener(this, ch);
 }
@@ -334,52 +340,77 @@ void KeyboardWidget::CalcKeyRect(int key, wxRect *rect)
 }
 
 
-void KeyboardWidget::PaintPressedKeys(const IntSet &keys)
+void KeyboardWidget::PaintPressedKeys(const IntSet &keys, wxPaintDC* paint_dc)
 {
-  if (pressedKeys_.empty()) return;
+  update_key_ = false;
 
-  wxClientDC dc(this);
+//   if (pressedKeys_.empty()) return;
 
-  if (muted_) {
-    dc.SetPen(wxPen(*wxBLUE, 1));
-    dc.SetBrush(*wxBLUE_BRUSH);
+  wxDC* dc;
+  if (paint_dc) {
+    dc = paint_dc;
   } else {
-    dc.SetPen(wxPen(*wxRED, 1));
-    dc.SetBrush(*wxRED_BRUSH);
+    dc = new wxClientDC(this);
   }
 
-  for (IntSet::const_iterator it = keys.begin(); it != keys.end(); ++it) {
+  if (muted_) {
+    dc->SetPen(wxPen(*wxBLUE, 1));
+    dc->SetBrush(*wxBLUE_BRUSH);
+  } else {
+    dc->SetPen(wxPen(*wxRED, 1));
+    dc->SetBrush(*wxRED_BRUSH);
+  }
+
+//  for (IntSet::const_iterator it = keys.begin(); it != keys.end(); ++it) {
+  while (keys_to_press_.empty() == false) {
+    const int key_index = keys_to_press_.back();
     wxRect rect;
-    CalcKeyRect(*it, &rect);
-    dc.DrawRectangle(rect);
+    CalcKeyRect(key_index, &rect);
+    dc->DrawRectangle(rect);
+    keys_to_press_.pop_back();
+    pressedKeys_.insert(key_index);
+  }
+
+  if (paint_dc == NULL) {
+    delete dc;
   }
 }
 
 
-void KeyboardWidget::PaintReleasedKeys(const IntSet &keys)
+void KeyboardWidget::PaintReleasedKeys(wxPaintDC* paint_dc)
 {
-  if (pressedKeys_.empty()) return;
+  wxDC* dc;
+  if (paint_dc) {
+    dc = paint_dc;
+  } else {
+    dc = new wxClientDC(this);
+  }
 
-  wxClientDC dc(this);
-
-  for (IntSet::const_iterator it = keys.begin(); it != keys.end(); ++it) {
+  while (keys_to_release_.empty() == false) {
+    const int key_index = keys_to_release_.back();
     wxRect rect;
-    CalcKeyRect(*it, &rect);
+    CalcKeyRect(key_index, &rect);
     if (rect.GetY() == 0) {
-      dc.SetPen(wxPen(*wxBLACK, 1));
-      dc.SetBrush(*wxBLACK_BRUSH);
+      dc->SetPen(wxPen(*wxBLACK, 1));
+      dc->SetBrush(*wxBLACK_BRUSH);
     } else {
-      dc.SetPen(wxPen(*wxWHITE, 1));
-      dc.SetBrush(*wxWHITE_BRUSH);
+      dc->SetPen(wxPen(*wxWHITE, 1));
+      dc->SetBrush(*wxWHITE_BRUSH);
     }
-    dc.DrawRectangle(rect);
+    dc->DrawRectangle(rect);
+    keys_to_release_.pop_back();
+    pressedKeys_.erase(key_index);
+  }
+
+  if (paint_dc == NULL) {
+    delete dc;
   }
 }
 
 
 void KeyboardWidget::render(wxDC &dc)
 {
-  if (update_keyboard_ == true) {
+  if (update_key_ == false) {
 
     wxASSERT(keyWidth_ == 8);
 
@@ -405,8 +436,6 @@ void KeyboardWidget::render(wxDC &dc)
         break;
       }
     }
-
-    // update_keyboard_ = false;
   }
 
   PaintPressedKeys(pressedKeys_);
@@ -415,12 +444,15 @@ void KeyboardWidget::render(wxDC &dc)
 
 bool KeyboardWidget::PressKey(int keyIndex)
 {
+  // wxMessageOutputDebug().Printf(wxT("PressKey"));
   int keyMax = (octaveMax_ - octaveMin_ - 1) * 12;
   if (keyMax < keyIndex) return false;
-  pressedKeys_.insert(keyIndex);
+  // pressedKeys_.insert(keyIndex);
+  keys_to_press_.push_back(keyIndex);
   // paintNow();
   wxRect rect;
   CalcKeyRect(keyIndex, &rect);
+  update_key_ = true;
   wxWindow::RefreshRect(rect, false);
   //PaintPressedKeys(pressedKeys_);
   return true;
@@ -438,8 +470,17 @@ bool KeyboardWidget::PressKey(double pitch)
 
 void KeyboardWidget::ReleaseKey()
 {
-  PaintReleasedKeys(pressedKeys_);
-  pressedKeys_.clear();
+/*
+  while (pressedKeys_.empty() == false) {
+    IntSet::iterator itr = pressedKeys_.begin();
+  }
+  */
+  // pressedKeys_.clear();
+  for (IntSet::iterator itr = pressedKeys_.begin(); itr !=pressedKeys_.end(); ++itr) {
+    keys_to_release_.push_back(*itr);
+  }
+
+  PaintReleasedKeys();
 }
 
 
@@ -449,19 +490,27 @@ void KeyboardWidget::ReleaseKey(int keyIndex)
   // paintNow();
   wxRect rect;//
   CalcKeyRect(keyIndex, &rect);
-  wxWindow::RefreshRect(rect, false);
+  update_key_ = true;
+  wxWindow::Update();
 }
 
 
 
 void KeyboardWidget::OnNoteOn(wxThreadEvent &event) {
-  NoteInfo note = event.GetPayload<NoteInfo>();
+  const NoteInfo note = event.GetPayload<NoteInfo>();
   PressKey(note.pitch);
 }
 
 
 void KeyboardWidget::OnNoteOff(wxThreadEvent &WXUNUSED) {
   ReleaseKey();
+}
+
+
+void KeyboardWidget::OnChangePitch(wxThreadEvent &event) {
+  const NoteInfo note = event.GetPayload<NoteInfo>();
+  ReleaseKey();
+  PressKey(note.pitch);
 }
 
 
@@ -472,7 +521,7 @@ void KeyboardWidget::OnNoteOff(wxThreadEvent &WXUNUSED) {
 
 
 RateText::RateText(wxWindow *parent, int ch)
-  : wxStaticText(parent, wxID_ANY, wxT("00000"), wxDefaultPosition)
+  : wxStaticText(parent, wxID_ANY, wxT("000000"), wxDefaultPosition)
 {
   wxEvtHandler::Bind(wxEVT_PAINT, &RateText::OnPaint, this);
 
@@ -493,20 +542,9 @@ void RateText::OnPaint(wxPaintEvent &event) {
 
 
 void RateText::OnChangeRate(wxThreadEvent &event) {
-  rate_ = event.GetPayload<NoteInfo>().pitch;
-  if (rate_ > 0x7fff) {
-    rate_ |= 0xffff0000;
-  }
-  // Refresh(false);
-
-  wxClientDC dc(this);
-  // dc.SetBrush(wxWHITE_BRUSH);
-  wxString str_rate = wxString::Format(wxT("%d"), rate_);
-  wxSize size = dc.GetTextExtent(str_rate);
-  dc.SetPen(*wxWHITE_PEN);
-  dc.DrawRectangle(0, 0, size.GetWidth(), size.GetHeight());
-  dc.SetPen(*wxBLACK_PEN);
-  dc.DrawText(str_rate, 0, 0);
+  rate_ = event.GetPayload<NoteInfo>().rate;
+  const wxString str_rate = wxString::Format(wxT("%d"), rate_);
+  SetLabel(str_rate);
 }
 
 

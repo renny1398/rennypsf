@@ -434,7 +434,7 @@ inline void DelayedLoad(u32 rt, u32 value) {
 
     // Load Byte
     void Interpreter::LB(Instruction code) {
-      Load(code.Rt(), ReadMemory8(code.Addr()));
+      Load(code.Rt(), static_cast<int8_t>(ReadMemory8(code.Addr())));
     }
 
     // Load Byte Unsigned
@@ -444,7 +444,7 @@ inline void DelayedLoad(u32 rt, u32 value) {
 
     // Load Halfword
     void Interpreter::LH(Instruction code) {
-      Load(code.Rt(), ReadMemory16(code.Addr()));
+      Load(code.Rt(), static_cast<int16_t>(ReadMemory16(code.Addr())));
     }
 
     // Load Halfword Unsigned
@@ -461,10 +461,10 @@ inline void DelayedLoad(u32 rt, u32 value) {
     void Interpreter::LWL(Instruction code) {
       static const u32 LWL_MASK[4] = { 0x00ffffff, 0x0000ffff, 0x000000ff, 0x00000000 };
       static const u32 LWL_SHIFT[4] = { 24, 16, 8, 0 };
-      u32 rt = code.Rt();
-      u32 addr = code.Addr();
-      u32 shift = addr & 3;
-      u32 mem = U32M_ref(addr & ~3);
+      const u32 rt = code.Rt();
+      const u32 addr = code.Addr();
+      const u32 shift = addr & 3;
+      const u32 mem = ReadMemory32(addr & ~3);
       Load(rt, (R3000ARegs().GPR.R[rt] & LWL_MASK[shift]) | (mem << LWL_SHIFT[shift]));
     }
 
@@ -472,10 +472,10 @@ inline void DelayedLoad(u32 rt, u32 value) {
     void Interpreter::LWR(Instruction code) {
       static const u32 LWR_MASK[4] = { 0xff000000, 0xffff0000, 0xffffff00, 0x00000000 };
       static const u32 LWR_SHIFT[4] = { 0, 8, 16, 24 };
-      u32 rt = code.Rt();
-      u32 addr = code.Addr();
-      u32 shift = addr & 3;
-      u32 mem = U32M_ref(addr & ~3);
+      const u32 rt = code.Rt();
+      const u32 addr = code.Addr();
+      const u32 shift = addr & 3;
+      const u32 mem = ReadMemory32(addr & ~3);
       Load(rt, (R3000ARegs().GPR.R[rt] & LWR_MASK[shift]) | (mem >> LWR_SHIFT[shift]));
     }
 
@@ -498,20 +498,20 @@ inline void DelayedLoad(u32 rt, u32 value) {
     void Interpreter::SWL(Instruction code) {
       static const u32 SWL_MASK[4] = { 0xffffff00, 0xffff0000, 0xff000000, 0x00000000 };
       static const u32 SWL_SHIFT[4] = { 24, 16, 8, 0 };
-      u32 addr = code.Addr();
-      u32 shift = addr & 3;
-      u32 mem = U32M_ref(addr & ~3);
-      U32M_ref(addr & ~3) = (code.RtVal() >> SWL_SHIFT[shift]) | (mem & SWL_MASK[shift]);
+      const u32 addr = code.Addr();
+      const u32 shift = addr & 3;
+      const u32 mem = ReadMemory32(addr & ~3);
+      WriteMemory32(addr & ~3, (code.RtVal() >> SWL_SHIFT[shift]) | (mem & SWL_MASK[shift]));
     }
 
     // Store Word Right
     void Interpreter::SWR(Instruction code) {
       static const u32 SWR_MASK[4] = { 0x00000000, 0x000000ff, 0x0000ffff, 0x00ffffff };
       static const u32 SWR_SHIFT[4] = { 0, 8, 16, 24 };
-      u32 addr = code.Addr();
-      u32 shift = addr & 3;
-      u32 mem = U32M_ref(addr & ~3);
-      U32M_ref(addr & ~3) = (code.RtVal() << SWR_SHIFT[shift]) | (mem & SWR_MASK[shift]);
+      const u32 addr = code.Addr();
+      const u32 shift = addr & 3;
+      const u32 mem = ReadMemory32(addr & ~3);
+      WriteMemory32(addr & ~3, (code.RtVal() << SWR_SHIFT[shift]) | (mem & SWR_MASK[shift]));
     }
 
 
@@ -527,12 +527,13 @@ inline void DelayedLoad(u32 rt, u32 value) {
 
     // ADD Immediate Unsigned
     void Interpreter::ADDIU(Instruction code) {
+      // wxMessageOutputDebug().Printf(wxT("ADDIU: %d + %d = %d"), code.RsVal(), code.Imm(), code.RsVal() + code.Imm());
       Load(code.Rt(), code.RsVal() + code.Imm());
     }
 
     // Set on Less Than Immediate
     void Interpreter::SLTI(Instruction code) {
-      Load(code.Rt(), (static_cast<int32_t>(code.RsVal()) < code.Imm()) ? 1 : 0);
+      Load(code.Rt(), (static_cast<s32>(code.RsVal()) < code.Imm()) ? 1 : 0);
     }
 
     // Set on Less Than Unsigned Immediate
@@ -626,7 +627,7 @@ inline void DelayedLoad(u32 rt, u32 value) {
 
     // Shift Right Arithmetic
     void Interpreter::SRA(Instruction code) {
-      Load(code.Rd(), static_cast<int32_t>(code.RtVal()) >> code.Shamt());
+      Load(code.Rd(), static_cast<s32>(code.RtVal()) >> code.Shamt());
     }
 
     // Shift Left Logical Variable
@@ -641,7 +642,7 @@ inline void DelayedLoad(u32 rt, u32 value) {
 
     // Shift Right Arithmetic Variable
     void Interpreter::SRAV(Instruction code) {
-      Load(code.Rd(), static_cast<int32_t>(code.RtVal()) >> code.RsVal());
+      Load(code.Rd(), static_cast<s32>(code.RtVal()) >> code.RsVal());
     }
 
 
@@ -1064,16 +1065,6 @@ void Interpreter::ExecuteOnce()
   R3000ARegs().PC = pc;
 
   ExecuteOpcode(code);
-/*
-  if (R3000ARegs().Cycle % 10 == 0 &&
-      R3000ARegs().Cycle >= 366000 &&
-      R3000ARegs().Cycle < 367000) {
-    R3000A::Disassembler disasm(&Psx());
-    disasm.Parse(code);
-    disasm.PrintCode();
-    disasm.PrintChangedRegisters();
-  }
-  */
 }
 
 

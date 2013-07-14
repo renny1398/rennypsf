@@ -7,6 +7,12 @@
 namespace PSX {
 
 
+  Memory::Memory(Composite* composite)
+    : Component(composite) {
+    Init();
+  }
+
+
   void Memory::Init()
   {
     if (segment_LUT_[0x0000] != 0) return;
@@ -47,7 +53,8 @@ namespace PSX {
     u32 offset = dest & 0xffff;
     if (offset) {
       u32 len = (0x10000 - offset) > static_cast<u32>(length) ? length : 0x10000 - offset;
-      ::memcpy(segment_LUT_[dest >> 16] + offset, src, len);
+      void* const dest_ptr = segment_LUT_[dest >> 16] + offset;
+      ::memcpy(dest_ptr, src, len);
       dest += len;
       p_src += len;
       length -= len;
@@ -68,9 +75,11 @@ namespace PSX {
   {
     u32 segment = addr >> 16;
     if (segment == 0x1f80) {
-      if (addr < 0x1f801000)  // Scratch Pad
+      if (addr < 0x1f801000) {
+        // read Scratch Pad
         return H_ref<T>(addr);
-      // Hardware Registers
+      }
+      // read Hardware Registers
       return HwRegs().Read<T>(addr);
     }
     u8 *base_addr = segment_LUT_[segment];

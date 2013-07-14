@@ -59,7 +59,7 @@ int ChannelInfo::MixADSR()
         envVol -= rateTable[ADSRX.ReleaseRate + disp];
         if (envVol <= 0) {
             envVol = 0;
-            isOn = false;
+            is_on_ = false;
         }
         ADSRX.EnvelopeVol = envVol;
         ADSRX.lVolume = (envVol >>= 21);

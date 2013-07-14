@@ -152,7 +152,7 @@ public:
     wxScopedArray<short> lpcm_buffer_l;
     wxScopedArray<short> lpcm_buffer_r;
 
-    bool            bNew;                               // start flag
+    // bool            bNew;                               // start flag
     // bool            isUpdating;
     bool is_ready;
 
@@ -167,7 +167,6 @@ public:
     SamplingTone* tone;
     SamplingToneIterator itrTone;
 
-    bool            isOn;                                // is channel active (sample playing?)
     bool            isStopped;                              // is channel stopped (sample _can_ still be playing, ADSR Release phase)
     bool            is_muted;
     bool            hasReverb;                            // can we do reverb on this channel? must have ctrl register bit, to get active
@@ -199,6 +198,14 @@ public:
     ADSRInfo        ADSR;                               // active ADSR settings
     ADSRInfoEx      ADSRX;                              // next ADSR settings (will be moved to active on sample start)
 
+    int GetChannelIndex() const {
+      return ch;
+    }
+
+    bool IsOn() const {
+      // wxMutexLocker locker(on_mutex_);
+      return is_on_;
+    }
 
     void NotifyOnNoteOn() const;
     void NotifyOnNoteOff() const;
@@ -208,6 +215,10 @@ public:
 
   private:
     static uint32_t rateTable[160];
+
+    bool            is_on_;
+
+    mutable wxMutex on_mutex_;
 
     friend class ChannelArray;
   };

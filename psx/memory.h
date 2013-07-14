@@ -9,8 +9,7 @@ namespace PSX {
   class Memory : public Component {
 
    public:
-    Memory(Composite* composite)
-      : Component(composite) {}
+    Memory(Composite* composite);
 
     void Init();
     void Reset();

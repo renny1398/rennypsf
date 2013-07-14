@@ -18,8 +18,8 @@
 struct NoteInfo {
   bool is_on;
   int tone_number_;
-  // float pitch;
-  int pitch;
+  float pitch;
+  int rate;
   float velocity;
 };
 
@@ -71,12 +71,21 @@ public:
     virtual int GetEnvelopeVolume(int ch) const;
     virtual void SetEnvelopeVolume(int ch, int vol);
 
+    void Mute(int ch);
+    void Unmute(int ch);
+
+    void ZeroCounter();
+    void IncrementCounter();
+    int GetCounter() const;
+
     void OnNoteOn(wxThreadEvent& event);
     void OnNoteOff(wxThreadEvent& event);
     void OnChangeToneNumber(wxThreadEvent& event);
     void OnChangePitch(wxThreadEvent& event);
     void OnChangeVelocity(wxThreadEvent& event);
     void Notify(wxThreadEvent &event);
+
+    void Notify();
 
 protected:
     const Sample* GetBuffer(int* size) const;
@@ -89,6 +98,8 @@ protected:
     SoundFormat *m_sound;
 
 private:
+    wxVector<NoteInfo> notes_, next_notes_;
+
     int leftSample_, rightSample_;
     Sample* chSample_;
     int *chEnvelope_;
@@ -97,6 +108,10 @@ private:
     Sample* buffer_;
     int bufferSize_;
     int bufferIndex_;
+
+    wxVector<bool> muted_;
+
+    int counter_;
 
     wxVector< wxVector<wxEvtHandler*> > listeners_;
 

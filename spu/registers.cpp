@@ -69,7 +69,8 @@ namespace SPU {
   // Get Pitch
   uint16_t read1xx4(const ChannelInfo& channelInfo)
   {
-    return channelInfo.iActFreq * 4096 / 44100;
+    return channelInfo.iRawPitch;
+    // return channelInfo.iActFreq * 4096 / 44100;
   }
 
   // Get start address of Sound
@@ -106,7 +107,7 @@ namespace SPU {
   // Get current ADSR volume
   uint16_t read1xxc(const ChannelInfo& channelInfo)
   {
-    if (channelInfo.bNew) return 1;
+    // if (channelInfo.bNew) return 1;
     if (channelInfo.ADSRX.lVolume && !channelInfo.ADSRX.EnvelopeVol) return 1;
     return channelInfo.ADSRX.EnvelopeVol >> 16;
   }

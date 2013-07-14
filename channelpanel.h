@@ -85,14 +85,15 @@ protected:
   void render(wxDC& dc);
 
   void CalcKeyRect(int key, wxRect* rect);
-  void PaintPressedKeys(const IntSet& keys);
-  void PaintReleasedKeys(const IntSet& keys);
+  void PaintPressedKeys(const IntSet& keys, wxPaintDC *paint_dc = NULL);
+  void PaintReleasedKeys(wxPaintDC *paint_dc = NULL);
 
 protected:
   int calcKeyboardWidth();
 
   void OnNoteOn(wxThreadEvent &event);
   void OnNoteOff(wxThreadEvent& event);
+  void OnChangePitch(wxThreadEvent& event);
 
 private:
   int keyWidth_, keyHeight_;
@@ -100,7 +101,9 @@ private:
 
   IntSet pressedKeys_;
   bool muted_;
-  bool update_keyboard_;
+  wxVector<int> keys_to_press_;
+  wxVector<int> keys_to_release_;
+  bool update_key_;
 
   static const int defaultOctaveMin = -1;
   static const int defaultOctaveMax = 9;

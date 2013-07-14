@@ -31,7 +31,7 @@ namespace SPU {
     spu_(*pSPU), pInterpolation(new GaussianInterpolation(*this))
   // TODO: how to generate GaussianInterpolation
   {
-    isOn = false;
+    is_on_ = false;
     is_ready = false;
     lpcm_buffer_l.reset(new short[pSPU->NSSIZE]);
     lpcm_buffer_r.reset(new short[pSPU->NSSIZE]);
@@ -46,6 +46,7 @@ namespace SPU {
     note.is_on = true;
     note.tone_number_ = tone->GetAddr();
     note.pitch = Pitch;
+    note.rate = iActFreq;
     note.velocity = ADSRX.EnvelopeVol / 1024.0;
     event.SetInt(ch);
     event.SetPayload(note);
@@ -61,6 +62,7 @@ namespace SPU {
     note.is_on = false;
     note.tone_number_ = -1;
     note.pitch = 0.0;
+    note.rate = 0;
     // note.velocity = ADSRX.EnvelopeVol / 1024.0;
     event.SetInt(ch);
     event.SetPayload(note);
@@ -72,9 +74,10 @@ namespace SPU {
   void ChannelInfo::NotifyOnChangePitch() const {
     wxThreadEvent event(wxEVT_CHANGE_PITCH);
     NoteInfo note;
-    note.is_on = isOn;
+    note.is_on = is_on_;
     note.tone_number_ = -1;
-    note.pitch = iRawPitch;
+    note.pitch = Pitch;
+    note.rate = iActFreq;
     note.velocity = static_cast<float>(ADSRX.EnvelopeVol) / 1024.0;
     event.SetInt(ch);
     event.SetPayload(note);
@@ -86,7 +89,7 @@ namespace SPU {
 
     wxThreadEvent event(wxEVT_CHANGE_VELOCITY);
     NoteInfo note;
-    note.is_on = isOn;
+    note.is_on = is_on_;
     note.tone_number_ = -1;
     note.velocity = static_cast<float>(ADSRX.EnvelopeVol) / 1024.0;
     event.SetInt(ch);
@@ -99,7 +102,9 @@ namespace SPU {
 
   void ChannelInfo::StartSound()
   {
-    wxASSERT(bNew == true);
+    wxASSERT(isOn == true);
+
+    wxMutexLocker locker(on_mutex_);
 
     ADSRX.Start();
     spu_.Reverb().StartReverb(*this);
@@ -109,11 +114,17 @@ namespace SPU {
     // iSBPos = 28;
 
     itrTone = tone->Iterator(this);
-    bNew = false;
     isStopped = false;
-    isOn = true;
+    is_on_ = true;
 
     pInterpolation->Start();
+
+    useExternalLoop = false;
+
+    Spu().ChangeProcessState(SPU::STATE_NOTE_ON, ch);
+
+    NotifyOnNoteOn();
+    Spu().NotifyOnChangeLoopIndex(this);
 
     // TODO: Change newChannelFlags
   }
@@ -135,8 +146,8 @@ namespace SPU {
     is_ready = true;
 
     if (is_muted) return;
-    if (bNew) StartSound();
-    if (isOn == false) return;
+    // if (bNew) StartSound();
+    if (IsOn() == false) return;
 
     if (iActFreq != iUsedFreq) {
       VoiceChangeFrequency();
@@ -145,7 +156,7 @@ namespace SPU {
     int fa;
     while (pInterpolation->spos >= 0x10000) {
       if (itrTone.HasNext() == false) {
-        isOn = false;
+        is_on_ = false;
         // isStopped = true;
         ADSRX.lVolume = 0;
         ADSRX.EnvelopeVol = 0;
@@ -228,14 +239,7 @@ namespace SPU {
     flagNewChannels_ |= flags << start;
     for (int i = start; flags != 0; i++, flags >>= 1) {
       if (!(flags & 1) || (channels_[i]->tone->GetADPCM() == 0)) continue;
-      channels_[i]->bNew = true;
-      // channels_[i].isStopped = false;
-      channels_[i]->useExternalLoop = false;
-
-      pSPU_->ChangeProcessState(SPU::STATE_NOTE_ON, i);
-
-      channels_[i]->NotifyOnNoteOn();
-      pSPU_->NotifyOnChangeLoopIndex(channels_[i]);
+      channels_[i]->StartSound();
     }
   }
 

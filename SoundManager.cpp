@@ -37,9 +37,12 @@ void SoundDriver::setChannelNumber(int number)
   }
   leftSample_ = 0;
   rightSample_ = 0;
+  notes_.resize(number);
+  next_notes_.resize(number);
   chSample_ = new Sample[number];
   chEnvelope_ = new int[number];
   channelNumber_ = number;
+  muted_.resize(number);
 }
 
 void SoundDriver::setBufferSize(int size)
@@ -68,7 +71,7 @@ SoundDriver::SoundDriver(int channelNumber)
   : m_sound(0), chSample_(0), buffer_(0), listeners_(channelNumber)
 {
   setChannelNumber(channelNumber);
-  setBufferSize(NSSIZE);
+  setBufferSize(NSSIZE * 2);
 
   wxEvtHandler::Bind(wxEVT_NOTE_ON, &SoundDriver::OnNoteOn, this);
   wxEvtHandler::Bind(wxEVT_NOTE_OFF, &SoundDriver::OnNoteOff, this);
@@ -97,6 +100,7 @@ bool SoundDriver::Play(SoundFormat *sound)
     return false;
   }
   m_sound = sound;
+  ZeroCounter();
   return true;
 }
 
@@ -123,6 +127,7 @@ const Sample* SoundDriver::GetBuffer(int *size) const {
 void SoundDriver::WriteStereo(int ch, short left, short right)
 {
   wxASSERT(chSample_ != 0 && ch < channelNumber_);
+  if (muted_.at(ch) == true) return;
   chSample_[ch].left = left;
   chSample_[ch].right = right;
   leftSample_ += left;
@@ -132,6 +137,7 @@ void SoundDriver::WriteStereo(int ch, short left, short right)
 void SoundDriver::WriteStereo(int ch, short samples[2])
 {
   wxASSERT(chSample_ != 0 && ch < channelNumber_);
+  if (muted_.at(ch) == true) return;
   chSample_[ch].left = samples[0];
   chSample_[ch].right = samples[1];
   leftSample_ += samples[0];
@@ -156,6 +162,12 @@ void SoundDriver::Flush()
   bufferIndex_++;
   leftSample_ = 0;
   rightSample_ = 0;
+
+  IncrementCounter();
+  if (GetCounter() % (44100 / 10) == 0) {
+    Notify();
+  }
+
   if (bufferIndex_ >= bufferSize_) {
     WriteToDevice();
     bufferIndex_ = 0;
@@ -168,38 +180,128 @@ void SoundDriver::AddListener(wxEvtHandler *listener, int ch) {
 }
 
 
+void SoundDriver::Mute(int ch) {
+  muted_.at(ch) = true;
+}
 
+
+void SoundDriver::Unmute(int ch) {
+  muted_.at(ch) = false;
+}
+
+
+void SoundDriver::ZeroCounter() {
+  counter_ = 0;
+}
+
+
+void SoundDriver::IncrementCounter() {
+  ++counter_;
+}
+
+
+int SoundDriver::GetCounter() const {
+  return counter_;
+}
+
+/*
 void SoundDriver::Notify(wxThreadEvent &event) {
   const int ch = event.GetInt();
   wxVector<wxEvtHandler*>& listeners = listeners_.at(ch);
   wxVector<wxEvtHandler*>::iterator itr = listeners.begin();
   const wxVector<wxEvtHandler*>::iterator itrEnd = listeners.end();
   while (itr != itrEnd) {
-    (*itr)->ProcessEvent(event);
-    //(*itr)->AddPendingEvent(event);
+    //(*itr)->ProcessEvent(event);
+    (*itr)->AddPendingEvent(event);
     ++itr;
+  }
+}
+*/
+
+
+void SoundDriver::Notify() {
+
+  wxVector< wxVector<wxEvtHandler*> >::const_iterator ch_itr = listeners_.begin();
+  const wxVector< wxVector<wxEvtHandler*> >::const_iterator ch_end_itr = listeners_.end();
+
+  for (int i = 0; ch_itr != ch_end_itr; i++) {
+
+    NoteInfo& curr_note = notes_.at(i);
+    const NoteInfo& next_note = next_notes_.at(i);
+
+    wxVector<wxEvtHandler*>::const_iterator itr;
+    const wxVector<wxEvtHandler*>::const_iterator end_itr = (*ch_itr).end();
+
+    if (curr_note.is_on == false && next_note.is_on == true) {
+      wxThreadEvent event(wxEVT_NOTE_ON);
+      event.SetInt(i);
+      event.SetPayload(next_note);
+      itr = (*ch_itr).begin();
+      while (itr != end_itr) {
+        (*itr)->AddPendingEvent(event);
+        ++itr;
+      }
+      curr_note.is_on = true;
+      curr_note.rate = next_note.rate;
+      curr_note.pitch = next_note.pitch;
+    }
+
+    if (curr_note.is_on == true && next_note.is_on == false) {
+      wxThreadEvent event(wxEVT_NOTE_OFF);
+      event.SetInt(i);
+      event.SetPayload(next_note);
+      itr = (*ch_itr).begin();
+      while (itr != end_itr) {
+        (*itr)->AddPendingEvent(event);
+        ++itr;
+      }
+      curr_note.is_on = true;
+    }
+
+    if (curr_note.rate != next_note.rate) {
+      wxThreadEvent event(wxEVT_CHANGE_PITCH);
+      event.SetInt(i);
+      event.SetPayload(next_note);
+      itr = (*ch_itr).begin();
+      while (itr != end_itr) {
+        (*itr)->AddPendingEvent(event);
+        ++itr;
+      }
+      curr_note.rate = next_note.rate;
+      curr_note.pitch = next_note.pitch;
+    }
+
+    ++ch_itr;
   }
 }
 
 
 void SoundDriver::OnNoteOn(wxThreadEvent &event) {
-  Notify(event);
+  next_notes_.at(event.GetInt()).is_on = true;
+  NoteInfo note = event.GetPayload<NoteInfo>();
+  next_notes_.at(event.GetInt()).pitch = note.pitch;
+  next_notes_.at(event.GetInt()).rate = note.rate;
+  // Notify(event);
 }
 
 void SoundDriver::OnNoteOff(wxThreadEvent& event) {
-  Notify(event);
+  next_notes_.at(event.GetInt()).is_on = false;
+  // Notify(event);
 }
 
 void SoundDriver::OnChangeToneNumber(wxThreadEvent& event) {
-  Notify(event);
+  // Notify(event);
 }
 
 void SoundDriver::OnChangePitch(wxThreadEvent& event) {
-  Notify(event);
+  NoteInfo note = event.GetPayload<NoteInfo>();
+  next_notes_.at(event.GetInt()).pitch = note.pitch;
+  next_notes_.at(event.GetInt()).rate = note.rate;
+  // Notify(event);
 }
 
 void SoundDriver::OnChangeVelocity(wxThreadEvent& event) {
-  Notify(event);
+  // Notify(event);
 }
 
 
@@ -361,6 +463,7 @@ void WaveOutAL::ThisThreadWriteToDevice()
 
   if (source_ == 0) {
     alGenSources(1, &source_);
+    // alSourcef(source_, AL_GAIN, 0.25);
   }
 
   alGetSourcei(source_, AL_BUFFERS_QUEUED, &n);
