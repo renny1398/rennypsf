@@ -7,11 +7,12 @@ const int NUM_BUFFERS = 50;
 const int NSSIZE = 45;
 
 
-wxDEFINE_EVENT(wxEVT_NOTE_ON, wxThreadEvent);
-wxDEFINE_EVENT(wxEVT_NOTE_OFF, wxThreadEvent);
-wxDEFINE_EVENT(wxEVT_CHANGE_TONE_NUMBER, wxThreadEvent);
-wxDEFINE_EVENT(wxEVT_CHANGE_PITCH, wxThreadEvent);
-wxDEFINE_EVENT(wxEVT_CHANGE_VELOCITY, wxThreadEvent);
+wxDEFINE_EVENT(wxEVT_NOTE_ON, wxCommandEvent);
+wxDEFINE_EVENT(wxEVT_NOTE_OFF, wxCommandEvent);
+wxDEFINE_EVENT(wxEVT_CHANGE_TONE_NUMBER, wxCommandEvent);
+wxDEFINE_EVENT(wxEVT_CHANGE_PITCH, wxCommandEvent);
+wxDEFINE_EVENT(wxEVT_CHANGE_VELOCITY, wxCommandEvent);
+
 
 /*
 wxBEGIN_EVENT_TABLE(SoundDriver, wxEvtHandler)
@@ -72,12 +73,6 @@ SoundDriver::SoundDriver(int channelNumber)
 {
   setChannelNumber(channelNumber);
   setBufferSize(NSSIZE * 2);
-
-  wxEvtHandler::Bind(wxEVT_NOTE_ON, &SoundDriver::OnNoteOn, this);
-  wxEvtHandler::Bind(wxEVT_NOTE_OFF, &SoundDriver::OnNoteOff, this);
-  wxEvtHandler::Bind(wxEVT_CHANGE_TONE_NUMBER, &SoundDriver::OnChangeToneNumber, this);
-  wxEvtHandler::Bind(wxEVT_CHANGE_PITCH, &SoundDriver::OnChangePitch, this);
-  wxEvtHandler::Bind(wxEVT_CHANGE_VELOCITY, &SoundDriver::OnChangeVelocity, this);
 }
 
 
@@ -176,7 +171,7 @@ void SoundDriver::Flush()
 
 
 void SoundDriver::AddListener(wxEvtHandler *listener, int ch) {
-  listeners_[ch].push_back(listener);
+  listeners_.at(ch).push_back(listener);
 }
 
 
@@ -233,9 +228,8 @@ void SoundDriver::Notify() {
     const wxVector<wxEvtHandler*>::const_iterator end_itr = (*ch_itr).end();
 
     if (curr_note.is_on == false && next_note.is_on == true) {
-      wxThreadEvent event(wxEVT_NOTE_ON);
-      event.SetInt(i);
-      event.SetPayload(next_note);
+      wxCommandEvent event(wxEVT_NOTE_ON);
+      event.SetClientData(new NoteInfo(next_note));
       itr = (*ch_itr).begin();
       while (itr != end_itr) {
         (*itr)->AddPendingEvent(event);
@@ -247,9 +241,8 @@ void SoundDriver::Notify() {
     }
 
     if (curr_note.is_on == true && next_note.is_on == false) {
-      wxThreadEvent event(wxEVT_NOTE_OFF);
-      event.SetInt(i);
-      event.SetPayload(next_note);
+      wxCommandEvent event(wxEVT_NOTE_OFF);
+      event.SetClientData(new NoteInfo(next_note));
       itr = (*ch_itr).begin();
       while (itr != end_itr) {
         (*itr)->AddPendingEvent(event);
@@ -259,9 +252,8 @@ void SoundDriver::Notify() {
     }
 
     if (curr_note.rate != next_note.rate) {
-      wxThreadEvent event(wxEVT_CHANGE_PITCH);
-      event.SetInt(i);
-      event.SetPayload(next_note);
+      wxCommandEvent event(wxEVT_CHANGE_PITCH);
+      event.SetClientData(new NoteInfo(next_note));
       itr = (*ch_itr).begin();
       while (itr != end_itr) {
         (*itr)->AddPendingEvent(event);
@@ -276,31 +268,32 @@ void SoundDriver::Notify() {
 }
 
 
-void SoundDriver::OnNoteOn(wxThreadEvent &event) {
-  next_notes_.at(event.GetInt()).is_on = true;
-  NoteInfo note = event.GetPayload<NoteInfo>();
-  next_notes_.at(event.GetInt()).pitch = note.pitch;
-  next_notes_.at(event.GetInt()).rate = note.rate;
+void SoundDriver::OnNoteOn(const NoteInfo& note) {
+  NoteInfo& next_note = next_notes_.at(note.ch);
+  next_note.is_on = true;
+  next_note.pitch = note.pitch;
+  next_note.rate = note.rate;
   // Notify(event);
 }
 
-void SoundDriver::OnNoteOff(wxThreadEvent& event) {
-  next_notes_.at(event.GetInt()).is_on = false;
+void SoundDriver::OnNoteOff(const NoteInfo& note) {
+  NoteInfo& next_note = next_notes_.at(note.ch);
+  next_note.is_on = false;
   // Notify(event);
 }
 
-void SoundDriver::OnChangeToneNumber(wxThreadEvent& event) {
+void SoundDriver::OnChangeToneNumber(const NoteInfo& note) {
   // Notify(event);
 }
 
-void SoundDriver::OnChangePitch(wxThreadEvent& event) {
-  NoteInfo note = event.GetPayload<NoteInfo>();
-  next_notes_.at(event.GetInt()).pitch = note.pitch;
-  next_notes_.at(event.GetInt()).rate = note.rate;
+void SoundDriver::OnChangePitch(const NoteInfo& note) {
+  NoteInfo& next_note = next_notes_.at(note.ch);
+  next_note.pitch = note.pitch;
+  next_note.rate = note.rate;
   // Notify(event);
 }
 
-void SoundDriver::OnChangeVelocity(wxThreadEvent& event) {
+void SoundDriver::OnChangeVelocity(const NoteInfo& note) {
   // Notify(event);
 }
 

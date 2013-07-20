@@ -32,8 +32,9 @@ private:
 };
 
 
+#include "SoundManager.h"
 
-class VolumeBar : public wxPanel
+class VolumeBar : public wxPanel, public SoundDriverListener
 {
 public:
   VolumeBar(wxWindow* parent, wxOrientation orientation, int ch);
@@ -43,7 +44,7 @@ public:
 
 protected:
   void paintEvent(wxPaintEvent&);
-  void OnChangeVelocity(wxThreadEvent& event);
+  void OnChangeVelocity(const NoteInfo& note);
 
 private:
   wxOrientation orientation_;
@@ -66,9 +67,9 @@ wxDECLARE_EVENT(wxEVENT_SPU_CHANNEL_NOTE_OFF, wxCommandEvent);
 
 
 class wxRect;
+class wxPaintDC;
 
-
-class KeyboardWidget : public wxPanel
+class KeyboardWidget : public wxPanel, public SoundDriverListener
 {
 public:
   KeyboardWidget(wxWindow* parent, int ch, int keyWidth, int keyHeight);
@@ -91,9 +92,9 @@ protected:
 protected:
   int calcKeyboardWidth();
 
-  void OnNoteOn(wxThreadEvent &event);
-  void OnNoteOff(wxThreadEvent& event);
-  void OnChangePitch(wxThreadEvent& event);
+  void OnNoteOn(wxCommandEvent& event);
+  void OnNoteOff(wxCommandEvent& event);
+  void OnChangePitch(wxCommandEvent& event);
 
 private:
   int keyWidth_, keyHeight_;
@@ -124,14 +125,14 @@ inline void VolumeBar::SetValue(float value) {
 
 #include <wx/stattext.h>
 
-class RateText : public wxStaticText {
+class RateText : public wxStaticText, public SoundDriverListener {
 
 public:
   RateText(wxWindow* parent, int ch);
 
 protected:
-  void OnPaint(wxPaintEvent &event);
-  void OnChangeRate(wxThreadEvent& event);
+  // void OnPaint(wxPaintEvent &event);
+  void OnChangePitch(const NoteInfo& note);
 
 private:
   int rate_;

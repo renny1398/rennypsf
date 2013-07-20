@@ -615,7 +615,10 @@ namespace PSX {
   {
     u32 th;
     for (th = 1; th < 8; th++) {
-      if (Thread[th].status == 0) break;
+      if (Thread[th].status == 0) {
+        // TS_READY
+        break;
+      }
     }
     Thread[th].status = BFLIP32(1);
     Thread[th].func = BFLIP32(A0);

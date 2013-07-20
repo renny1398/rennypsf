@@ -6,17 +6,19 @@
 
 ChannelFrame::ChannelFrame(wxWindow* parent): wxFrame(parent, wxID_ANY, _("Channel View"), wxDefaultPosition, wxSize(400, 720))
 {
-    ChannelPanel* panel = new ChannelPanel(this);
-    wxSizer* sizer = new wxBoxSizer(wxHORIZONTAL);
+  // SetBackgroundColour(*wxBLACK);
+  // ClearBackground();
 
-    SetBackgroundColour(*wxBLACK);
-    ClearBackground();
+  ChannelPanel* panel = new ChannelPanel(this);
+  wxSizer* sizer = new wxBoxSizer(wxHORIZONTAL);
 
-    WavetablePanel *wavetablePanel = new WavetablePanel(this);
+  wxStaticBoxSizer *wavetableBoxSizer = new wxStaticBoxSizer(wxHORIZONTAL, this, _("Wavetable"));
+  WavetablePanel *wavetablePanel = new WavetablePanel(this);
+  wavetableBoxSizer->Add(wavetablePanel, 0, wxEXPAND);
 
-    sizer->Add(panel);
-    sizer->Add(wavetablePanel, wxGROW);
-    this->SetSizer(sizer);
-    SetAutoLayout(true);
-    sizer->Fit(this);
+  sizer->Add(panel);
+  sizer->Add(wavetableBoxSizer, 0, wxEXPAND);
+  this->SetSizer(sizer);
+  SetAutoLayout(true);
+  sizer->Fit(this);
 }

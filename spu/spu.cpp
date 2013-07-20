@@ -41,59 +41,52 @@ namespace SPU {
 
   void ChannelInfo::NotifyOnNoteOn() const {
 
-    wxThreadEvent event(wxEVT_NOTE_ON);
     NoteInfo note;
+    note.ch = ch;
     note.is_on = true;
     note.tone_number_ = tone->GetAddr();
     note.pitch = Pitch;
     note.rate = iActFreq;
     note.velocity = ADSRX.EnvelopeVol / 1024.0;
-    event.SetInt(ch);
-    event.SetPayload(note);
 
-    Spu().sound_driver_->OnNoteOn(event);
+    Spu().sound_driver_->OnNoteOn(note);
   }
 
 
   void ChannelInfo::NotifyOnNoteOff() const {
 
-    wxThreadEvent event(wxEVT_NOTE_OFF);
     NoteInfo note;
+    note.ch = ch;
     note.is_on = false;
     note.tone_number_ = -1;
     note.pitch = 0.0;
     note.rate = 0;
     // note.velocity = ADSRX.EnvelopeVol / 1024.0;
-    event.SetInt(ch);
-    event.SetPayload(note);
 
-    Spu().sound_driver_->OnNoteOff(event);
+    Spu().sound_driver_->OnNoteOff(note);
   }
 
 
   void ChannelInfo::NotifyOnChangePitch() const {
-    wxThreadEvent event(wxEVT_CHANGE_PITCH);
+
     NoteInfo note;
+    note.ch = ch;
     note.is_on = is_on_;
     note.tone_number_ = -1;
     note.pitch = Pitch;
     note.rate = iActFreq;
     note.velocity = static_cast<float>(ADSRX.EnvelopeVol) / 1024.0;
-    event.SetInt(ch);
-    event.SetPayload(note);
 
-    Spu().sound_driver_->OnChangePitch(event);
+    Spu().sound_driver_->OnChangePitch(note);
   }
 
   void ChannelInfo::NotifyOnChangeVelocity() const {
 
-    wxThreadEvent event(wxEVT_CHANGE_VELOCITY);
     NoteInfo note;
+    note.ch = ch;
     note.is_on = is_on_;
     note.tone_number_ = -1;
     note.velocity = static_cast<float>(ADSRX.EnvelopeVol) / 1024.0;
-    event.SetInt(ch);
-    event.SetPayload(note);
 
     // Spu().sound_driver_->OnChangeVelocity(event);
   }
@@ -102,8 +95,6 @@ namespace SPU {
 
   void ChannelInfo::StartSound()
   {
-    wxASSERT(isOn == true);
-
     wxMutexLocker locker(on_mutex_);
 
     ADSRX.Start();
@@ -122,7 +113,6 @@ namespace SPU {
     useExternalLoop = false;
 
     Spu().ChangeProcessState(SPU::STATE_NOTE_ON, ch);
-
     NotifyOnNoteOn();
     Spu().NotifyOnChangeLoopIndex(this);
 

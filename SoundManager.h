@@ -16,6 +16,7 @@
 // for wxThreadEvent
 
 struct NoteInfo {
+  int ch;
   bool is_on;
   int tone_number_;
   float pitch;
@@ -25,11 +26,12 @@ struct NoteInfo {
 
 
 
-wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_NOTE_ON, wxThreadEvent);
-wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_NOTE_OFF, wxThreadEvent);
-wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_CHANGE_TONE_NUMBER, wxThreadEvent);
-wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_CHANGE_PITCH, wxThreadEvent);
-wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_CHANGE_VELOCITY, wxThreadEvent);
+wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_NOTE_ON, wxCommandEvent);
+wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_NOTE_OFF, wxCommandEvent);
+wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_CHANGE_TONE_NUMBER, wxCommandEvent);
+wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_CHANGE_PITCH, wxCommandEvent);
+wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_CHANGE_VELOCITY, wxCommandEvent);
+
 
 
 class Sample {
@@ -45,9 +47,28 @@ public:
 
 
 
+class SoundDriver;
+
+class SoundDriverListener {
+
+  friend class SoundDriver;
+
+public:
+  virtual ~SoundDriverListener() {}
+
+protected:
+  virtual void OnNoteOn(const NoteInfo& /*note*/) {}
+  virtual void OnNoteOff(const NoteInfo& /*note*/) {}
+  virtual void OnChangeToneNumber(const NoteInfo& /*note*/) {}
+  virtual void OnChangePitch(const NoteInfo& /*note*/) {}
+  virtual void OnChangeVelocity(const NoteInfo& /*note*/) {}
+};
+
+
+
 class SoundFormat;
 
-class SoundDriver : public wxEvtHandler
+class SoundDriver
 {
 public:
     SoundDriver(int channelNumber);
@@ -78,12 +99,12 @@ public:
     void IncrementCounter();
     int GetCounter() const;
 
-    void OnNoteOn(wxThreadEvent& event);
-    void OnNoteOff(wxThreadEvent& event);
-    void OnChangeToneNumber(wxThreadEvent& event);
-    void OnChangePitch(wxThreadEvent& event);
-    void OnChangeVelocity(wxThreadEvent& event);
-    void Notify(wxThreadEvent &event);
+    void OnNoteOn(const NoteInfo& note);
+    void OnNoteOff(const NoteInfo& note);
+    void OnChangeToneNumber(const NoteInfo& note);
+    void OnChangePitch(const NoteInfo& note);
+    void OnChangeVelocity(const NoteInfo& note);
+    // void Notify(wxThreadEvent &event);
 
     void Notify();
 

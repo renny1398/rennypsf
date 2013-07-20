@@ -117,7 +117,7 @@ VolumeBar::VolumeBar(wxWindow *parent, wxOrientation orientation, int ch)
   ch_ = ch;
   value_ = 0;
 
-  wxEvtHandler::Bind(wxEVT_CHANGE_VELOCITY, &VolumeBar::OnChangeVelocity, this);
+  // wxEvtHandler::Bind(wxEVT_CHANGE_VELOCITY, &VolumeBar::OnChangeVelocity, this);
   wxGetApp().GetSoundManager()->AddListener(this, ch);
 }
 
@@ -169,8 +169,7 @@ void VolumeBar::paintEvent(wxPaintEvent &)
 }
 
 
-void VolumeBar::OnChangeVelocity(wxThreadEvent& event) {
-    NoteInfo note = event.GetPayload<NoteInfo>();
+void VolumeBar::OnChangeVelocity(const NoteInfo &note) {
     const float prev_vel = GetValue();
     if (note.velocity != prev_vel) {
         SetValue(note.velocity);
@@ -216,7 +215,7 @@ int KeyboardWidget::calcKeyboardWidth()
 
 KeyboardWidget::KeyboardWidget(wxWindow* parent, int ch, int keyWidth, int keyHeight) :
   wxPanel(parent, wxID_ANY, wxDefaultPosition, wxSize(513, keyHeight)),
-  octaveMin_(defaultOctaveMin), octaveMax_(defaultOctaveMax), muted_(false), update_key_(true)
+  octaveMin_(defaultOctaveMin), octaveMax_(defaultOctaveMax), muted_(false), update_key_(false)
 {
   if (keyWidth < 7) keyWidth_ = 6;
   else keyWidth_ = 8;
@@ -491,26 +490,30 @@ void KeyboardWidget::ReleaseKey(int keyIndex)
   wxRect rect;//
   CalcKeyRect(keyIndex, &rect);
   update_key_ = true;
-  wxWindow::Update();
+  wxWindow::Refresh();
 }
 
 
 
-void KeyboardWidget::OnNoteOn(wxThreadEvent &event) {
-  const NoteInfo note = event.GetPayload<NoteInfo>();
-  PressKey(note.pitch);
+void KeyboardWidget::OnNoteOn(wxCommandEvent &event) {
+  const NoteInfo* note = (NoteInfo*)event.GetClientData();
+  PressKey(note->pitch);
+  delete note;
 }
 
 
-void KeyboardWidget::OnNoteOff(wxThreadEvent &WXUNUSED) {
+void KeyboardWidget::OnNoteOff(wxCommandEvent& event) {
+  const NoteInfo* note = (NoteInfo*)event.GetClientData();
   ReleaseKey();
+  delete note;
 }
 
 
-void KeyboardWidget::OnChangePitch(wxThreadEvent &event) {
-  const NoteInfo note = event.GetPayload<NoteInfo>();
+void KeyboardWidget::OnChangePitch(wxCommandEvent &event) {
+  const NoteInfo* note = (NoteInfo*)event.GetClientData();
   ReleaseKey();
-  PressKey(note.pitch);
+  PressKey(note->pitch);
+  delete note;
 }
 
 
@@ -523,28 +526,28 @@ void KeyboardWidget::OnChangePitch(wxThreadEvent &event) {
 RateText::RateText(wxWindow *parent, int ch)
   : wxStaticText(parent, wxID_ANY, wxT("000000"), wxDefaultPosition)
 {
-  wxEvtHandler::Bind(wxEVT_PAINT, &RateText::OnPaint, this);
+  // wxEvtHandler::Bind(wxEVT_PAINT, &RateText::OnPaint, this);
 
   this->SetBackgroundColour(wxColor(255, 255, 255));
 
-  wxEvtHandler::Bind(wxEVT_CHANGE_PITCH, &RateText::OnChangeRate, this);
+  // wxEvtHandler::Bind(wxEVT_CHANGE_PITCH, &RateText::OnChangeRate, this);
   wxGetApp().GetSoundManager()->AddListener(this, ch);
 }
 
-
+/*
 void RateText::OnPaint(wxPaintEvent &event) {
   wxPaintDC dc(this);
 
   wxString str_rate = wxString::Format(wxT("%d"), rate_);
   dc.DrawText(str_rate, 0, 0);
 }
+*/
 
 
-
-void RateText::OnChangeRate(wxThreadEvent &event) {
-  rate_ = event.GetPayload<NoteInfo>().rate;
+void RateText::OnChangePitch(const NoteInfo &note) {
+  rate_ = note.rate;
   const wxString str_rate = wxString::Format(wxT("%d"), rate_);
-  SetLabel(str_rate);
+  // SetLabel(str_rate);
 }
 
 
@@ -556,7 +559,8 @@ void RateText::OnChangeRate(wxThreadEvent &event) {
 
 ChannelPanel::ChannelPanel(wxWindow *parent)
   : wxPanel(parent, -1, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL, "channel_panel") {
-  wholeSizer = new wxBoxSizer(wxVERTICAL);
+
+  wholeSizer = new wxStaticBoxSizer(wxVERTICAL, this, _("Channel Information"));
 
   for (int i = 0; i < 24; i++) {
     ChannelElement element;

@@ -139,6 +139,9 @@ namespace PSX {
     if ((addr & 0xfffffff1) == 0xbf8010c0) {
       wxMessageOutputDebug().Printf(wxT("WARNING: SPU2writeDMA4 is not implemented."));
     }
+    if ((addr & 0xfffffff0) == 0xbf801500) {
+      wxMessageOutputDebug().Printf(wxT("WARNING: SPU2writeDMA7 is not implemented."));
+    }
     if ((addr & 0xfffff800) == 0xbf900000) {
       wxMessageOutputStderr().Printf(wxT("WARNING: SPU2write32 is not implemented."));
     }
