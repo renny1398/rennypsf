@@ -34,7 +34,7 @@ private:
 
 #include "SoundManager.h"
 
-class VolumeBar : public wxPanel, public SoundDriverListener
+class VolumeBar : public wxPanel
 {
 public:
   VolumeBar(wxWindow* parent, wxOrientation orientation, int ch);
@@ -69,7 +69,7 @@ wxDECLARE_EVENT(wxEVENT_SPU_CHANNEL_NOTE_OFF, wxCommandEvent);
 class wxRect;
 class wxPaintDC;
 
-class KeyboardWidget : public wxPanel, public SoundDriverListener
+class KeyboardWidget : public wxPanel
 {
 public:
   KeyboardWidget(wxWindow* parent, int ch, int keyWidth, int keyHeight);
@@ -125,7 +125,7 @@ inline void VolumeBar::SetValue(float value) {
 
 #include <wx/stattext.h>
 
-class RateText : public wxStaticText, public SoundDriverListener {
+class RateText : public wxStaticText {
 
 public:
   RateText(wxWindow* parent, int ch);

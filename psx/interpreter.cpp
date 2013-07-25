@@ -946,7 +946,7 @@ inline void DelayedLoad(u32 rt, u32 value) {
 
   wxThread::ExitCode InterpreterThread::Entry()
   {
-    wxMessageOutputDebug().Printf(wxT("PSX Threads is started."));
+    wxMessageOutputDebug().Printf(wxT("Started PSX thread."));
 
     isRunning_ = true;
     do {

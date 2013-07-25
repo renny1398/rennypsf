@@ -3,6 +3,7 @@
 #include <wx/listctrl.h>
 #include <wx/menu.h>
 #include "spu/soundbank.h"
+#include "SoundManager.h"
 
 
 ////////////////////////////////////////////////////////////////////////
@@ -23,18 +24,30 @@ class WavetableList : public wxListCtrl
 public:
     WavetableList(wxWindow* parent);
 
-    void OnAdd(SPU::SamplingTone* tone);
-    void OnModify(SPU::SamplingTone* tone);
-    void OnRemove(SPU::SamplingTone* tone);
-
+    void OnAdd(ToneInfo* tone);
+    void OnModify(ToneInfo* tone);
+    void OnRemove(ToneInfo* tone);
 
 protected:
+    long Find(int number);
+
+    void OnChar(wxKeyEvent& event);
+
     void onListRightClick(wxListEvent& event);
     void onPopupClick(wxCommandEvent& event);
 
     void ExportTone(SPU::SamplingTone* tone);
 
 private:
+    enum COLUMN_INDEX {
+      COLUMN_INDEX_MUTED,
+      COLUMN_INDEX_OFFSET,
+      COLUMN_INDEX_LENGTH,
+      COLUMN_INDEX_LOOP,
+      COLUMN_INDEX_FFT,
+      COLUMN_INDEX_SIMILAR_TO
+    };
+
     // map<Tone, wavetable>
     wxMenu menuPopup_;
 

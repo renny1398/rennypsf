@@ -17,15 +17,15 @@ class wxEvtHandler;
 namespace SPU {
 
 
-typedef unsigned int SPUAddr;
+  typedef unsigned int SPUAddr;
 
 
-class SamplingTone;
-class ChannelInfo;
+  class SamplingTone;
+  class ChannelInfo;
 
-class SamplingToneIterator
-{
-public:
+  class SamplingToneIterator
+  {
+  public:
     SamplingToneIterator(SamplingTone* pTone = 0, ChannelInfo* pChannel = 0);
     SamplingToneIterator(const SamplingToneIterator& itr);
 
@@ -40,24 +40,24 @@ public:
     // void SetPreferredLoop(uint32_t index);
     int32_t GetLoopOffset() const;
 
-protected:
+  protected:
     void clone(SamplingToneIterator* itrTone) const;
 
-private:
+  private:
     SamplingTone* pTone_;
     ChannelInfo* pChannel_;
     mutable uint32_t index_;
 
     void* operator new(std::size_t);
-};
+  };
 
 
 
-class SoundBank;
+  class SoundBank;
 
-class SamplingTone
-{
-public:
+  class SamplingTone
+  {
+  public:
     SamplingTone(SoundBank *soundbank, uint8_t* pADPCM);
 
     SoundBank& Soundbank() { return soundbank_; }
@@ -79,18 +79,22 @@ public:
 
     void ConvertData();
 
+    void Mute() { muted_ = true; }
+    void Unmute() { muted_ = false; }
+    bool IsMuted() const { return muted_; }
+
     // iterators
     SamplingToneIterator Iterator(ChannelInfo *pChannel) const;
     // const SamplingToneIterator& Begin() const;
     // const SamplingToneIterator& End() const;
 
-protected:
+  protected:
     void ADPCM2LPCM();
 
     bool hasFinishedConv() const;
 
 
-private:
+  private:
     SoundBank& soundbank_;
 
     const uint8_t* const pADPCM_;
@@ -105,31 +109,33 @@ private:
     SPUAddr end_addr_;
     double freq_;
 
+    bool muted_;
+
     SamplingToneIterator begin_;
 
     mutable int prev1_, prev2_;
 
     friend class SoundBank;
     friend class SamplingToneIterator;
-};
+  };
 
 
 
 
-////////////////////////////////////////////////////////////////////////
-// Fourier Transformer
-////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////
+  // Fourier Transformer
+  ////////////////////////////////////////////////////////////////////////
 
 
-class FourierTransformer
-{
-public:
+  class FourierTransformer
+  {
+  public:
     FourierTransformer();
     ~FourierTransformer();
 
     void PostTransform(SamplingTone* tone, int sampling_rate);
 
-private:
+  private:
     static void* mainLoop(void *);
 
     int sampling_rate_;
@@ -139,7 +145,7 @@ private:
     pthread_mutex_t mutexQueue_;
     pthread_cond_t condQueue_;
     bool requiresShutdown_;
-};
+  };
 
 
 
@@ -147,14 +153,14 @@ private:
 
 
 
-WX_DECLARE_HASH_MAP(uint32_t, SamplingTone*, wxIntegerHash, wxIntegerEqual, SamplingToneMap);
+  WX_DECLARE_HASH_MAP(uint32_t, SamplingTone*, wxIntegerHash, wxIntegerEqual, SamplingToneMap);
 
 
-class SPU;
+  class SPU;
 
-class SoundBank
-{
-public:
+  class SoundBank : public wxEvtHandler
+  {
+  public:
     SoundBank(SPU* pSPU);
     ~SoundBank();
 
@@ -163,7 +169,8 @@ public:
     void Shutdown();
 
     // const SamplineTone* GetSamplingTone(uint8_t* pADPCM) const;
-    SamplingTone *GetSamplingTone(uint32_t addr) const;
+    SamplingTone* GetSamplingTone(uint32_t addr) const;
+    SamplingTone* GetSamplingTone(uint32_t addr);
 
 
     SPU* GetSPU() const;
@@ -178,7 +185,11 @@ public:
     void NotifyOnModify(SamplingTone* tone) const;
     void NotifyOnRemove(SamplingTone* tone) const;
 
-private:
+  protected:
+    void OnMuteTone(wxCommandEvent& event);
+    void OnUnmuteTone(wxCommandEvent& event);
+
+  private:
     SPU* pSPU_;
 
     mutable SamplingToneMap tones_;
@@ -188,15 +199,15 @@ private:
     FourierTransformer fft_;
 
     std::set<wxEvtHandler*> listeners_;
-};
+  };
 
 
 
 
 } // namespace SPU
 
-
+/*
 wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVENT_SPU_ADD_TONE, wxCommandEvent);
 wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVENT_SPU_MODIFY_TONE, wxCommandEvent);
 wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVENT_SPU_REMOVE_TONE, wxCommandEvent);
-
+*/

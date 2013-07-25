@@ -37,14 +37,14 @@ namespace SPU {
     uint16_t ret = 0;
     int volume = channelInfo.iLeftVolume;
     if (channelInfo.isLeftSweep) {
-        wxMessageOutputDebug().Printf(wxT("WARNING: Sweep mode is experimental."));
-        ret |= 0x8000;
-        if (channelInfo.isLeftExpSlope) ret |= 0x4000;
-        if (channelInfo.isLeftDecreased) ret |= 0x2000;
-        if (volume < 0) ret |= 0x1000;
-        ret |= volume & 0x7f;
-        return ret;
-      }
+      wxMessageOutputDebug().Printf(wxT("WARNING: Sweep mode is experimental."));
+      ret |= 0x8000;
+      if (channelInfo.isLeftExpSlope) ret |= 0x4000;
+      if (channelInfo.isLeftDecreased) ret |= 0x2000;
+      if (volume < 0) ret |= 0x1000;
+      ret |= volume & 0x7f;
+      return ret;
+    }
     ret = volume & 0x7fff;
     return ret;
   }
@@ -55,13 +55,13 @@ namespace SPU {
     uint16_t ret = 0;
     int volume = channelInfo.iRightVolume;
     if (channelInfo.isRightSweep) {
-        ret |= 0x8000;
-        if (channelInfo.isRightExpSlope) ret |= 0x4000;
-        if (channelInfo.isRightDecreased) ret |= 0x2000;
-        if (volume < 0) ret |= 0x1000;
-        ret |= volume & 0x7f;
-        return ret;
-      }
+      ret |= 0x8000;
+      if (channelInfo.isRightExpSlope) ret |= 0x4000;
+      if (channelInfo.isRightDecreased) ret |= 0x2000;
+      if (volume < 0) ret |= 0x1000;
+      ret |= volume & 0x7f;
+      return ret;
+    }
     ret = volume & 0x7fff;
     return ret;
   }
@@ -126,7 +126,7 @@ namespace SPU {
 
 
   uint16_t (*const readChannelRegisterLUT[8])(const ChannelInfo&) = {
-      read1xx0, read1xx2, read1xx4, read1xx6, read1xx8, read1xxa, read1xxc, read1xxe
+                                                                    read1xx0, read1xx2, read1xx4, read1xx6, read1xx8, read1xxa, read1xxc, read1xxe
 };
 
 
@@ -217,7 +217,7 @@ uint16_t (*const read1db6)(const SPU& /*spu*/) = readGlobalNOP;
 
 
 uint16_t (*const readGlobalRegisterLUT[])(const SPU& /*spu*/) = {
-    read1d80, read1d82, read1d84, read1d86, read1d88, read1d8a, read1d8c, read1d8e,
+                                                                read1d80, read1d82, read1d84, read1d86, read1d88, read1d8a, read1d8c, read1d8e,
 read1d90, read1d92, read1d94, read1d96, read1d98, read1d9a, read1d9c, read1d9e,
 read1da0, read1da2, read1da4, read1da6, read1da8, read1daa, read1dac, read1dae,
 read1db0, read1db2, read1db4, read1db6
@@ -238,22 +238,22 @@ uint16_t SPU::ReadRegister(uint32_t reg)
   uint32_t ch = (reg & 0x3ff) >> 4;
 
   if (ch < 24) {
-      const int ofs = (reg & 0xf) >> 1;
-      return readChannelRegisterLUT[ofs](Channel(ch));
-    }
+    const int ofs = (reg & 0xf) >> 1;
+    return readChannelRegisterLUT[ofs](Channel(ch));
+  }
 
   // SPU Global Registers
   if (reg < 0x1f801db8) {
-      const int ofs = (reg - 0x1f801d80) >> 1;
-      return readGlobalRegisterLUT[ofs](*this);
-    }
+    const int ofs = (reg - 0x1f801d80) >> 1;
+    return readGlobalRegisterLUT[ofs](*this);
+  }
 
   // Reverb configuration
   const uint32_t ofs = (reg - 0x1f801dc0) >> 1;
   wxASSERT(ofs < 0x40);
   if (ofs < 0x20) {
-      return Reverb().Config[ofs];
-    }
+    return Reverb().Config[ofs];
+  }
 
   return 0;
 }
@@ -270,24 +270,24 @@ void writeChannelNOP(ChannelInfo&, uint16_t) {}
 void write1xx0(ChannelInfo& channelInfo, uint16_t volume)
 {
   if (volume & 0x8000) {
-      channelInfo.isLeftSweep = true;
-      channelInfo.isLeftExpSlope = volume & 0x4000;
-      bool isDecreased = (volume & 0x2000);
-      if (volume & 0x1000) volume ^= 0xffff;
-      volume = ((volume & 0x7f)+1)/2;
-      if (isDecreased) {
-          channelInfo.isLeftDecreased = true;
-          volume += volume / (-2);
-        } else {
-          channelInfo.isLeftDecreased = false;
-          volume += volume / 2;
-        }
-      volume *= 128;
+    channelInfo.isLeftSweep = true;
+    channelInfo.isLeftExpSlope = volume & 0x4000;
+    bool isDecreased = (volume & 0x2000);
+    if (volume & 0x1000) volume ^= 0xffff;
+    volume = ((volume & 0x7f)+1)/2;
+    if (isDecreased) {
+      channelInfo.isLeftDecreased = true;
+      volume += volume / (-2);
     } else {
-      if (volume & 0x4000) {
-          volume = 0x3fff - (volume&0x3fff);
-        }
+      channelInfo.isLeftDecreased = false;
+      volume += volume / 2;
     }
+    volume *= 128;
+  } else {
+    if (volume & 0x4000) {
+      volume = 0x3fff - (volume&0x3fff);
+    }
+  }
   channelInfo.iLeftVolume = volume;
 }
 
@@ -295,24 +295,24 @@ void write1xx0(ChannelInfo& channelInfo, uint16_t volume)
 void write1xx2(ChannelInfo& channelInfo, uint16_t volume)
 {
   if (volume & 0x8000) {
-      channelInfo.isRightSweep = true;
-      channelInfo.isRightExpSlope = volume & 0x4000;
-      bool isDecreased = (volume & 0x2000);
-      if (volume & 0x1000) volume ^= 0xffff;
-      volume = ((volume & 0x7f)+1)/2;
-      if (isDecreased) {
-          channelInfo.isRightDecreased = true;
-          volume += volume / (-2);
-        } else {
-          channelInfo.isRightDecreased = false;
-          volume += volume / 2;
-        }
-      volume *= 128;
+    channelInfo.isRightSweep = true;
+    channelInfo.isRightExpSlope = volume & 0x4000;
+    bool isDecreased = (volume & 0x2000);
+    if (volume & 0x1000) volume ^= 0xffff;
+    volume = ((volume & 0x7f)+1)/2;
+    if (isDecreased) {
+      channelInfo.isRightDecreased = true;
+      volume += volume / (-2);
     } else {
-      if (volume & 0x4000) {
-          volume = 0x3fff - (volume&0x3fff);
-        }
+      channelInfo.isRightDecreased = false;
+      volume += volume / 2;
     }
+    volume *= 128;
+  } else {
+    if (volume & 0x4000) {
+      volume = 0x3fff - (volume&0x3fff);
+    }
+  }
   channelInfo.iRightVolume = volume;
 }
 
@@ -328,13 +328,13 @@ void write1xx4(ChannelInfo& channelInfo, uint16_t val)
   if (NP < 1) NP = 1;
   channelInfo.iActFreq = NP;
   if (channelInfo.tone != NULL) {
-      const double freq = channelInfo.tone->GetFreq();
-      if (1.0 <= freq) {
-          channelInfo.Pitch = (freq * channelInfo.iRawPitch) / 0x1000;
-        } else {
-          channelInfo.Pitch = 0.0;
-        }
+    const double freq = channelInfo.tone->GetFreq();
+    if (1.0 <= freq) {
+      channelInfo.Pitch = (freq * channelInfo.iRawPitch) / 0x1000;
+    } else {
+      channelInfo.Pitch = 0.0;
     }
+  }
 }
 
 // Set start address of Sound
@@ -377,16 +377,20 @@ void write1xxe(ChannelInfo& channelInfo, uint16_t val)
   // channelInfo.pLoop = Spu.GetSoundBuffer() + (static_cast<uint32_t>(val) << 3);
   channelInfo.addrExternalLoop = static_cast<uint32_t>(val) << 3;
   channelInfo.useExternalLoop = true;
+  if (channelInfo.addrExternalLoop >= 0x80000000) return;
   if (channelInfo.tone) {
-      channelInfo.tone->SetExternalLoopAddr(channelInfo.addrExternalLoop);
+    SPUAddr prev_addr = channelInfo.tone->GetExternalLoopAddr();
+    channelInfo.tone->SetExternalLoopAddr(channelInfo.addrExternalLoop);
+    if (prev_addr != channelInfo.addrExternalLoop) {
+      SPU& Spu = channelInfo.Spu();
+      Spu.NotifyOnChangeLoopIndex(&channelInfo);
     }
-  SPU& Spu = channelInfo.Spu();
-  Spu.NotifyOnChangeLoopIndex(&channelInfo);
+  }
 }
 
 
 void (*const writeChannelRegisterLUT[8])(ChannelInfo&, uint16_t) = {
-    write1xx0, write1xx2, write1xx4, write1xx6, write1xx8, write1xxa, write1xxc, write1xxe
+                                                                   write1xx0, write1xx2, write1xx4, write1xx6, write1xx8, write1xxa, write1xxc, write1xxe
 };
 
 
@@ -443,14 +447,14 @@ void write1d8e(SPU* spu, uint16_t flags)
 inline void channelFMMode(SPU* spu, int start, int end, uint16_t flag)
 {
   for (int ch = start; ch < end; ch++, flag >>= 1) {
-      if ((flag & 1) == 0) {
-          spu->Channel(ch).bFMod = 0;
-          continue;
-        }
-      if (ch == 0) continue;
-      spu->Channel(ch).bFMod = 1;
-      spu->Channel(ch-1).bFMod = 2;
+    if ((flag & 1) == 0) {
+      spu->Channel(ch).bFMod = 0;
+      continue;
     }
+    if (ch == 0) continue;
+    spu->Channel(ch).bFMod = 1;
+    spu->Channel(ch-1).bFMod = 2;
+  }
 }
 
 // Channel FM mode (0-15)
@@ -469,12 +473,12 @@ void write1d92(SPU* spu, uint16_t flag)
 inline void channelNoiseMode(SPU* spu, int start, int end, uint16_t flag)
 {
   for (int ch = start; ch < end; ch++, flag >>= 1) {
-      if (flag & 1) {
-          spu->Channel(ch).bNoise = true;
-          continue;
-        }
-      spu->Channel(ch).bNoise = false;
+    if (flag & 1) {
+      spu->Channel(ch).bNoise = true;
+      continue;
     }
+    spu->Channel(ch).bNoise = false;
+  }
 }
 
 // Channel Noise mode (0-15)
@@ -493,12 +497,12 @@ void write1d96(SPU* spu, uint16_t flag)
 inline void channelReverbMode(SPU* spu, int start, int end, uint16_t flag)
 {
   for (int ch = start; ch < end; ch++, flag >>= 1) {
-      if (flag & 1) {
-          spu->Channel(ch).hasReverb = true;
-          continue;
-        }
-      spu->Channel(ch).hasReverb = false;
+    if (flag & 1) {
+      spu->Channel(ch).hasReverb = true;
+      continue;
     }
+    spu->Channel(ch).hasReverb = false;
+  }
 }
 
 // Channel Reverb mode (0-15)
@@ -583,7 +587,7 @@ void write1db6(SPU* /*spu*/, uint16_t) {}
 
 
 void (*const writeGlobalRegisterLUT[])(SPU* spu, uint16_t) = {
-    write1d80, write1d82, write1d84, write1d86, write1d88, write1d8a, write1d8c, write1d8e,
+                                                             write1d80, write1d82, write1d84, write1d86, write1d88, write1d8a, write1d8c, write1d8e,
 write1d90, write1d92, write1d94, write1d96, write1d98, write1d9a, write1d9c, write1d9e,
 write1da0, write1da2, write1da4, write1da6, write1da8, write1daa, write1dac, write1dae,
 write1db0, write1db2, write1db4, write1db6
@@ -605,32 +609,32 @@ void SPU::WriteRegister(uint32_t reg, uint16_t val)
   uint32_t ch = (reg & 0x3ff) >> 4;
 
   if (ch < 24) {
-      ChannelInfo& channelInfo = Channel(ch);
-      const int ofs = (reg & 0xf) >> 1;
-      /*
+    ChannelInfo& channelInfo = Channel(ch);
+    const int ofs = (reg & 0xf) >> 1;
+    /*
         mutexUpdate_.Lock();
         while (channelInfo.isUpdating == true) {
             condUpdate_.Wait();
         }
         mutexUpdate_.Unlock();
 */
-      writeChannelRegisterLUT[ofs](channelInfo, val);
-      return;
-    }
+    writeChannelRegisterLUT[ofs](channelInfo, val);
+    return;
+  }
 
   // SPU Global Registers
   if (reg < 0x1f801db8) {
-      const int ofs = (reg - 0x1f801d80) >> 1;
-      writeGlobalRegisterLUT[ofs](this, val);
-      return;
-    }
+    const int ofs = (reg - 0x1f801d80) >> 1;
+    writeGlobalRegisterLUT[ofs](this, val);
+    return;
+  }
 
   // Reverb configuration
   const uint32_t ofs = (reg - 0x1f801dc0) >> 1;
   wxASSERT(ofs < 0x40);
   if (ofs < 0x20) {
-      Reverb().Config[ofs] = val;
-    }
+    Reverb().Config[ofs] = val;
+  }
 }
 
 

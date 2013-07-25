@@ -13,16 +13,13 @@ wxDEFINE_EVENT(wxEVT_CHANGE_TONE_NUMBER, wxCommandEvent);
 wxDEFINE_EVENT(wxEVT_CHANGE_PITCH, wxCommandEvent);
 wxDEFINE_EVENT(wxEVT_CHANGE_VELOCITY, wxCommandEvent);
 
+wxDEFINE_EVENT(wxEVT_ADD_TONE, wxCommandEvent);
+wxDEFINE_EVENT(wxEVT_CHANGE_TONE, wxCommandEvent);
+wxDEFINE_EVENT(wxEVT_REMOVE_TONE, wxCommandEvent);
 
-/*
-wxBEGIN_EVENT_TABLE(SoundDriver, wxEvtHandler)
-EVT_THREAD(wxID_ANY, wxEVT_NOTE_ON, SoundDriver::OnNoteOn)
-EVT_THREAD(wxID_ANY, wxEVT_NOTE_OFF, SoundDriver::OnNoteOff)
-EVT_THREAD(wxID_ANY, wxEVT_CHANGE_TONE_NUMBER, SoundDriver::OnChangeToneNumber)
-EVT_THREAD(wxID_ANY, wxEVT_CHANGE_PITCH, SoundDriver::OnChangePitch)
-EVT_THREAD(wxID_ANY, wxEVT_CHANGE_VELOCITY, SoundDriver::OnChangeVelocity)
-wxEND_EVENT_TABLE()
-*/
+wxDEFINE_EVENT(wxEVT_MUTE_TONE, wxCommandEvent);
+wxDEFINE_EVENT(wxEVT_UNMUTE_TONE, wxCommandEvent);
+
 
 
 //////////////////////////////////////////////////////////////////////
@@ -175,6 +172,11 @@ void SoundDriver::AddListener(wxEvtHandler *listener, int ch) {
 }
 
 
+void SoundDriver::AddToneListener(wxEvtHandler *listener) {
+  tone_listeners_.push_back(listener);
+}
+
+
 void SoundDriver::Mute(int ch) {
   muted_.at(ch) = true;
 }
@@ -297,6 +299,107 @@ void SoundDriver::OnChangeVelocity(const NoteInfo& note) {
   // Notify(event);
 }
 
+
+wxVector<ToneInfo>::iterator SoundDriver::ToneIsExists(const wxVector<ToneInfo>& tones, int id) {
+  wxVector<ToneInfo>::iterator itr = const_cast<wxVector<ToneInfo>*>(&tones)->begin();
+  const wxVector<ToneInfo>::const_iterator end_itr = tones.end();
+  for (; itr != end_itr; ++itr) {
+    if ((*itr).number == id) {
+      return itr;
+    }
+  }
+  return itr;
+}
+
+
+
+void SoundDriver::OnAddTone(const ToneInfo& tone) {
+
+  do {
+    wxVector<ToneInfo>::iterator tone_itr = ToneIsExists(tones_, tone.number);
+    if (tone_itr != tones_.end()) {
+      tones_.erase(tone_itr);
+    }
+    tones_.push_back(tone);
+  } while (false);
+
+  wxCommandEvent event(wxEVT_ADD_TONE);
+  wxVector<wxEvtHandler*>::const_iterator itr = tone_listeners_.begin();
+  const wxVector<wxEvtHandler*>::const_iterator end_itr = tone_listeners_.end();
+  while (itr != end_itr) {
+    event.SetClientData(new ToneInfo(tone));
+    (*itr)->AddPendingEvent(event);
+    ++itr;
+  }
+}
+
+
+void SoundDriver::OnChangeTone(const ToneInfo &tone) {
+
+  do {
+    wxVector<ToneInfo>::iterator tone_itr = ToneIsExists(tones_, tone.number);
+    if (tone_itr == tones_.end()) {
+      return;
+    }
+  } while (false);
+
+  wxCommandEvent event(wxEVT_CHANGE_TONE);
+  wxVector<wxEvtHandler*>::const_iterator itr = tone_listeners_.begin();
+  const wxVector<wxEvtHandler*>::const_iterator end_itr = tone_listeners_.end();
+  while (itr != end_itr) {
+    event.SetClientData(new ToneInfo(tone));
+    (*itr)->AddPendingEvent(event);
+    ++itr;
+  }
+}
+
+
+void SoundDriver::OnRemoveTone(const ToneInfo &tone) {
+
+  do {
+    wxVector<ToneInfo>::iterator tone_itr = ToneIsExists(tones_, tone.number);
+    if (tone_itr == tones_.end()) {
+      return;
+    }
+  } while (false);
+
+  wxCommandEvent event(wxEVT_REMOVE_TONE);
+  wxVector<wxEvtHandler*>::const_iterator itr = tone_listeners_.begin();
+  const wxVector<wxEvtHandler*>::const_iterator end_itr = tone_listeners_.end();
+  while (itr != end_itr) {
+    event.SetClientData(new ToneInfo(tone));
+    (*itr)->AddPendingEvent(event);
+    ++itr;
+  }
+}
+
+
+bool SoundDriver::SwitchToneMuted(int id) {
+
+  wxVector<ToneInfo>::iterator tone_itr = ToneIsExists(tones_, id);
+  if (tone_itr == tones_.end()) return false;
+  ToneInfo& tone = *tone_itr;
+  tone.muted = !tone.muted;
+
+  wxVector<wxEvtHandler*>::iterator itr = tone_listeners_.begin();
+  const wxVector<wxEvtHandler*>::const_iterator end_itr = tone_listeners_.end();
+
+  if (tone.muted == true) {
+    wxCommandEvent event(wxEVT_MUTE_TONE);
+    event.SetInt(tone.number);
+    for (; itr != end_itr; ++itr) {
+      (*itr)->AddPendingEvent(event);
+    }
+  } else {
+    wxCommandEvent event(wxEVT_UNMUTE_TONE);
+    event.SetInt(tone.number);
+    for (; itr != end_itr; ++itr) {
+      (*itr)->AddPendingEvent(event);
+    }
+  }
+
+  return tone.muted;
+}
 
 
 ////////////////////////////////////////////////////////////////////////

@@ -13,8 +13,6 @@
 #include <wx/msgqueue.h>
 
 
-// for wxThreadEvent
-
 struct NoteInfo {
   int ch;
   bool is_on;
@@ -25,6 +23,16 @@ struct NoteInfo {
 };
 
 
+struct ToneInfo {
+  int number;
+  int length;
+  int loop;
+  float pitch;
+  const int* data;
+  bool muted;
+};
+
+
 
 wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_NOTE_ON, wxCommandEvent);
 wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_NOTE_OFF, wxCommandEvent);
@@ -32,36 +40,25 @@ wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_CHANGE_TONE_NUMBER, wxCommandEv
 wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_CHANGE_PITCH, wxCommandEvent);
 wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_CHANGE_VELOCITY, wxCommandEvent);
 
+wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_ADD_TONE, wxCommandEvent);
+wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_CHANGE_TONE, wxCommandEvent);
+wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_REMOVE_TONE, wxCommandEvent);
+
+wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_MUTE_TONE, wxCommandEvent);
+wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_UNMUTE_TONE, wxCommandEvent);
+
+
 
 
 class Sample {
 public:
-    short left;
-    short right;
+  short left;
+  short right;
 
-    Sample() : left(0), right(0) {}
-    Sample(short l, short r) : left(l), right(r) {}
+  Sample() : left(0), right(0) {}
+  Sample(short l, short r) : left(l), right(r) {}
 
-    operator short*() { return reinterpret_cast<short*>(this); }
-};
-
-
-
-class SoundDriver;
-
-class SoundDriverListener {
-
-  friend class SoundDriver;
-
-public:
-  virtual ~SoundDriverListener() {}
-
-protected:
-  virtual void OnNoteOn(const NoteInfo& /*note*/) {}
-  virtual void OnNoteOff(const NoteInfo& /*note*/) {}
-  virtual void OnChangeToneNumber(const NoteInfo& /*note*/) {}
-  virtual void OnChangePitch(const NoteInfo& /*note*/) {}
-  virtual void OnChangeVelocity(const NoteInfo& /*note*/) {}
+  operator short*() { return reinterpret_cast<short*>(this); }
 };
 
 
@@ -71,72 +68,82 @@ class SoundFormat;
 class SoundDriver
 {
 public:
-    SoundDriver(int channelNumber);
-    virtual ~SoundDriver();
+  SoundDriver(int channelNumber);
+  virtual ~SoundDriver();
 
-    virtual bool Play(SoundFormat*);
-    virtual bool Stop();
+  virtual bool Play(SoundFormat*);
+  virtual bool Stop();
 
-    // void WriteBuffer(unsigned char * pSound, int lBytes);
-    // virtual void Write(int left, int right) = 0;
-    void WriteStereo(int ch, short left, short right);
-    void WriteStereo(int ch, short samples[2]);
+  // void WriteBuffer(unsigned char * pSound, int lBytes);
+  // virtual void Write(int left, int right) = 0;
+  void WriteStereo(int ch, short left, short right);
+  void WriteStereo(int ch, short samples[2]);
 
-    void Flush();
+  void Flush();
 
-    // int GetChannelNumber() const;
+  // int GetChannelNumber() const;
 
-    void AddListener(wxEvtHandler* listener, int ch);
+  void AddListener(wxEvtHandler* listener, int ch);
+  void AddToneListener(wxEvtHandler* listener);
 
-    // deprecated
-    virtual int GetEnvelopeVolume(int ch) const;
-    virtual void SetEnvelopeVolume(int ch, int vol);
+  // deprecated
+  virtual int GetEnvelopeVolume(int ch) const;
+  virtual void SetEnvelopeVolume(int ch, int vol);
 
-    void Mute(int ch);
-    void Unmute(int ch);
+  void Mute(int ch);
+  void Unmute(int ch);
 
-    void ZeroCounter();
-    void IncrementCounter();
-    int GetCounter() const;
+  bool SwitchToneMuted(int id);
 
-    void OnNoteOn(const NoteInfo& note);
-    void OnNoteOff(const NoteInfo& note);
-    void OnChangeToneNumber(const NoteInfo& note);
-    void OnChangePitch(const NoteInfo& note);
-    void OnChangeVelocity(const NoteInfo& note);
-    // void Notify(wxThreadEvent &event);
+  void ZeroCounter();
+  void IncrementCounter();
+  int GetCounter() const;
 
-    void Notify();
+  static wxVector<ToneInfo>::iterator ToneIsExists(const wxVector<ToneInfo>& tones, int id);
+
+  void OnNoteOn(const NoteInfo& note);
+  void OnNoteOff(const NoteInfo& note);
+  void OnChangeToneNumber(const NoteInfo& note);
+  void OnChangePitch(const NoteInfo& note);
+  void OnChangeVelocity(const NoteInfo& note);
+
+  void OnAddTone(const ToneInfo& tone);
+  void OnChangeTone(const ToneInfo& tone);
+  void OnRemoveTone(const ToneInfo& tone);
+
+  void Notify();  // for NoteInfo
 
 protected:
-    const Sample* GetBuffer(int* size) const;
+  const Sample* GetBuffer(int* size) const;
 
-    void setChannelNumber(int number);
-    void setBufferSize(int size);
-    virtual void WriteToDevice() = 0;
+  void setChannelNumber(int number);
+  void setBufferSize(int size);
+  virtual void WriteToDevice() = 0;
 
 protected:
-    SoundFormat *m_sound;
+  SoundFormat *m_sound;
 
 private:
-    wxVector<NoteInfo> notes_, next_notes_;
+  wxVector<NoteInfo> notes_, next_notes_;
+  wxVector<ToneInfo> tones_;
 
-    int leftSample_, rightSample_;
-    Sample* chSample_;
-    int *chEnvelope_;
-    // int *chEnvelopeLeft_, *chEnvelopeRight_;
-    int channelNumber_;
-    Sample* buffer_;
-    int bufferSize_;
-    int bufferIndex_;
+  int leftSample_, rightSample_;
+  Sample* chSample_;
+  int *chEnvelope_;
+  // int *chEnvelopeLeft_, *chEnvelopeRight_;
+  int channelNumber_;
+  Sample* buffer_;
+  int bufferSize_;
+  int bufferIndex_;
 
-    wxVector<bool> muted_;
+  wxVector<bool> muted_;
 
-    int counter_;
+  int counter_;
 
-    wxVector< wxVector<wxEvtHandler*> > listeners_;
+  wxVector< wxVector<wxEvtHandler*> > listeners_;
+  wxVector<wxEvtHandler*> tone_listeners_;
 
-    // wxDECLARE_EVENT_TABLE();
+  // wxDECLARE_EVENT_TABLE();
 };
 
 
@@ -146,20 +153,20 @@ class WaveOutALCommand;
 
 class WaveOutALThread : public wxThread {
 public:
-    WaveOutALThread(WaveOutAL* sound_driver)
-        : wxThread(wxTHREAD_DETACHED), sound_driver_(sound_driver)
-    {}
+  WaveOutALThread(WaveOutAL* sound_driver)
+    : wxThread(wxTHREAD_DETACHED), sound_driver_(sound_driver)
+  {}
 
-    void PostMessageQueue(WaveOutALCommand* command) {
-        command_queue_.Post(command);
-    }
+  void PostMessageQueue(WaveOutALCommand* command) {
+    command_queue_.Post(command);
+  }
 
 protected:
-    virtual ExitCode Entry();
+  virtual ExitCode Entry();
 
 private:
-    WaveOutAL* const sound_driver_;
-    wxMessageQueue<WaveOutALCommand*> command_queue_;
+  WaveOutAL* const sound_driver_;
+  wxMessageQueue<WaveOutALCommand*> command_queue_;
 };
 
 
@@ -167,40 +174,40 @@ private:
 
 class WaveOutAL : public SoundDriver
 {
-    friend class WaveOutALThread;
-    friend class WaveOutALCommand;
+  friend class WaveOutALThread;
+  friend class WaveOutALCommand;
 
 public:
-    WaveOutAL(int channelNumber);
-    ~WaveOutAL();
+  WaveOutAL(int channelNumber);
+  ~WaveOutAL();
 
-    void Init();
-    virtual bool Stop();
-    void Shutdown();
+  void Init();
+  virtual bool Stop();
+  void Shutdown();
 
-    void ThisThreadInit();
-    bool ThisThreadStop();
-    void ThisThreadShutdown();
+  void ThisThreadInit();
+  bool ThisThreadStop();
+  void ThisThreadShutdown();
 
-    virtual void WriteToDevice();
-    void ThisThreadWriteToDevice();
+  virtual void WriteToDevice();
+  void ThisThreadWriteToDevice();
 protected:
-    void WaitForWritingToDevice();
+  void WaitForWritingToDevice();
 
 private:
-    // bool is_multithreading_; // force
+  // bool is_multithreading_; // force
 
-    static ALCdevice *device_;
-    static ALCcontext *context_;
-    static int source_number_;
+  static ALCdevice *device_;
+  static ALCcontext *context_;
+  static int source_number_;
 
-    static WaveOutALThread* thread_;
+  static WaveOutALThread* thread_;
 
-    ALuint buffer_, source_;
-    wxMutex mutex_, mutex2_;
-    wxCondition write_to_device_cond_;
-    wxCondition write_to_device_cond2_;
-    bool finished_writing_;
+  ALuint buffer_, source_;
+  wxMutex mutex_, mutex2_;
+  wxCondition write_to_device_cond_;
+  wxCondition write_to_device_cond2_;
+  bool finished_writing_;
 };
 
 
@@ -209,31 +216,31 @@ private:
 class WaveOutDisk: public SoundDriver
 {
 public:
-    WaveOutDisk(int channelNumber);
+  WaveOutDisk(int channelNumber);
 
-    bool Play(SoundFormat *);
-    bool Stop();
+  bool Play(SoundFormat *);
+  bool Stop();
 
 private:
-    struct WaveOutFormat
-    {
-        WaveOutFormat();
-        char RIFF[4];
-        int size;
-        char WAVE[4];
-        char fmt[4];
-        int fmtSize;
-        short formatId;
-        short channelNumber;
-        int samplingRate;
-        int dataRate;
-        short blockSize;
-        short bitNumber;
-        char DATA[4];
-        int dataSize;
-    };
+  struct WaveOutFormat
+  {
+    WaveOutFormat();
+    char RIFF[4];
+    int size;
+    char WAVE[4];
+    char fmt[4];
+    int fmtSize;
+    short formatId;
+    short channelNumber;
+    int samplingRate;
+    int dataRate;
+    short blockSize;
+    short bitNumber;
+    char DATA[4];
+    int dataSize;
+  };
 
-    wxString fileName_;
-    wxFile file_;
-    WaveOutFormat format_;
+  wxString fileName_;
+  wxFile file_;
+  WaveOutFormat format_;
 };

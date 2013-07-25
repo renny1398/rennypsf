@@ -1,6 +1,7 @@
 #include "wavetablepanel.h"
 #include "spu/soundbank.h"
 #include "spu/spu.h"
+#include "app.h"
 
 
 ////////////////////////////////////////////////////////////////////////
@@ -9,112 +10,172 @@
 
 
 WavetableList::WavetableList(wxWindow *parent) :
-    wxListCtrl(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT, wxDefaultValidator, wxT("WavetableList"))
+  wxListCtrl(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT, wxDefaultValidator, wxT("WavetableList"))
 {
-    wxListItem itemOffset;
-    itemOffset.SetId(1);
-    itemOffset.SetWidth(80);
-    itemOffset.SetText(_("Offset"));
-    wxListCtrl::InsertColumn(0, itemOffset);
+  wxListCtrl::InsertColumn(COLUMN_INDEX_MUTED, wxT(" "));
+  SetColumnWidth(COLUMN_INDEX_MUTED, 24);
 
-    wxListItem itemLength;
-    itemLength.SetId(2);
-    itemLength.SetWidth(64);
-    itemLength.SetText(_("Length"));
-    wxListCtrl::InsertColumn(1, itemLength);
+  wxListItem itemOffset;
+  itemOffset.SetId(COLUMN_INDEX_OFFSET);
+  itemOffset.SetWidth(80);
+  itemOffset.SetText(_("Offset"));
+  wxListCtrl::InsertColumn(COLUMN_INDEX_OFFSET, itemOffset);
 
-    wxListItem itemLoop;
-    itemLoop.SetId(3);
-    itemLoop.SetWidth(64);
-    itemLoop.SetText(_("Loop"));
-    wxListCtrl::InsertColumn(2, itemLoop);
+  wxListItem itemLength;
+  itemLength.SetId(COLUMN_INDEX_LENGTH);
+  itemLength.SetWidth(64);
+  itemLength.SetText(_("Length"));
+  wxListCtrl::InsertColumn(COLUMN_INDEX_LENGTH, itemLength);
 
-    wxListItem itemFFT;
-    itemFFT.SetId(3);
-    itemFFT.SetWidth(64);
-    itemFFT.SetText(_("FFT"));
-    wxListCtrl::InsertColumn(3, itemFFT);
+  wxListItem itemLoop;
+  itemLoop.SetId(COLUMN_INDEX_LOOP);
+  itemLoop.SetWidth(64);
+  itemLoop.SetText(_("Loop"));
+  wxListCtrl::InsertColumn(COLUMN_INDEX_LOOP, itemLoop);
 
-    wxEvtHandler::Connect(wxEVT_COMMAND_LIST_ITEM_RIGHT_CLICK, (wxObjectEventFunction)&WavetableList::onListRightClick, 0, this);
+  wxListItem itemFFT;
+  itemFFT.SetId(COLUMN_INDEX_FFT);
+  itemFFT.SetWidth(80);
+  itemFFT.SetText(_("FFT"));
+  wxListCtrl::InsertColumn(COLUMN_INDEX_FFT, itemFFT);
 
-    // create a popup menu
-    menuPopup_.Append(ID_EXPORT_WAVE, _("&Export"));
-    wxEvtHandler::Connect(wxEVT_COMMAND_MENU_SELECTED, (wxObjectEventFunction)&WavetableList::onPopupClick, 0, this);
+  wxEvtHandler::Connect(wxEVT_COMMAND_LIST_ITEM_RIGHT_CLICK, (wxObjectEventFunction)&WavetableList::onListRightClick, 0, this);
+
+  // create a popup menu
+  menuPopup_.Append(ID_EXPORT_WAVE, _("&Export"));
+  wxEvtHandler::Connect(wxEVT_COMMAND_MENU_SELECTED, (wxObjectEventFunction)&WavetableList::onPopupClick, 0, this);
+
+  // receive key input
+  wxEvtHandler::Bind(wxEVT_CHAR, &WavetableList::OnChar, this);
 }
 
 
-void WavetableList::OnAdd(SPU::SamplingTone* tone)
-{
-    const unsigned int offset = tone->GetAddr();
-//    const unsigned int length = tone->GetLength() * 16 / 28;
-//    const unsigned int loop = tone->GetLoopIndex() * 16 / 28;
-
-    int itemCount = wxListCtrl::GetItemCount();
-    wxString strOffset;
-    strOffset << offset;
-    wxListCtrl::InsertItem(itemCount, strOffset);
-
-    wxListCtrl::SetItem(itemCount, 0, strOffset);
-}
-
-
-void WavetableList::OnModify(SPU::SamplingTone* tone)
-{
-    const unsigned int offset = tone->GetAddr();
-    const unsigned int length = tone->GetLength() * 16 / 28;
-    const unsigned int loop = tone->GetLoopOffset() * 16 / 28;
-
-    wxString strOffset;
-    strOffset << offset;
-
-    long itemId = wxListCtrl::FindItem(-1, strOffset);
-    if (itemId == wxNOT_FOUND) {
-        return;
+long WavetableList::Find(int number) {
+  const int count = wxListCtrl::GetItemCount();
+  for (long i = 0; i < count; i++) {
+    long ofs;
+    wxString str = wxListCtrl::GetItemText(i, COLUMN_INDEX_OFFSET);
+    str.ToLong(&ofs);
+    if (ofs == number) {
+      return i;
     }
-
-    wxString strLength;
-    strLength << length;
-    wxListCtrl::SetItem(itemId, 1, strLength);
-
-    wxString strLoop;
-    strLoop << loop;
-    wxListCtrl::SetItem(itemId, 2, strLoop);
-
-    double freq = tone->GetFreq();
-    if (freq >= 1.0) {
-        wxString strFreq;
-        strFreq << freq;
-        wxListCtrl::SetItem(itemId, 3, strFreq);
-    }
+  }
+  return wxNOT_FOUND;
 }
 
 
-void WavetableList::OnRemove(SPU::SamplingTone* tone)
+
+
+void WavetableList::OnAdd(ToneInfo* tone)
 {
-    const unsigned int offset = tone->GetAddr();
-    wxString strOffset;
-    strOffset << offset;
-    long item = wxListCtrl::FindItem(0, strOffset);
-    if (item == wxNOT_FOUND) {
-        return;
-    }
-    wxListCtrl::DeleteItem(item);
+  const unsigned int offset = tone->number;
+  // const unsigned int length = tone->length;
+  // const unsigned int loop = tone->loop;
+
+  if (offset == 4096) return;
+
+  const int itemCount = wxListCtrl::GetItemCount();
+  int i = 0;
+  while (i < itemCount) {
+    long ofs;
+    GetItemText(i, COLUMN_INDEX_OFFSET).ToLong(&ofs);
+    if (offset < ofs) break;
+    i++;
+  }
+
+  wxString strOffset;
+  strOffset << offset;
+
+  wxListCtrl::InsertItem(i, strOffset);
+  wxListCtrl::SetItem(i, COLUMN_INDEX_MUTED, wxT(" "));
+  wxListCtrl::SetItem(i, COLUMN_INDEX_OFFSET, strOffset);
 }
+
+
+void WavetableList::OnModify(ToneInfo* tone)
+{
+  const unsigned int offset = tone->number;
+  const unsigned int length = tone->length;
+  const unsigned int loop = tone->loop;
+
+  wxString strOffset;
+  strOffset << offset;
+
+  long itemId = Find(offset);
+  if (itemId == wxNOT_FOUND) {
+    return;
+  }
+
+  wxString strLength;
+  strLength << length;
+  wxListCtrl::SetItem(itemId, COLUMN_INDEX_LENGTH, strLength);
+
+  wxString strLoop;
+  strLoop << loop;
+  wxListCtrl::SetItem(itemId, COLUMN_INDEX_LOOP, strLoop);
+
+  float freq = tone->pitch;
+  if (freq >= 1.0) {
+    wxString strFreq;
+    strFreq << freq;
+    wxListCtrl::SetItem(itemId, COLUMN_INDEX_FFT, strFreq);
+  }
+}
+
+
+void WavetableList::OnRemove(ToneInfo* tone)
+{
+  const unsigned int offset = tone->number;
+  // wxString strOffset;
+  // strOffset << offset;
+  long item = Find(offset);
+  if (item == wxNOT_FOUND) {
+    return;
+  }
+  wxListCtrl::DeleteItem(item);
+}
+
+
+void WavetableList::OnChar(wxKeyEvent &event) {
+  int key = event.GetKeyCode();
+  switch (key) {
+  case 'M':
+  case 'm':
+    {
+      long item = -1;
+      do {
+        item = GetNextItem(item, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+        if (item == -1) break;
+        wxString str_ofs = wxListCtrl::GetItemText(item, COLUMN_INDEX_OFFSET);
+        long ofs;
+        str_ofs.ToLong(&ofs);
+        bool muted = wxGetApp().GetSoundManager()->SwitchToneMuted(ofs);
+        if (muted == true) {
+          wxListCtrl::SetItem(item, COLUMN_INDEX_MUTED, wxT("M"));
+        } else {
+          wxListCtrl::SetItem(item, COLUMN_INDEX_MUTED, wxT(" "));
+        }
+      } while (true);
+    }
+    return;
+  }
+}
+
 
 
 
 void WavetableList::onPopupClick(wxCommandEvent &event)
 {
-    using namespace SPU;
-    SamplingTone *tone = reinterpret_cast<SamplingTone*>(static_cast<wxMenu *>(event.GetEventObject())->GetClientData());
-    wxMessageOutputDebug().Printf(wxT("offset: %d"), tone->GetAddr());
-    switch (event.GetId()) {
-    case ID_EXPORT_WAVE:
-        ExportTone(tone);
-        break;
-    default:
-        break;
-    }
+  using namespace SPU;
+  SamplingTone *tone = reinterpret_cast<SamplingTone*>(static_cast<wxMenu *>(event.GetEventObject())->GetClientData());
+  wxMessageOutputDebug().Printf(wxT("offset: %d"), tone->GetAddr());
+  switch (event.GetId()) {
+  case ID_EXPORT_WAVE:
+    ExportTone(tone);
+    break;
+  default:
+    break;
+  }
 }
 
 
@@ -122,67 +183,65 @@ void WavetableList::onPopupClick(wxCommandEvent &event)
 
 void WavetableList::ExportTone(SPU::SamplingTone *tone)
 {
-    using namespace SPU;
+  using namespace SPU;
 
-    wxString strFileName;
-    strFileName << tone->GetAddr() << ".wav";
+  wxString strFileName;
+  strFileName << tone->GetAddr() << ".wav";
 
-    wxFile file(strFileName, wxFile::write);
+  wxFile file(strFileName, wxFile::write);
 
-    int length = 0;
+  int length = 0;
 
-    file.Write("RIFF", 4);
-    file.Write(&length, 4);
-    file.Write("WAVEfmt ", 8);
+  file.Write("RIFF", 4);
+  file.Write(&length, 4);
+  file.Write("WAVEfmt ", 8);
 
-    const int channelNumber = 1;
-    const int bitNumber = 16;
-    const int samplingRate = 44100;
-    const int blockSize = (bitNumber/8) * channelNumber;
-    const int dataRate = samplingRate * blockSize;
+  const int channelNumber = 1;
+  const int bitNumber = 16;
+  const int samplingRate = 44100;
+  const int blockSize = (bitNumber/8) * channelNumber;
+  const int dataRate = samplingRate * blockSize;
 
-    const int fmtSize = 16;
-    const int fmtId = 1;
-    file.Write(&fmtSize, 4);
-    file.Write(&fmtId, 2);
-    file.Write(&channelNumber, 2);
-    file.Write(&samplingRate, 4);
-    file.Write(&dataRate, 4);
-    file.Write(&blockSize, 2);
-    file.Write(&bitNumber, 2);
+  const int fmtSize = 16;
+  const int fmtId = 1;
+  file.Write(&fmtSize, 4);
+  file.Write(&fmtId, 2);
+  file.Write(&channelNumber, 2);
+  file.Write(&samplingRate, 4);
+  file.Write(&dataRate, 4);
+  file.Write(&blockSize, 2);
+  file.Write(&bitNumber, 2);
 
-    file.Write("data", 4);
-    file.Write(&length, 4);
+  file.Write("data", 4);
+  file.Write(&length, 4);
 
-    length = tone->GetLength();
-    for (int i = 0; i < length; i++) {
-        int s = tone->At(i);
-        file.Write(&s, 2);
-    }
+  length = tone->GetLength();
+  for (int i = 0; i < length; i++) {
+    int s = tone->At(i);
+    file.Write(&s, 2);
+  }
 
-    length *= 2;
-    file.Seek(0x28, wxFromStart);
-    file.Write(&length, 4);
-    length += 0x24;
-    file.Write(&length, 4);
+  length *= 2;
+  file.Seek(0x28, wxFromStart);
+  file.Write(&length, 4);
+  length += 0x24;
+  file.Write(&length, 4);
 
-    file.Close();
+  file.Close();
 
-    wxMessageOutputDebug().Printf(wxT("Saved as %s"), strFileName);
+  wxMessageOutputDebug().Printf(wxT("Saved as %s"), strFileName);
 }
 
 
 void WavetableList::onListRightClick(wxListEvent &event)
 {
-  /*
-    wxListItem item = event.GetItem();
-    long offset;
-    item.GetText().ToLong(&offset);
-    if (offset < 0 || 0x80000 <= offset) return;
-    SPU::SamplingTone *tone = Spu.SoundBank_.GetSamplingTone(offset);
-    menuPopup_.SetClientData(tone);
-    PopupMenu(&menuPopup_);
-  */
+  wxListItem item = event.GetItem();
+  long offset;
+  item.GetText().ToLong(&offset);
+  if (offset < 0 || 0x80000 <= offset) return;
+//  SPU::SamplingTone *tone = Spu.SoundBank_.GetSamplingTone(offset);
+//  menuPopup_.SetClientData(tone);
+//  PopupMenu(&menuPopup_);
 }
 
 
@@ -192,46 +251,50 @@ void WavetableList::onListRightClick(wxListEvent &event)
 
 
 wxBEGIN_EVENT_TABLE(WavetablePanel, wxPanel)
-EVT_COMMAND(wxID_ANY, wxEVENT_SPU_ADD_TONE, WavetablePanel::onAdd)
-EVT_COMMAND(wxID_ANY, wxEVENT_SPU_MODIFY_TONE, WavetablePanel::onModify)
-EVT_COMMAND(wxID_ANY, wxEVENT_SPU_REMOVE_TONE, WavetablePanel::onRemove)
+EVT_COMMAND(wxID_ANY, wxEVT_ADD_TONE, WavetablePanel::onAdd)
+EVT_COMMAND(wxID_ANY, wxEVT_CHANGE_TONE, WavetablePanel::onModify)
+EVT_COMMAND(wxID_ANY, wxEVT_REMOVE_TONE, WavetablePanel::onRemove)
 wxEND_EVENT_TABLE()
 
 
 #include <wx/sizer.h>
 
 WavetablePanel::WavetablePanel(wxWindow *parent) :
-    wxPanel(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize)
+  wxPanel(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize)
 {
-    wxBoxSizer *mainSizer = new wxBoxSizer(wxVERTICAL);
-    WavetableList *listCtrl = new WavetableList(this);
-    mainSizer->Add(listCtrl, wxEXPAND);
+  wxBoxSizer *mainSizer = new wxBoxSizer(wxVERTICAL);
+  WavetableList *listCtrl = new WavetableList(this);
+  mainSizer->Add(listCtrl, wxEXPAND);
 
-    this->SetSizer(mainSizer);
+  this->SetSizer(mainSizer);
 
-    listCtrl_ = listCtrl;
-    mainSizer_ = mainSizer;
+  listCtrl_ = listCtrl;
+  mainSizer_ = mainSizer;
 
-    // Spu.SoundBank_.AddListener(this);
+  // Spu.SoundBank_.AddListener(this);
+  wxGetApp().GetSoundManager()->AddToneListener(this);
 }
 
 
 
 void WavetablePanel::onAdd(wxCommandEvent& event)
 {
-    SPU::SamplingTone* tone = (SPU::SamplingTone*)event.GetClientData();
-    listCtrl_->OnAdd(tone);
+  ToneInfo* tone = (ToneInfo*)event.GetClientData();
+  listCtrl_->OnAdd(tone);
+  delete tone;
 }
 
 
 void WavetablePanel::onModify(wxCommandEvent& event)
 {
-    SPU::SamplingTone* tone = (SPU::SamplingTone*)event.GetClientData();
-    listCtrl_->OnModify(tone);
+  ToneInfo* tone = (ToneInfo*)event.GetClientData();
+  listCtrl_->OnModify(tone);
+  delete tone;
 }
 
 void WavetablePanel::onRemove(wxCommandEvent& event)
 {
-    SPU::SamplingTone* tone = (SPU::SamplingTone*)event.GetClientData();
-    listCtrl_->OnRemove(tone);
+  ToneInfo* tone = (ToneInfo*)event.GetClientData();
+  listCtrl_->OnRemove(tone);
+  delete tone;
 }

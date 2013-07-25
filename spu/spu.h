@@ -311,6 +311,8 @@ public:
     virtual REVERBInfo& Reverb() = 0;
     virtual const REVERBInfo& Reverb() const = 0;
 
+    virtual SoundBank& Soundbank() = 0;
+
     SoundDriver* GetSoundDriver();
     void SetSoundDriver(SoundDriver* sound_driver_);
 
@@ -414,6 +416,11 @@ public:
     //
   public:
     SamplingTone* GetSamplingTone(uint32_t addr) const;
+
+    void NotifyOnAddTone(const SamplingTone& tone) const;
+    void NotifyOnChangeTone(const SamplingTone& tone) const;
+    void NotifyOnRemoveTone(const SamplingTone& tone) const;
+
     int GetPCMNumber() const;
     int GetPCM(int index, void* pcm, int* loop) const;
 
@@ -495,6 +502,7 @@ public:
     // Sound bank
   public:
     SoundBank SoundBank_;
+    virtual SoundBank& Soundbank() { return SoundBank_; }
 
     // DMA
   private:

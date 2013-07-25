@@ -92,7 +92,6 @@ namespace SPU {
   }
 
 
-
   void ChannelInfo::StartSound()
   {
     wxMutexLocker locker(on_mutex_);
@@ -261,26 +260,9 @@ namespace SPU {
 
   void SPUBase::SetSoundDriver(SoundDriver *sound_driver) {
     sound_driver_ = sound_driver;
+    sound_driver->AddToneListener(&(Soundbank()));
   }
 
-/*
-  void SPUBase::AddListener(wxEvtHandler *listener) {
-    // listeners_.insert(listener);
-  }
-
-  void SPUBase::RemoveListener(wxEvtHandler *listener) {
-    // listeners_.erase(listener);
-  }
-
-
-  void SPUBase::AddListener(wxEvtHandler *listener, int ch) {
-    Channel(ch).AddListener(listener);
-  }
-
-  void SPUBase::RemoveListener(wxEvtHandler *listener, int ch) {
-    Channel(ch).RemoveListener(listener);
-  }
-*/
 
   void SPUBase::NotifyOnUpdateStartAddress(int ch) const {
     pthread_mutex_lock(&process_mutex_);
@@ -293,15 +275,14 @@ namespace SPU {
 
   void SPUBase::NotifyOnChangeLoopIndex(ChannelInfo *pChannel) const
   {
-    /*
-    wxCommandEvent event(wxEVENT_SPU_CHANNEL_CHANGE_LOOP);
-    event.SetClientData(pChannel);
-
-    const SPUListener::const_iterator itrEnd = listeners_.end();
-    for (SPUListener::const_iterator itr = listeners_.begin(); itr != itrEnd; ++itr) {
-      (*itr)->AddPendingEvent(event);
-    }
-    */
+    SamplingTone* tone = pChannel->tone;
+    ToneInfo tone_info;
+    tone_info.number = tone->GetAddr();
+    tone_info.length = tone->GetLength();
+    tone_info.loop = (tone->GetExternalLoopAddr() - tone->GetAddr()) * 28 / 16;
+    tone_info.pitch = tone->GetFreq();
+    tone_info.data = tone->GetData();
+    sound_driver_->OnChangeTone(tone_info);
   }
 
 
@@ -324,10 +305,37 @@ namespace SPU {
 
   SamplingTone* SPU::GetSamplingTone(uint32_t addr) const
   {
-    return SoundBank_.GetSamplingTone(addr);
+    return const_cast<SoundBank*>(&SoundBank_)->GetSamplingTone(addr);
   }
 
 
+  void SPU::NotifyOnAddTone(const SamplingTone &tone) const {
+    ToneInfo tone_info;
+    tone_info.number = tone.GetAddr();
+    tone_info.length = tone.GetLength();
+    tone_info.loop = tone.GetLoopOffset();
+    tone_info.pitch = tone.GetFreq();
+    tone_info.data = tone.GetData();
+    sound_driver_->OnAddTone(tone_info);
+  }
+
+
+  void SPU::NotifyOnChangeTone(const SamplingTone &tone) const {
+    ToneInfo tone_info;
+    tone_info.number = tone.GetAddr();
+    tone_info.length = tone.GetLength();
+    tone_info.loop = tone.GetLoopOffset();
+    tone_info.pitch = tone.GetFreq();
+    tone_info.data = tone.GetData();
+    sound_driver_->OnChangeTone(tone_info);
+  }
+
+
+  void SPU::NotifyOnRemoveTone(const SamplingTone &tone) const {
+    ToneInfo tone_info;
+    tone_info.number = tone.GetAddr();
+    sound_driver_->OnRemoveTone(tone_info);
+  }
 
 
   void SPU::SetupStreams()
