@@ -464,7 +464,7 @@ public:
     ChannelArray Channels;
 
   private:
-    REVERBInfo reverb_;
+    NeilReverb reverb_;
 
     unsigned long m_noiseVal;
 

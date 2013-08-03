@@ -35,6 +35,7 @@ namespace SPU {
 
   const int32_t* SamplingTone::GetData() const
   {
+    if (LPCM_.empty()) return NULL;
     return &LPCM_[0];
   }
 

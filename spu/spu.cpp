@@ -97,7 +97,7 @@ namespace SPU {
     wxMutexLocker locker(on_mutex_);
 
     ADSRX.Start();
-    spu_.Reverb().StartReverb(*this);
+    spu_.Reverb().StartReverb(this);
 
     // s_1 = 0;
     // s_2 = 0;
@@ -180,16 +180,19 @@ namespace SPU {
       int right = (sval * iRightVolume) / 0x4000;
       lpcm_buffer_l[spu_.ns] = CLIP(left);
       lpcm_buffer_r[spu_.ns] = CLIP(right);
-      /*
-        Spu.Reverb.StoreReverb(*this, pSPU_->ns);
-        left += Spu.Reverb.MixReverbLeft(pSPU_->ns)/3;
-        right += Spu.Reverb.MixReverbRight()/3;
-        left /= 3;
-        right /= 3;
-        CLIP(left);  CLIP(right);
+
+/*
+      spu_.Reverb().StoreReverb(*this);
+      spu_.Reverb().Mix();
+      left = spu_.Reverb().GetLeft();
+      right = spu_.Reverb().GetRight();
+      //left /= 3;
+      // right /= 3;
+      CLIP(left);  CLIP(right);
 */
-      wxGetApp().GetSoundManager()->SetEnvelopeVolume(ch, ADSRX.lVolume);
-      wxGetApp().GetSoundManager()->WriteStereo(ch, left, right);
+
+      spu_.sound_driver_->SetEnvelopeVolume(ch, ADSRX.lVolume);
+      spu_.sound_driver_->WriteStereo(ch, left, right);
     }
     pInterpolation->spos += pInterpolation->GetSinc();
     // wxMessageOutputDebug().Printf("spos = 0x%08x", pInterpolation->spos);

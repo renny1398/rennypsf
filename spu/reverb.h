@@ -13,24 +13,27 @@ class REVERBInfo
 {
 public:
     REVERBInfo(SPU* spu);
-    ~REVERBInfo();
+    virtual ~REVERBInfo();
 
     // Reverb
     void InitReverb();
     void Reset();
 
     void SetReverb(unsigned short value);
-    void StartReverb(ChannelInfo& ch);
-    void StoreReverb(const ChannelInfo &ch, int ns);
+    virtual void StartReverb(ChannelInfo* ch) = 0;
+    virtual void StoreReverb(const ChannelInfo &ch) = 0;
 
     void SetReverbDepthLeft(int depth);
     void SetReverbDepthRight(int depth);
 
-    int ReverbGetBuffer(int ofs) const;
-    void ReverbSetBuffer(int ofs, int val);
-    void ReverbSetBufferPlus1(int ofs, int val);
-    int MixReverbLeft(int ns);
-    int MixReverbRight();
+    int GetBuffer(int ofs) const;
+    void SetBuffer(int ofs, int val);
+    void SetBufferPlus1(int ofs, int val);
+    // int MixReverbLeft(int ns);
+    // int MixReverbRight();
+    virtual void Mix() = 0;
+    int GetLeft() const { return output_left_; }
+    int GetRight() const { return output_right_; }
 
     void WorkAreaStart(uint16_t val);
 
@@ -40,7 +43,7 @@ public:
     int VolLeft;
     int VolRight;
 
-private:
+protected:
     SPU& spu_;
 
 public:
@@ -51,48 +54,53 @@ public:
     int  iReverbRepeat;
     int  iReverbNum;
 
-private:
+protected:
     int iLastRVBLeft;
     int iLastRVBRight;
     int iRVBLeft;
     int iRVBRight;
 
+    int output_left_;
+    int output_right_;
+
+    int dbpos_;
+
 public:
     union {
         int Config[32];
         struct {
-            int FB_SRC_A;       // (offset)
-            int FB_SRC_B;       // (offset)
-            int IIR_ALPHA;      // (coef.)
-            int ACC_COEF_A;     // (coef.)
-            int ACC_COEF_B;     // (coef.)
-            int ACC_COEF_C;     // (coef.)
-            int ACC_COEF_D;     // (coef.)
-            int IIR_COEF;       // (coef.)
-            int FB_ALPHA;       // (coef.)
-            int FB_X;           // (coef.)
-            int IIR_DEST_A0;    // (offset)
-            int IIR_DEST_A1;    // (offset)
-            int ACC_SRC_A0;     // (offset)
-            int ACC_SRC_A1;     // (offset)
-            int ACC_SRC_B0;     // (offset)
-            int ACC_SRC_B1;     // (offset)
-            int IIR_SRC_A0;     // (offset)
-            int IIR_SRC_A1;     // (offset)
-            int IIR_DEST_B0;    // (offset)
-            int IIR_DEST_B1;    // (offset)
-            int ACC_SRC_C0;     // (offset)
-            int ACC_SRC_C1;     // (offset)
-            int ACC_SRC_D0;     // (offset)
-            int ACC_SRC_D1;     // (offset)
-            int IIR_SRC_B1;     // (offset)
-            int IIR_SRC_B0;     // (offset)
-            int MIX_DEST_A0;    // (offset)
-            int MIX_DEST_A1;    // (offset)
-            int MIX_DEST_B0;    // (offset)
-            int MIX_DEST_B1;    // (offset)
-            int IN_COEF_L;      // (coef.)
-            int IN_COEF_R;      // (coef.)
+            int FB_SRC_A_;       // (offset)
+            int FB_SRC_B_;       // (offset)
+            int IIR_ALPHA_;      // (coef.)
+            int ACC_COEF_A_;     // (coef.)
+            int ACC_COEF_B_;     // (coef.)
+            int ACC_COEF_C_;     // (coef.)
+            int ACC_COEF_D_;     // (coef.)
+            int IIR_COEF_;       // (coef.)
+            int FB_ALPHA_;       // (coef.)
+            int FB_X_;           // (coef.)
+            int IIR_DEST_A0_;    // (offset)
+            int IIR_DEST_A1_;    // (offset)
+            int ACC_SRC_A0_;     // (offset)
+            int ACC_SRC_A1_;     // (offset)
+            int ACC_SRC_B0_;     // (offset)
+            int ACC_SRC_B1_;     // (offset)
+            int IIR_SRC_A0_;     // (offset)
+            int IIR_SRC_A1_;     // (offset)
+            int IIR_DEST_B0_;    // (offset)
+            int IIR_DEST_B1_;    // (offset)
+            int ACC_SRC_C0_;     // (offset)
+            int ACC_SRC_C1_;     // (offset)
+            int ACC_SRC_D0_;     // (offset)
+            int ACC_SRC_D1_;     // (offset)
+            int IIR_SRC_B1_;     // (offset)
+            int IIR_SRC_B0_;     // (offset)
+            int MIX_DEST_A0_;    // (offset)
+            int MIX_DEST_A1_;    // (offset)
+            int MIX_DEST_B0_;    // (offset)
+            int MIX_DEST_B1_;    // (offset)
+            int IN_COEF_L_;      // (coef.)
+            int IN_COEF_R_;      // (coef.)
         };
     };
 };
@@ -118,5 +126,37 @@ inline void REVERBInfo::WorkAreaStart(uint16_t val)
         iCurrAddr = lval;
     }
 }
+
+
+
+class NullReverb : public REVERBInfo {
+public:
+  NullReverb(SPU* spu) : REVERBInfo(spu) {}
+  virtual void StartReverb(ChannelInfo* ch);
+  virtual void StoreReverb(const ChannelInfo &ch);
+  virtual void Mix();
+};
+
+
+
+class PeteReverb : public REVERBInfo {
+public:
+  PeteReverb(SPU* spu) : REVERBInfo(spu) {}
+  virtual void StartReverb(ChannelInfo* ch);
+  virtual void StoreReverb(const ChannelInfo &ch);
+  virtual void Mix();
+};
+
+
+
+
+
+class NeilReverb : public REVERBInfo {
+public:
+  NeilReverb(SPU* spu) : REVERBInfo(spu) {}
+  virtual void StartReverb(ChannelInfo* ch);
+  virtual void StoreReverb(const ChannelInfo &ch);
+  virtual void Mix();
+};
 
 }   // namespace SPU
