@@ -8,9 +8,11 @@ cmake_install.cmake
 CMakeCache.txt
 CMakeFiles*
 CMakeFiles
+CMakeScripts
 CMakeLists.txt.user*
 Makefile
 *.cbp
+*.xcodeproj
 *.a
 rennypsf
 stdwx.h.gch

@@ -70,6 +70,7 @@ SoundDriver::SoundDriver(int channelNumber)
 {
   setChannelNumber(channelNumber);
   setBufferSize(NSSIZE * 2);
+  is_playing_ = false;
 }
 
 
@@ -93,6 +94,7 @@ bool SoundDriver::Play(SoundFormat *sound)
   }
   m_sound = sound;
   ZeroCounter();
+  is_playing_ = true;
   return true;
 }
 
@@ -105,7 +107,13 @@ bool SoundDriver::Stop()
     return false;
   }
   m_sound = 0;
+  is_playing_ = false;
   return true;
+}
+
+
+bool SoundDriver::IsPlaying() const {
+  return is_playing_;
 }
 
 
@@ -473,7 +481,8 @@ wxThread::ExitCode WaveOutALThread::Entry() {
     if (WaveOutAL::device_ == 0) break;
   } while (true);
 
-  sound_driver_->thread_ = 0;
+  // sound_driver_->thread_ = 0;
+  wxMessageOutputDebug().Printf(wxT("WaveOutALThread will be destroyed."));
   return 0;
 }
 
@@ -509,7 +518,9 @@ WaveOutAL::~WaveOutAL()
   Shutdown();
 }
 
-
+//
+// This function can be called only from WaveOutALThread::Entry()
+//
 void WaveOutAL::ThisThreadInit()
 {
   if (device_ == NULL) {
@@ -529,55 +540,67 @@ void WaveOutAL::Init() {
 }
 
 
+//
+// This function can be called only from WaveOutALThread::Entry()
+//
 void WaveOutAL::ThisThreadShutdown()
 {
-  if (source_ == 0) return;
-  Stop();
-  // alDeleteSources(1, &source_);
-  //source_ = 0;
+  if (source_ != 0) {
+    SoundDriver::Stop();
+    ThisThreadStop();
+  }
   if (--source_number_ <= 0) {
     alcMakeContextCurrent(0);
     alcDestroyContext(context_);
     alcCloseDevice(device_);
-    device_ = 0;
-    std::cout << "WaveOutAL: Closed a sound device." << std::endl;
+    device_ = 0;  // WaveOutALThread will be destroyed
+    std::cout << "WaveOutAL: Closed WaveOutAL." << std::endl;
   }
 }
 
 
 void WaveOutAL::Shutdown() {
   thread_->PostMessageQueue(new ShutdownAL(this));
+  // TODO: Wait for shutdown
+  thread_->Wait();
+  delete thread_;
+  thread_ = 0;
 }
 
 
+//
+// This function can be called only from WaveOutALThread::Entry()
+//
 void WaveOutAL::ThisThreadWriteToDevice()
 {
-  ALint state, n;
+  if (IsPlaying()) {
+    ALint state, n;
 
-  int size;
-  const short* data = reinterpret_cast<const short*>(GetBuffer(&size));
+    int size;
+    const short* data = reinterpret_cast<const short*>(GetBuffer(&size));
 
-  if (source_ == 0) {
-    alGenSources(1, &source_);
-    // alSourcef(source_, AL_GAIN, 0.25);
-  }
-
-  alGetSourcei(source_, AL_BUFFERS_QUEUED, &n);
-  if (n < NUM_BUFFERS) {
-    alGenBuffers(1, &buffer_);
-  } else {
-    alGetSourcei(source_, AL_SOURCE_STATE, &state);
-    if (state != AL_PLAYING) {
-      alSourcePlay(source_);
-      std::cout << "WaveOutAL: Started playing. source = " << source_ << std::endl;
+    if (source_ == 0) {
+      alGenSources(1, &source_);
+      // alSourcef(source_, AL_GAIN, 0.25);
     }
-    while (alGetSourcei(source_, AL_BUFFERS_PROCESSED, &n), n == 0) {
-      usleep(1000);
+
+    alGetSourcei(source_, AL_BUFFERS_QUEUED, &n);
+    if (n < NUM_BUFFERS) {
+      alGenBuffers(1, &buffer_);
+    } else {
+      alGetSourcei(source_, AL_SOURCE_STATE, &state);
+      if (state != AL_PLAYING) {
+        alSourcePlay(source_);
+        std::cout << "WaveOutAL: Started playing. source = " << source_ << std::endl;
+      }
+      while (alGetSourcei(source_, AL_BUFFERS_PROCESSED, &n), n == 0) {
+        usleep(1000);
+      }
+      alSourceUnqueueBuffers(source_, 1, &buffer_);
     }
-    alSourceUnqueueBuffers(source_, 1, &buffer_);
+    alBufferData(buffer_, AL_FORMAT_STEREO16, data, size*4, 44100);
+    alSourceQueueBuffers(source_, 1, &buffer_);
   }
-  alBufferData(buffer_, AL_FORMAT_STEREO16, data, size*4, 44100);
-  alSourceQueueBuffers(source_, 1, &buffer_);
 
   mutex_.Lock();
   finished_writing_ = true;
@@ -612,14 +635,17 @@ void WaveOutAL::WriteToDevice() {
 
 
 
+//
+// This function can be called only from WaveOutALThread::Entry()
+//
 bool WaveOutAL::ThisThreadStop()
 {
-  SoundDriver::Stop();
   ALint state, n;
   alGetSourcei(source_, AL_SOURCE_STATE, &state);
   if (state != AL_STOPPED) {
     alSourceStop(source_);
-    std::cout << "WaveOutAL: Stopped playing.";
+    alSourcei(source_, AL_BUFFER, 0);
+    std::cout << "WaveOutAL: Stopped playing." << std::endl;
   }
   while (alGetSourcei(source_, AL_SOURCE_STATE, &state), state == AL_PLAYING) {
     usleep(100);
@@ -638,6 +664,7 @@ bool WaveOutAL::ThisThreadStop()
 
 bool WaveOutAL::Stop() {
   thread_->PostMessageQueue(new StopAL(this));
+  SoundDriver::Stop();
   return true;
 }
 

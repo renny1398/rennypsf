@@ -72,6 +72,7 @@ void WavetableList::OnAdd(ToneInfo* tone)
   // const unsigned int length = tone->length;
   // const unsigned int loop = tone->loop;
 
+  // offset 4096 may be dummy
   if (offset == 4096) return;
 
   const int itemCount = wxListCtrl::GetItemCount();

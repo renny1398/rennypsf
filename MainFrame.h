@@ -37,7 +37,9 @@ private:
 enum {
 	ID_OPEN = 101,
 
-	ID_PLAY = 201,
+    ID_SHOW_KEYBOARDS = 250,
+
+	ID_PLAY = 301,
 	ID_PAUSE,
 	ID_STOP,
     ID_DEBUG,

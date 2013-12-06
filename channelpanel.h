@@ -142,8 +142,9 @@ private:
 
 
 #include <wx/event.h>
+#include <wx/scrolwin.h>
 
-class ChannelPanel: public wxPanel
+class ChannelPanel: public wxScrolledWindow
 {
 public:
   ChannelPanel(wxWindow* parent);

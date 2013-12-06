@@ -510,6 +510,7 @@ namespace SPU {
       (*itr)->AddPendingEvent(event);
     }
 */
+
     GetSPU()->NotifyOnChangeTone(*tone);
   }
 

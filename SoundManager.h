@@ -74,6 +74,8 @@ public:
   virtual bool Play(SoundFormat*);
   virtual bool Stop();
 
+  bool IsPlaying() const;
+
   // void WriteBuffer(unsigned char * pSound, int lBytes);
   // virtual void Write(int left, int right) = 0;
   void WriteStereo(int ch, short left, short right);
@@ -136,6 +138,7 @@ private:
   int bufferSize_;
   int bufferIndex_;
 
+  bool is_playing_;
   wxVector<bool> muted_;
 
   int counter_;
@@ -154,7 +157,7 @@ class WaveOutALCommand;
 class WaveOutALThread : public wxThread {
 public:
   WaveOutALThread(WaveOutAL* sound_driver)
-    : wxThread(wxTHREAD_DETACHED), sound_driver_(sound_driver)
+    : wxThread(wxTHREAD_JOINABLE), sound_driver_(sound_driver)
   {}
 
   void PostMessageQueue(WaveOutALCommand* command) {

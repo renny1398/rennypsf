@@ -558,7 +558,8 @@ void RateText::OnChangePitch(const NoteInfo &note) {
 
 
 ChannelPanel::ChannelPanel(wxWindow *parent)
-  : wxPanel(parent, -1, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL, "channel_panel") {
+//  : wxPanel(parent, -1, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL, "channel_panel") {
+: wxScrolledWindow(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL) {
 
   wholeSizer = new wxStaticBoxSizer(wxVERTICAL, this, _("Channel Information"));
 
@@ -595,6 +596,9 @@ ChannelPanel::ChannelPanel(wxWindow *parent)
   SetSizer(wholeSizer);
   SetAutoLayout(true);
   wholeSizer->Fit(this);
+
+  // FitInside();
+  // SetScrollRate(5, 5);
 
   // Spu.AddListener(this);
 }
