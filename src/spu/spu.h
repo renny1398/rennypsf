@@ -3,8 +3,8 @@
 #include <pthread.h>
 
 #include <wx/vector.h>
-// #include <wx/scopedptr.h>
-#include <wx/sharedptr.h>
+#include <wx/scopedptr.h>
+// #include <wx/sharedptr.h>
 #include <wx/thread.h>
 
 #include "../psx/common.h"
@@ -124,13 +124,15 @@ protected:
 
 
 class InterpolationBase;
-typedef wxSharedPtr<InterpolationBase> InterpolationPtr;
+typedef wxScopedPtr<InterpolationBase> InterpolationPtr;
 
 class ChannelArray;
 
 class ChannelInfo : public ::Sample16 {
 public:
   ChannelInfo(SPU* pSPU = 0);
+  ChannelInfo(const ChannelInfo&);  // for vector construction
+
   void StartSound();
   static void InitADSR();
   int MixADSR();
@@ -193,7 +195,7 @@ public:
   int            bFMod;                              // freq mod (0=off, 1=sound channel, 2=freq channel)
   int             iRVBNum;                            // another reverb helper
   int             iOldNoise;                          // old noise val for this channel
-  ADSRInfo        ADSR;                               // active ADSR settings
+  // ADSRInfo        ADSR;                               // active ADSR settings
   ADSRInfoEx      ADSRX;                              // next ADSR settings (will be moved to active on sample start)
 
   bool IsOn() const {
@@ -347,6 +349,32 @@ protected:
 private:
   // SPUListener listeners_;
 };
+
+
+
+/**
+ * SPU Core
+ */
+
+class SPUCore {
+
+private:
+  unsigned short ctrl_;
+  unsigned short stat_;
+  unsigned int irq_;
+  unsigned int addr_;
+  unsigned int rvb_addr_;
+  unsigned int rvb_addr_end_;
+};
+
+
+
+
+
+
+
+
+
 
 
 

@@ -37,7 +37,7 @@ class ChannelInfo;
 class InterpolationBase
 {
 public:
-    InterpolationBase(const ChannelInfo&);
+    InterpolationBase();
     virtual ~InterpolationBase() {}
 
     virtual void Start();
@@ -61,9 +61,8 @@ public:
     uint32_t spos;
 
 protected:
-    const ChannelInfo& channelInfo;
     uint32_t sinc;
-    int currSample;
+    int currSample; // used only for FM
 //    uint32_t nextSample;
 //    uint32_t next2Sample;
 };
@@ -76,7 +75,7 @@ inline uint32_t InterpolationBase::GetSinc() const { return sinc; }
 class GaussianInterpolation: public InterpolationBase
 {
 public:
-    GaussianInterpolation(ChannelInfo& channelInfo): InterpolationBase(channelInfo) {}
+    GaussianInterpolation() {}
     void Start();
 
     InterpolationType GetInterpolationType() const { return GAUSS_INTERPOLATION; }
@@ -97,7 +96,7 @@ private:
 class CubicInterpolation: public InterpolationBase
 {
 public:
-    CubicInterpolation(ChannelInfo& channelInfo): InterpolationBase(channelInfo) {}
+    CubicInterpolation() {}
     void Start();
 
     InterpolationType GetInterpolationType() const { return CUBIC_INTERPOLATION; }

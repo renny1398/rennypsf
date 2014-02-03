@@ -146,10 +146,8 @@ public:
 
   void Reset();
 
-  void set_output(const wxSharedPtr<SoundDeviceDriver>&);
-
-protected:
   const wxSharedPtr<SoundDeviceDriver>& output() const;
+  void set_output(const wxSharedPtr<SoundDeviceDriver>&);
 
 private:
   wxSharedPtr<SoundDeviceDriver> output_;

@@ -2,7 +2,6 @@
 #include <wx/msgout.h>
 
 
-
 namespace SPU {
 
 namespace ChannelRegEnum {

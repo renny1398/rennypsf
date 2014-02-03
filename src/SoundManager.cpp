@@ -54,6 +54,7 @@ bool SoundDeviceDriver::Play()
 {
   ZeroCounter();
   is_playing_ = true;
+  wxMessageOutputDebug().Printf(wxT("Started playing SDD."));
   return true;
 }
 
@@ -61,6 +62,7 @@ bool SoundDeviceDriver::Play()
 bool SoundDeviceDriver::Stop()
 {
   is_playing_ = false;
+  wxMessageOutputDebug().Printf(wxT("Ended playing SDD."));
   return true;
 }
 

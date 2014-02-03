@@ -28,10 +28,22 @@ namespace SPU {
 ChannelInfo::ChannelInfo(SPU *pSPU) :
   spu_(*pSPU),
   lpcm_buffer_l(pSPU->NSSIZE), lpcm_buffer_r(pSPU->NSSIZE),
-  pInterpolation(new GaussianInterpolation(*this)) {
+  pInterpolation(new GaussianInterpolation) {
+  tone = NULL;
   is_on_ = false;
   is_ready = false;
 }
+
+
+ChannelInfo::ChannelInfo(const ChannelInfo &info)
+  : ::Sample16(), spu_(info.spu_),
+    lpcm_buffer_l(spu_.NSSIZE), lpcm_buffer_r(spu_.NSSIZE),
+    pInterpolation(new GaussianInterpolation) {
+  tone = NULL;
+  is_on_ = false;
+  is_ready = false;
+}
+
 
 
 void ChannelInfo::NotifyOnNoteOn() const {
@@ -148,14 +160,17 @@ void ChannelInfo::Update()
     }
     fa = itrTone.Next();
 
-    pInterpolation->StoreValue(fa);
+    if (bFMod != 2) {
+      if ( ( spu_.Sp0& 0x4000) == 0 ) fa = 0;
+      pInterpolation->StoreValue(fa);
+    }
     pInterpolation->spos -= 0x10000;
   }
 
   if (bNoise) {
     // TODO: Noise
     fa = 0;
-  } else {
+  } else if (bFMod != 2) {
     fa = pInterpolation->GetValue();
   }
 
@@ -198,13 +213,9 @@ void ChannelInfo::Update()
 
 
 ChannelArray::ChannelArray(SPU *pSPU, int channelNumber)
-  : pSPU_(pSPU), channelNumber_(channelNumber)
+  : pSPU_(pSPU), channels_(channelNumber, ChannelInfo(pSPU)), channelNumber_(channelNumber)
 {
-  for (int i = 0; i < channelNumber; i++) {
-    // ChannelInfo* channel = new ChannelInfo(pSPU);
-    // channel->ch = i;
-    channels_.push_back(ChannelInfo(pSPU));
-  }
+  wxASSERT(pSPU != NULL);
 }
 
 

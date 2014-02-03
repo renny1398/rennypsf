@@ -276,13 +276,16 @@ const Sample& SoundFormat::Ch(int ch) const {
 
 
 bool SoundFormat::Play(const wxSharedPtr<SoundDeviceDriver>& sdd) {
+  sdd->Play();
   sound_block().set_output(sdd);
   return DoPlay();
 }
 
 
 bool SoundFormat::Stop() {
+  const wxSharedPtr<SoundDeviceDriver>& sdd = sound_block().output();
   sound_block().Reset();
+  sdd->Stop();
   return DoStop();
 }
 

@@ -139,13 +139,9 @@ namespace {
 
 namespace SPU {
 
-  InterpolationBase::InterpolationBase(const ChannelInfo& info): channelInfo(info) {}
+  InterpolationBase::InterpolationBase() {}
 
-  void InterpolationBase::Start()
-  {
-    currSample = 0;
-    //    nextSample = 0;
-  }
+  void InterpolationBase::Start() {}
 
   void InterpolationBase::SetSinc(uint32_t pitch)
   {
@@ -155,24 +151,13 @@ namespace SPU {
 
   void InterpolationBase::StoreValue(int fa)
   {
-    if (channelInfo.bFMod == 2) {
-      currSample = fa;
-      return;
-    }
-    if ( (channelInfo.Spu().Sp0 & 0x4000) == 0 ) {    // warning: Spu
-      fa = 0;
-    } else {
-      if (fa > 32767) fa = 32767;
-      if (fa < -32767) fa = -32767;
-    }
+    if (fa > 32767) fa = 32767;
+    if (fa < -32768) fa = -32768;
     storeVal(fa);
   }
 
   int InterpolationBase::GetValue()
   {
-    if (channelInfo.bFMod == 2) {
-      return currSample;
-    }
     return getVal();
   }
 

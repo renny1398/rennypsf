@@ -74,7 +74,7 @@ void PSFPlaylist::Selected(wxTreeEvent &event)
 }
 
 
-void PSFPlaylist::Activated(wxTreeEvent& WXUNUSED(event))
+void PSFPlaylist::Activated(wxTreeEvent&Ended WXUNUSED(event))
 {
     wxCommandEvent play_event(wxEVT_COMMAND_BUTTON_CLICKED, ID_PLAY);
     wxPostEvent(this, play_event);
