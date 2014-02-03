@@ -2,9 +2,6 @@ cmake_minimum_required(VERSION 2.6)
 
 project(Rennypsf)
 
-#SET(CMAKE_C_COMPILER clang)
-#SET(CMAKE_CXX_COMPILER clang++)
-
 FIND_PACKAGE(wxWidgets REQUIRED core base)
 
 SET(CMAKE_C_FLAGS_INIT                "-Wall -std=c99")
@@ -30,8 +27,7 @@ SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3 -W -Wall -finline-functions 
 #SET(CMAKE_BUILD_TYPE "Release")
 SET(CMAKE_BUILD_TYPE "Debug")
 SET(wxWidgets_USE_DEBUG ON)
-#SET(wxWidgets_USE_REL_AND_DBG ON)
-SET(wxDEBUG_LEVEL 1)
+SET(wxWidgets_USE_REL_AND_DBG ON)
 
 
 FIND_LIBRARY(OPENAL_LIBRARY
@@ -51,22 +47,31 @@ FIND_LIBRARY(OPENAL_LIBRARY
   [HKEY_LOCAL_MACHINE\\SOFTWARE\\Creative\ Labs\\OpenAL\ 1.1\ Software\ Development\ Kit\\1.00.0000;InstallDir]
 )
 
+INCLUDE_DIRECTORIES(${OPENAL_INCLUDE_DIR})
 
 IF(wxWidgets_FOUND)
     INCLUDE(${wxWidgets_USE_FILE})
+    INCLUDE_DIRECTORIES(${wxWidgets_INCLUDE_DIRS})
 
-    FILE(GLOB CPPFILES *.cpp)
-    FILE(GLOB HEADERS *.h)
+    FILE(GLOB CPPFILES src/*.cpp)
+    FILE(GLOB CCFILES src/*.cc)
+    FILE(GLOB HEADERS src/*.h)
 
-    FILE(GLOB PSX_SRC_CPP psx/*.cpp)
-    FILE(GLOB PSX_SRC_CC psx/*.cc)
-    FILE(GLOB PSX_HDR psx/*.h)
+    FILE(GLOB PSX_SRC_CPP src/psx/*.cpp)
+    FILE(GLOB PSX_SRC_CC src/psx/*.cc)
+    FILE(GLOB PSX_HDR src/psx/*.h)
     ADD_LIBRARY(psx ${PSX_SRC_CPP} ${PSX_SRC_CC} ${PSX_HDR})
-    FILE(GLOB SPU_SRC spu/*.cpp)
-    FILE(GLOB SPU_HDR spu/*.h)
-    ADD_LIBRARY(spu ${SPU_SRC} spu/fftsg.c ${SPU_HDR})
+    FILE(GLOB SPU_SRC src/spu/*.cpp)
+    FILE(GLOB SPU_HDR src/spu/*.h)
+    ADD_LIBRARY(spu ${SPU_SRC} src/spu/fftsg.c ${SPU_HDR})
 
-    ADD_EXECUTABLE(rennypsf ${CPPFILES} ${HEADERS})
+    IF(wxUSE_GUI)
+	FILE(GLOB GUI_SRC src/gui/*.cc)
+    	FILE(GLOB GUI_HDR src/gui/*.h)
+    ENDIF(wxUSE_GUI)
+
+    ADD_EXECUTABLE(rennypsf ${CPPFILES} ${CCFILES})
+    ADD_DEPENDENCIES(rennypsf ${HEADERS})
     TARGET_LINK_LIBRARIES(rennypsf ${wxWidgets_LIBRARIES} ${OPENAL_LIBRARY} psx spu)
 ENDIF(wxWidgets_FOUND)
 

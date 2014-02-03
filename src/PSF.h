@@ -16,9 +16,9 @@ public:
   void Init();
   void Reset();
 
-  bool Play();
+  bool DoPlay();
   // bool Pause();
-  bool Stop();
+  bool DoStop();
   // bool Seek();
   // bool Tell();
 
@@ -56,6 +56,11 @@ protected:
 
   virtual bool LoadBinary() = 0;
 
+  SoundBlock& sound_block() {
+    return psx_->Spu().Channels;
+  }
+
+
   PSX::Composite* psx_;
 
   PSXEXEHeader m_header;
@@ -78,10 +83,12 @@ class PSF1: public PSF
 {
 public:
   PSF1(PSX::Composite* psx = NULL);
+  unsigned int GetSamplingRate() const { return 44100; }
 
   friend class PSF1Loader;
 
 protected:
+
   bool LoadBinary();
   PSF *LoadLib(const wxString &path);
 };
@@ -171,6 +178,7 @@ public:
   PSF2(PSX::Composite* psx);
   // bool Play();
   // bool Stop();
+  unsigned int GetSamplingRate() const { return 48000; }
 protected:
   bool LoadBinary();
   bool LoadBinary(PSF2RootDirectory*);

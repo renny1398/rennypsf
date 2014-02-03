@@ -5,128 +5,128 @@
 
 namespace SPU {
 
-  namespace ChannelRegEnum {
-    enum {
-      VolumeLeft, VolumeRight,
-      Pitch,
-      StartAddressOfSound,
-      AttackDecaySustainLevel,
-      SustainReleaseRate,
-      CurrentADSRVolume,
-      RepeatAddress
-    };
-  }
+namespace ChannelRegEnum {
+enum {
+  VolumeLeft, VolumeRight,
+  Pitch,
+  StartAddressOfSound,
+  AttackDecaySustainLevel,
+  SustainReleaseRate,
+  CurrentADSRVolume,
+  RepeatAddress
+};
+}
 
-  namespace GlobalRegEnum {
-    enum {
-      MainVolumeLeft, MainVolumeRight,
-      ReverbDepthLeft, ReverbDepthRight,
-      VoiceON1, VoiceON2,
-      VoiceOFF1, VoiceOFF2,
-      FMMode1, FMMode2,
-      NoiseMode1, NoiseMode2,
-      ReverbMode1, ReverbMode2,
-      ChannelOn1, ChannelOn2
-    };
-  }
+namespace GlobalRegEnum {
+enum {
+  MainVolumeLeft, MainVolumeRight,
+  ReverbDepthLeft, ReverbDepthRight,
+  VoiceON1, VoiceON2,
+  VoiceOFF1, VoiceOFF2,
+  FMMode1, FMMode2,
+  NoiseMode1, NoiseMode2,
+  ReverbMode1, ReverbMode2,
+  ChannelOn1, ChannelOn2
+};
+}
 
 
-  // Get Left Volume
-  uint16_t read1xx0(const ChannelInfo& channelInfo)
-  {
-    uint16_t ret = 0;
-    int volume = channelInfo.iLeftVolume;
-    if (channelInfo.isLeftSweep) {
-      wxMessageOutputDebug().Printf(wxT("WARNING: Sweep mode is experimental."));
-      ret |= 0x8000;
-      if (channelInfo.isLeftExpSlope) ret |= 0x4000;
-      if (channelInfo.isLeftDecreased) ret |= 0x2000;
-      if (volume < 0) ret |= 0x1000;
-      ret |= volume & 0x7f;
-      return ret;
-    }
-    ret = volume & 0x7fff;
+// Get Left Volume
+uint16_t read1xx0(const ChannelInfo& channelInfo)
+{
+  uint16_t ret = 0;
+  int volume = channelInfo.iLeftVolume;
+  if (channelInfo.isLeftSweep) {
+    wxMessageOutputDebug().Printf(wxT("WARNING: Sweep mode is experimental."));
+    ret |= 0x8000;
+    if (channelInfo.isLeftExpSlope) ret |= 0x4000;
+    if (channelInfo.isLeftDecreased) ret |= 0x2000;
+    if (volume < 0) ret |= 0x1000;
+    ret |= volume & 0x7f;
     return ret;
   }
+  ret = volume & 0x7fff;
+  return ret;
+}
 
-  // Get Right Volume
-  uint16_t read1xx2(const ChannelInfo& channelInfo)
-  {
-    uint16_t ret = 0;
-    int volume = channelInfo.iRightVolume;
-    if (channelInfo.isRightSweep) {
-      ret |= 0x8000;
-      if (channelInfo.isRightExpSlope) ret |= 0x4000;
-      if (channelInfo.isRightDecreased) ret |= 0x2000;
-      if (volume < 0) ret |= 0x1000;
-      ret |= volume & 0x7f;
-      return ret;
-    }
-    ret = volume & 0x7fff;
+// Get Right Volume
+uint16_t read1xx2(const ChannelInfo& channelInfo)
+{
+  uint16_t ret = 0;
+  int volume = channelInfo.iRightVolume;
+  if (channelInfo.isRightSweep) {
+    ret |= 0x8000;
+    if (channelInfo.isRightExpSlope) ret |= 0x4000;
+    if (channelInfo.isRightDecreased) ret |= 0x2000;
+    if (volume < 0) ret |= 0x1000;
+    ret |= volume & 0x7f;
     return ret;
   }
+  ret = volume & 0x7fff;
+  return ret;
+}
 
-  // Get Pitch
-  uint16_t read1xx4(const ChannelInfo& channelInfo)
-  {
-    return channelInfo.iRawPitch;
-    // return channelInfo.iActFreq * 4096 / 44100;
-  }
+// Get Pitch
+uint16_t read1xx4(const ChannelInfo& channelInfo)
+{
+  return channelInfo.iRawPitch;
+  // return channelInfo.iActFreq * 4096 / 44100;
+}
 
-  // Get start address of Sound
-  uint16_t read1xx6(const ChannelInfo& channelInfo)
-  {
-    const SPU& Spu = channelInfo.Spu();
-    uint32_t soundBuffer = channelInfo.tone->GetADPCM() - Spu.GetSoundBuffer();
-    return soundBuffer >> 3;
-  }
+// Get start address of Sound
+uint16_t read1xx6(const ChannelInfo& channelInfo)
+{
+  const SPU& Spu = channelInfo.Spu();
+  uint32_t soundBuffer = channelInfo.tone->GetADPCM() - Spu.GetSoundBuffer();
+  return soundBuffer >> 3;
+}
 
-  // Get ADS level
-  uint16_t read1xx8(const ChannelInfo& channelInfo)
-  {
-    uint16_t ret = 0;
-    if (channelInfo.ADSRX.AttackModeExp) ret |= 0x8000;
-    ret |= (channelInfo.ADSRX.AttackRate^0x7f) << 8;
-    ret |= ( ((channelInfo.ADSRX.DecayRate>>2)^0x1f) & 0xf ) << 4;
-    ret |= (channelInfo.ADSRX.SustainLevel >> 27) & 0xf;
-    return ret;
-  }
+// Get ADS level
+uint16_t read1xx8(const ChannelInfo& channelInfo)
+{
+  uint16_t ret = 0;
+  if (channelInfo.ADSRX.AttackModeExp) ret |= 0x8000;
+  ret |= (channelInfo.ADSRX.AttackRate^0x7f) << 8;
+  ret |= ( ((channelInfo.ADSRX.DecayRate>>2)^0x1f) & 0xf ) << 4;
+  ret |= (channelInfo.ADSRX.SustainLevel >> 27) & 0xf;
+  return ret;
+}
 
-  // Get sustain rate and release rate
-  uint16_t read1xxa(const ChannelInfo& channelInfo)
-  {
-    uint16_t ret = 0;
-    if (channelInfo.ADSRX.SustainModeExp) ret |= 0x8000;
-    if (!channelInfo.ADSRX.SustainIncrease) ret |= 0x4000;
-    ret |= (channelInfo.ADSRX.SustainRate^0x7f) << 6;
-    if (channelInfo.ADSRX.ReleaseModeExp) ret |= 0x0020;
-    ret |= (channelInfo.ADSRX.ReleaseRate>>2)^0x1f;
-    return ret;
-  }
+// Get sustain rate and release rate
+uint16_t read1xxa(const ChannelInfo& channelInfo)
+{
+  uint16_t ret = 0;
+  if (channelInfo.ADSRX.SustainModeExp) ret |= 0x8000;
+  if (!channelInfo.ADSRX.SustainIncrease) ret |= 0x4000;
+  ret |= (channelInfo.ADSRX.SustainRate^0x7f) << 6;
+  if (channelInfo.ADSRX.ReleaseModeExp) ret |= 0x0020;
+  ret |= (channelInfo.ADSRX.ReleaseRate>>2)^0x1f;
+  return ret;
+}
 
-  // Get current ADSR volume
-  uint16_t read1xxc(const ChannelInfo& channelInfo)
-  {
-    // if (channelInfo.bNew) return 1;
-    if (channelInfo.ADSRX.lVolume && !channelInfo.ADSRX.EnvelopeVol) return 1;
-    return channelInfo.ADSRX.EnvelopeVol >> 16;
-  }
+// Get current ADSR volume
+uint16_t read1xxc(const ChannelInfo& channelInfo)
+{
+  // if (channelInfo.bNew) return 1;
+  if (channelInfo.ADSRX.lVolume && !channelInfo.ADSRX.EnvelopeVol) return 1;
+  return channelInfo.ADSRX.EnvelopeVol >> 16;
+}
 
-  // Get repeat address
-  uint16_t read1xxe(const ChannelInfo& channelInfo)
-  {
-    //    if (channelInfo.pLoop == 0) return 0;
-    //    return (channelInfo.pLoop - Spu.Memory) >> 3;
-    const uint32_t offsetLoop = channelInfo.addrExternalLoop;
-    if (offsetLoop <= 0x80000000) return (offsetLoop >> 3);
-    const uint32_t indexLoop = channelInfo.tone->GetLoopOffset();
-    if (0x80000000 <= indexLoop) return 0;
-    return (channelInfo.tone->GetAddr() + indexLoop / 28 * 16) >> 3;
-  }
+// Get repeat address
+uint16_t read1xxe(const ChannelInfo& channelInfo)
+{
+  //    if (channelInfo.pLoop == 0) return 0;
+  //    return (channelInfo.pLoop - Spu.Memory) >> 3;
+  const uint32_t offsetLoop = channelInfo.addrExternalLoop;
+  if (offsetLoop <= 0x80000000) return (offsetLoop >> 3);
+  const uint32_t indexLoop = channelInfo.tone->GetLoopOffset();
+  if (0x80000000 <= indexLoop) return 0;
+  return (channelInfo.tone->GetAddr() + indexLoop / 28 * 16) >> 3;
+}
 
 
-  uint16_t (*const readChannelRegisterLUT[8])(const ChannelInfo&) = {
-                                                                    read1xx0, read1xx2, read1xx4, read1xx6, read1xx8, read1xxa, read1xxc, read1xxe
+uint16_t (*const readChannelRegisterLUT[8])(const ChannelInfo&) = {
+    read1xx0, read1xx2, read1xx4, read1xx6, read1xx8, read1xxa, read1xxc, read1xxe
 };
 
 
@@ -217,10 +217,10 @@ uint16_t (*const read1db6)(const SPU& /*spu*/) = readGlobalNOP;
 
 
 uint16_t (*const readGlobalRegisterLUT[])(const SPU& /*spu*/) = {
-                                                                read1d80, read1d82, read1d84, read1d86, read1d88, read1d8a, read1d8c, read1d8e,
-read1d90, read1d92, read1d94, read1d96, read1d98, read1d9a, read1d9c, read1d9e,
-read1da0, read1da2, read1da4, read1da6, read1da8, read1daa, read1dac, read1dae,
-read1db0, read1db2, read1db4, read1db6
+    read1d80, read1d82, read1d84, read1d86, read1d88, read1d8a, read1d8c, read1d8e,
+    read1d90, read1d92, read1d94, read1d96, read1d98, read1d9a, read1d9c, read1d9e,
+    read1da0, read1da2, read1da4, read1da6, read1da8, read1daa, read1dac, read1dae,
+    read1db0, read1db2, read1db4, read1db6
 };
 
 
@@ -288,6 +288,7 @@ void write1xx0(ChannelInfo& channelInfo, uint16_t volume)
       volume = 0x3fff - (volume&0x3fff);
     }
   }
+  wxASSERT(volume < 0x4000);
   channelInfo.iLeftVolume = volume;
 }
 
@@ -344,7 +345,7 @@ void write1xx6(ChannelInfo& channelInfo, uint16_t val)
   SamplingTone* tone = Spu.GetSamplingTone(static_cast<uint32_t>(val) << 3);
   channelInfo.tone = tone;
 
-  Spu.NotifyOnUpdateStartAddress(channelInfo.ch);
+  // Spu.NotifyOnUpdateStartAddress(channelInfo.ch);
 }
 
 // Set ADS level
@@ -390,7 +391,7 @@ void write1xxe(ChannelInfo& channelInfo, uint16_t val)
 
 
 void (*const writeChannelRegisterLUT[8])(ChannelInfo&, uint16_t) = {
-                                                                   write1xx0, write1xx2, write1xx4, write1xx6, write1xx8, write1xxa, write1xxc, write1xxe
+    write1xx0, write1xx2, write1xx4, write1xx6, write1xx8, write1xxa, write1xxc, write1xxe
 };
 
 
@@ -587,10 +588,10 @@ void write1db6(SPU* /*spu*/, uint16_t) {}
 
 
 void (*const writeGlobalRegisterLUT[])(SPU* spu, uint16_t) = {
-                                                             write1d80, write1d82, write1d84, write1d86, write1d88, write1d8a, write1d8c, write1d8e,
-write1d90, write1d92, write1d94, write1d96, write1d98, write1d9a, write1d9c, write1d9e,
-write1da0, write1da2, write1da4, write1da6, write1da8, write1daa, write1dac, write1dae,
-write1db0, write1db2, write1db4, write1db6
+    write1d80, write1d82, write1d84, write1d86, write1d88, write1d8a, write1d8c, write1d8e,
+    write1d90, write1d92, write1d94, write1d96, write1d98, write1d9a, write1d9c, write1d9e,
+    write1da0, write1da2, write1da4, write1da6, write1da8, write1daa, write1dac, write1dae,
+    write1db0, write1db2, write1db4, write1db6
 };
 
 
@@ -617,7 +618,7 @@ void SPU::WriteRegister(uint32_t reg, uint16_t val)
             condUpdate_.Wait();
         }
         mutexUpdate_.Unlock();
-*/
+     */
     writeChannelRegisterLUT[ofs](channelInfo, val);
     return;
   }

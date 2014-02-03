@@ -48,105 +48,60 @@ wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_MUTE_TONE, wxCommandEvent);
 wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_UNMUTE_TONE, wxCommandEvent);
 
 
+#include "SoundFormat.h"
+#include <wx/scopedarray.h>
 
+#if 0
+class SoundDeviceDriver;
+#include <wx/sharedptr.h>
+typedef wxSharedPtr<SoundDeviceDriver> SoundDeviceDriverPtr;
+#endif
 
-class Sample {
-public:
-  short left;
-  short right;
-
-  Sample() : left(0), right(0) {}
-  Sample(short l, short r) : left(l), right(r) {}
-
-  operator short*() { return reinterpret_cast<short*>(this); }
-};
-
-
-
-class SoundFormat;
-
-class SoundDriver
+class SoundDeviceDriver
 {
 public:
-  SoundDriver(int channelNumber);
-  virtual ~SoundDriver();
+  SoundDeviceDriver();
+  virtual ~SoundDeviceDriver() {}
 
-  virtual bool Play(SoundFormat*);
+  virtual bool Play();
   virtual bool Stop();
 
   bool IsPlaying() const;
 
-  // void WriteBuffer(unsigned char * pSound, int lBytes);
-  // virtual void Write(int left, int right) = 0;
-  void WriteStereo(int ch, short left, short right);
-  void WriteStereo(int ch, short samples[2]);
+  void OnUpdate(const SoundBlock*);
 
-  void Flush();
-
-  // int GetChannelNumber() const;
-
-  void AddListener(wxEvtHandler* listener, int ch);
-  void AddToneListener(wxEvtHandler* listener);
-
-  // deprecated
-  virtual int GetEnvelopeVolume(int ch) const;
-  virtual void SetEnvelopeVolume(int ch, int vol);
-
-  void Mute(int ch);
-  void Unmute(int ch);
-
-  bool SwitchToneMuted(int id);
+  // bool SwitchToneMuted(int id);
 
   void ZeroCounter();
   void IncrementCounter();
   int GetCounter() const;
 
-  static wxVector<ToneInfo>::iterator ToneIsExists(const wxVector<ToneInfo>& tones, int id);
+  // static wxVector<ToneInfo>::iterator ToneExists(const wxVector<ToneInfo>& tones, int id);
 
-  void OnNoteOn(const NoteInfo& note);
-  void OnNoteOff(const NoteInfo& note);
-  void OnChangeToneNumber(const NoteInfo& note);
-  void OnChangePitch(const NoteInfo& note);
-  void OnChangeVelocity(const NoteInfo& note);
-
-  void OnAddTone(const ToneInfo& tone);
-  void OnChangeTone(const ToneInfo& tone);
-  void OnRemoveTone(const ToneInfo& tone);
-
-  void Notify();  // for NoteInfo
 
 protected:
-  const Sample* GetBuffer(int* size) const;
+  // const Sample* GetBuffer(int* size) const;
+  const short* buffer(int* size) const;
 
-  void setChannelNumber(int number);
-  void setBufferSize(int size);
+  // void setChannelNumber(int number);
+  void set_buffer_length(int size);
   virtual void WriteToDevice() = 0;
 
 protected:
-  SoundFormat *m_sound;
+  static const int kDefaultBufferLength = 90;
 
 private:
   wxVector<NoteInfo> notes_, next_notes_;
-  wxVector<ToneInfo> tones_;
+  // wxVector<ToneInfo> tones_;
 
-  int leftSample_, rightSample_;
-  Sample* chSample_;
-  int *chEnvelope_;
-  // int *chEnvelopeLeft_, *chEnvelopeRight_;
-  int channelNumber_;
-  Sample* buffer_;
-  int bufferSize_;
+  wxScopedArray<short> buffer_;
+  int bufferSize_;      // sizeof(buffer_) / 4
   int bufferIndex_;
 
   bool is_playing_;
-  wxVector<bool> muted_;
+  // wxVector<bool> muted_;
 
   int counter_;
-
-  wxVector< wxVector<wxEvtHandler*> > listeners_;
-  wxVector<wxEvtHandler*> tone_listeners_;
-
-  // wxDECLARE_EVENT_TABLE();
 };
 
 
@@ -174,26 +129,28 @@ private:
 
 
 
-
-class WaveOutAL : public SoundDriver
+// TODO: Replace a raw pointer with shared_ptr or weak_ptr
+class WaveOutAL : public SoundDeviceDriver
 {
   friend class WaveOutALThread;
   friend class WaveOutALCommand;
 
 public:
-  WaveOutAL(int channelNumber);
+  WaveOutAL();
   ~WaveOutAL();
 
   void Init();
   virtual bool Stop();
   void Shutdown();
 
+  // Functions which only the Init()-ed thead can call
   void ThisThreadInit();
   bool ThisThreadStop();
   void ThisThreadShutdown();
 
   virtual void WriteToDevice();
   void ThisThreadWriteToDevice();
+
 protected:
   void WaitForWritingToDevice();
 
@@ -216,12 +173,12 @@ private:
 
 #include <wx/file.h>
 
-class WaveOutDisk: public SoundDriver
+class WaveOutDisk: public SoundDeviceDriver
 {
 public:
-  WaveOutDisk(int channelNumber);
+  WaveOutDisk();
 
-  bool Play(SoundFormat *);
+  bool Play();
   bool Stop();
 
 private:

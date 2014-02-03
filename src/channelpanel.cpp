@@ -89,15 +89,17 @@ void MuteButton::onLeave(wxMouseEvent& WXUNUSED(event))
 
 void MuteButton::onClick(wxMouseEvent &)
 {
+  wxSharedPtr<SoundFormat> sf = wxGetApp().GetPlayingSound();
+  if (sf == NULL) return;
   muted_ = !muted_;
   if (muted_) {
-    wxGetApp().GetSoundManager()->Mute(channel_number_);
+    sf->Ch(channel_number_).Mute();
     SetForegroundColour(wxColour(128, 128, 128));
-    // wxMessageOutputDebug().Printf(wxT("Mute on ch.%d"), channel_number_);
+    wxMessageOutputDebug().Printf(wxT("Mute on Ch.%d"), channel_number_);
   } else {
-    wxGetApp().GetSoundManager()->Unmute(channel_number_);
+    sf->Ch(channel_number_).Unmute();
     SetForegroundColour(wxColour(0, 0, 0));
-    // wxMessageOutputDebug().Printf(wxT("Mute off ch.%d"), channel_number_);
+    wxMessageOutputDebug().Printf(wxT("Mute off Ch.%d"), channel_number_);
   }
   Refresh(false);
 }
@@ -118,7 +120,7 @@ VolumeBar::VolumeBar(wxWindow *parent, wxOrientation orientation, int ch)
   value_ = 0;
 
   // wxEvtHandler::Bind(wxEVT_CHANGE_VELOCITY, &VolumeBar::OnChangeVelocity, this);
-  wxGetApp().GetSoundManager()->AddListener(this, ch);
+  // wxGetApp().GetSoundManager()->AddListener(this, ch);
 }
 
 wxBEGIN_EVENT_TABLE(VolumeBar, wxPanel)
@@ -231,7 +233,7 @@ KeyboardWidget::KeyboardWidget(wxWindow* parent, int ch, int keyWidth, int keyHe
   wxEvtHandler::Bind(wxEVT_NOTE_OFF, &KeyboardWidget::OnNoteOff, this);
   wxEvtHandler::Bind(wxEVT_CHANGE_PITCH, &KeyboardWidget::OnChangePitch, this);
 
-  wxGetApp().GetSoundManager()->AddListener(this, ch);
+  // wxGetApp().GetSoundManager()->AddListener(this, ch);
 }
 
 
@@ -339,7 +341,7 @@ void KeyboardWidget::CalcKeyRect(int key, wxRect *rect)
 }
 
 
-void KeyboardWidget::PaintPressedKeys(const IntSet &keys, wxPaintDC* paint_dc)
+void KeyboardWidget::PaintPressedKeys(const IntSet& WXUNUSED(keys), wxPaintDC* paint_dc)
 {
   update_key_ = false;
 
@@ -531,7 +533,7 @@ RateText::RateText(wxWindow *parent, int ch)
   this->SetBackgroundColour(wxColor(255, 255, 255));
 
   // wxEvtHandler::Bind(wxEVT_CHANGE_PITCH, &RateText::OnChangeRate, this);
-  wxGetApp().GetSoundManager()->AddListener(this, ch);
+  // wxGetApp().GetSoundManager()->AddListener(this, ch);
 }
 
 /*

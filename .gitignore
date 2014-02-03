@@ -3,11 +3,12 @@
 #*
 !.gitignore
 .DS_Store
+.project
+.cproject
 build
 cmake_install.cmake
 CMakeCache.txt
 CMakeFiles*
-CMakeFiles
 CMakeScripts
 CMakeLists.txt.user*
 Makefile

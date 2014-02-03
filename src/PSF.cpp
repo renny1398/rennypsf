@@ -74,17 +74,15 @@ void PSF::Reset()
 
 #include "app.h"
 
-bool PSF::Play()
+bool PSF::DoPlay()
 {
   LoadBinary();
-  psx_->Spu().SetSoundDriver(wxGetApp().GetSoundManager());
   m_thread = psx_->Run();
-
   return true;
 }
 
 
-bool PSF::Stop()
+bool PSF::DoStop()
 {
   psx_->Terminate();
   m_thread = 0;

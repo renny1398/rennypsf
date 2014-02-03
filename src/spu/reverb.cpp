@@ -124,7 +124,7 @@ namespace SPU {
 
 
 
-  void NullReverb::StoreReverb(const ChannelInfo &ch) {
+  void NullReverb::StoreReverb(const ChannelInfo& /*ch*/) {
     return;
   }
 

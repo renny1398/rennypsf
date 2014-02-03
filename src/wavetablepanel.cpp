@@ -142,6 +142,7 @@ void WavetableList::OnChar(wxKeyEvent &event) {
   switch (key) {
   case 'M':
   case 'm':
+/*
     {
       long item = -1;
       do {
@@ -150,14 +151,17 @@ void WavetableList::OnChar(wxKeyEvent &event) {
         wxString str_ofs = wxListCtrl::GetItemText(item, COLUMN_INDEX_OFFSET);
         long ofs;
         str_ofs.ToLong(&ofs);
-        bool muted = wxGetApp().GetSoundManager()->SwitchToneMuted(ofs);
+        // bool muted = wxGetApp().GetSoundManager()->SwitchToneMuted(ofs);
+        const wxSharedPtr<SoundFormat>& sf = wxGetApp().GetPlayingSound();
+        if (sf == NULL) continue;
+        bool muted =
         if (muted == true) {
           wxListCtrl::SetItem(item, COLUMN_INDEX_MUTED, wxT("M"));
         } else {
           wxListCtrl::SetItem(item, COLUMN_INDEX_MUTED, wxT(" "));
         }
       } while (true);
-    }
+    }*/
     return;
   }
 }
@@ -273,7 +277,7 @@ WavetablePanel::WavetablePanel(wxWindow *parent) :
   mainSizer_ = mainSizer;
 
   // Spu.SoundBank_.AddListener(this);
-  wxGetApp().GetSoundManager()->AddToneListener(this);
+  // wxGetApp().GetSoundManager()->AddToneListener(this);
 }
 
 

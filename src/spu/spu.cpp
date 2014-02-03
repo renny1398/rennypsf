@@ -3,7 +3,6 @@
 #include <cstring>
 
 #include "../psx/hardware.h"
-#include "../app.h"
 #include "../SoundManager.h"
 
 namespace {
@@ -25,22 +24,18 @@ wxDEFINE_EVENT(wxEVENT_SPU_CHANNEL_CHANGE_LOOP, wxCommandEvent);
 
 namespace SPU {
 
-wxDEFINE_SCOPED_PTR(InterpolationBase, InterpolationPtr)
 
 ChannelInfo::ChannelInfo(SPU *pSPU) :
-  spu_(*pSPU), pInterpolation(new GaussianInterpolation(*this))
-// TODO: how to generate GaussianInterpolation
-{
+  spu_(*pSPU),
+  lpcm_buffer_l(pSPU->NSSIZE), lpcm_buffer_r(pSPU->NSSIZE),
+  pInterpolation(new GaussianInterpolation(*this)) {
   is_on_ = false;
   is_ready = false;
-  lpcm_buffer_l.reset(new short[pSPU->NSSIZE]);
-  lpcm_buffer_r.reset(new short[pSPU->NSSIZE]);
-  is_muted = false;
 }
 
 
 void ChannelInfo::NotifyOnNoteOn() const {
-
+/*
   NoteInfo note;
   note.ch = ch;
   note.is_on = true;
@@ -50,11 +45,12 @@ void ChannelInfo::NotifyOnNoteOn() const {
   note.velocity = ADSRX.EnvelopeVol / 1024.0;
 
   Spu().sound_driver_->OnNoteOn(note);
+  */
 }
 
 
 void ChannelInfo::NotifyOnNoteOff() const {
-
+/*
   NoteInfo note;
   note.ch = ch;
   note.is_on = false;
@@ -64,11 +60,12 @@ void ChannelInfo::NotifyOnNoteOff() const {
   // note.velocity = ADSRX.EnvelopeVol / 1024.0;
 
   Spu().sound_driver_->OnNoteOff(note);
+  */
 }
 
 
 void ChannelInfo::NotifyOnChangePitch() const {
-
+/*
   NoteInfo note;
   note.ch = ch;
   note.is_on = is_on_;
@@ -78,10 +75,11 @@ void ChannelInfo::NotifyOnChangePitch() const {
   note.velocity = static_cast<float>(ADSRX.EnvelopeVol) / 1024.0;
 
   Spu().sound_driver_->OnChangePitch(note);
+  */
 }
 
 void ChannelInfo::NotifyOnChangeVelocity() const {
-
+/*
   NoteInfo note;
   note.ch = ch;
   note.is_on = is_on_;
@@ -89,19 +87,16 @@ void ChannelInfo::NotifyOnChangeVelocity() const {
   note.velocity = static_cast<float>(ADSRX.EnvelopeVol) / 1024.0;
 
   // Spu().sound_driver_->OnChangeVelocity(event);
+  */
 }
 
 
 void ChannelInfo::StartSound()
 {
-  wxMutexLocker locker(on_mutex_);
+  // wxMutexLocker locker(on_mutex_);
 
   ADSRX.Start();
   spu_.Reverb().StartReverb(this);
-
-  // s_1 = 0;
-  // s_2 = 0;
-  // iSBPos = 28;
 
   itrTone = tone->Iterator(this);
   isStopped = false;
@@ -111,7 +106,7 @@ void ChannelInfo::StartSound()
 
   useExternalLoop = false;
 
-  Spu().ChangeProcessState(SPU::STATE_NOTE_ON, ch);
+  // Spu().ChangeProcessState(SPU::STATE_NOTE_ON, ch);
   NotifyOnNoteOn();
 
   // TODO: Change newChannelFlags
@@ -133,7 +128,7 @@ void ChannelInfo::Update()
 {
   is_ready = true;
 
-  if (is_muted) return;
+  if (IsMuted()) return;
   // if (bNew) StartSound();
   if (IsOn() == false) return;
 
@@ -148,7 +143,7 @@ void ChannelInfo::Update()
       // isStopped = true;
       ADSRX.lVolume = 0;
       ADSRX.EnvelopeVol = 0;
-      wxGetApp().GetSoundManager()->SetEnvelopeVolume(ch, ADSRX.lVolume);
+      set_envelope(0);
       return;
     }
     fa = itrTone.Next();
@@ -190,19 +185,13 @@ void ChannelInfo::Update()
       CLIP(left);  CLIP(right);
 */
 
-    spu_.sound_driver_->SetEnvelopeVolume(ch, ADSRX.lVolume);
-    spu_.sound_driver_->WriteStereo(ch, left, right);
+    set_envelope(ADSRX.EnvelopeVol);
+    Set16(sval);
+    set_volume(iLeftVolume, iRightVolume);
+    set_volume_max(0x4000);
   }
   pInterpolation->spos += pInterpolation->GetSinc();
   // wxMessageOutputDebug().Printf("spos = 0x%08x", pInterpolation->spos);
-}
-
-
-
-
-int ChannelArray::GetChannelNumber() const
-{
-  return channelNumber_;
 }
 
 
@@ -212,9 +201,9 @@ ChannelArray::ChannelArray(SPU *pSPU, int channelNumber)
   : pSPU_(pSPU), channelNumber_(channelNumber)
 {
   for (int i = 0; i < channelNumber; i++) {
-    ChannelInfo* channel = new ChannelInfo(pSPU);
-    channel->ch = i;
-    channels_.push_back(channel);
+    // ChannelInfo* channel = new ChannelInfo(pSPU);
+    // channel->ch = i;
+    channels_.push_back(ChannelInfo(pSPU));
   }
 }
 
@@ -229,8 +218,8 @@ void ChannelArray::SoundNew(uint32_t flags, int start)
   wxASSERT(flags < 0x01000000);
   flagNewChannels_ |= flags << start;
   for (int i = start; flags != 0; i++, flags >>= 1) {
-    if (!(flags & 1) || (channels_[i]->tone->GetADPCM() == 0)) continue;
-    channels_[i]->StartSound();
+    if (!(flags & 1) || (channels_.at(i).tone->GetADPCM() == 0)) continue;
+    channels_.at(i).StartSound();
   }
 }
 
@@ -240,30 +229,22 @@ void ChannelArray::VoiceOff(uint32_t flags, int start)
   wxASSERT(flags < 0x01000000);
   for (int i = start; flags != 0; i++, flags >>= 1) {
     if ((flags & 1) == 0) continue;
-    channels_[i]->isStopped = true;
+    ChannelInfo& ch = channels_.at(i);
+    ch.isStopped = true;
 
     pSPU_->ChangeProcessState(SPU::STATE_NOTE_OFF, i);
 
-    channels_[i]->NotifyOnNoteOff();
+    // ch.NotifyOnNoteOff();
   }
 }
 
 
-
-ChannelInfo& ChannelArray::operator [](int i) {
-  return *channels_[i];
+void ChannelArray::Notify() const {
+  output()->OnUpdate(this);
 }
 
 
 
-SoundDriver* SPUBase::GetSoundDriver() {
-  return sound_driver_;
-}
-
-void SPUBase::SetSoundDriver(SoundDriver *sound_driver) {
-  sound_driver_ = sound_driver;
-  sound_driver->AddToneListener(&(Soundbank()));
-}
 
 
 void SPUBase::NotifyOnUpdateStartAddress(int ch) const {
@@ -275,8 +256,9 @@ void SPUBase::NotifyOnUpdateStartAddress(int ch) const {
 }
 
 
-void SPUBase::NotifyOnChangeLoopIndex(ChannelInfo *pChannel) const
+void SPUBase::NotifyOnChangeLoopIndex(ChannelInfo* /*pChannel*/) const
 {
+  /*
   SamplingTone* tone = pChannel->tone;
   ToneInfo tone_info;
   tone_info.number = tone->GetAddr();
@@ -285,6 +267,7 @@ void SPUBase::NotifyOnChangeLoopIndex(ChannelInfo *pChannel) const
   tone_info.pitch = tone->GetFreq();
   tone_info.data = tone->GetData();
   sound_driver_->OnChangeTone(tone_info);
+  */
 }
 
 
@@ -311,7 +294,8 @@ SamplingTone* SPU::GetSamplingTone(uint32_t addr) const
 }
 
 
-void SPU::NotifyOnAddTone(const SamplingTone &tone) const {
+void SPU::NotifyOnAddTone(const SamplingTone& /*tone*/) const {
+  /*
   ToneInfo tone_info;
   tone_info.number = tone.GetAddr();
   tone_info.length = tone.GetLength();
@@ -319,10 +303,12 @@ void SPU::NotifyOnAddTone(const SamplingTone &tone) const {
   tone_info.pitch = tone.GetFreq();
   tone_info.data = tone.GetData();
   sound_driver_->OnAddTone(tone_info);
+  */
 }
 
 
-void SPU::NotifyOnChangeTone(const SamplingTone &tone) const {
+void SPU::NotifyOnChangeTone(const SamplingTone& /*tone*/) const {
+/*
   ToneInfo tone_info;
   tone_info.number = tone.GetAddr();
   tone_info.length = tone.GetLength();
@@ -330,13 +316,16 @@ void SPU::NotifyOnChangeTone(const SamplingTone &tone) const {
   tone_info.pitch = tone.GetFreq();
   tone_info.data = tone.GetData();
   sound_driver_->OnChangeTone(tone_info);
+  */
 }
 
 
-void SPU::NotifyOnRemoveTone(const SamplingTone &tone) const {
+void SPU::NotifyOnRemoveTone(const SamplingTone& /*tone*/) const {
+/*
   ToneInfo tone_info;
   tone_info.number = tone.GetAddr();
   sound_driver_->OnRemoveTone(tone_info);
+  */
 }
 
 
@@ -348,10 +337,11 @@ void SPU::SetupStreams()
   reverb_.Reset();
 
   for (int i = 0; i < 24; i++) {
-    Channels[i].ADSRX.SustainLevel = 0xf << 27;
+    ChannelInfo ch = Channels.At(i);
+    ch.ADSRX.SustainLevel = 0xf << 27;
     // Channels[i].iIrqDone = 0;
-    Channels[i].tone = 0;
-    Channels[i].itrTone = SamplingToneIterator();
+    ch.tone = 0;
+    ch.itrTone = SamplingToneIterator();
   }
 }
 
@@ -376,7 +366,7 @@ void* SPUThread::Entry()
   numSamples_ = 0;
 
   for (int i = 0; i < 24; i++) {
-    pSPU->Channels[i].is_ready = false;
+    pSPU->Channels.At(i).is_ready = false;
   }
 
   wxMessageOutputDebug().Printf(wxT("Started SPU thread."));
@@ -402,18 +392,19 @@ void* SPUThread::Entry()
       numSamples_ = processing_channel;
       while (0 < numSamples_) {
         --numSamples_;
-        for (int i = 0; i < 24; i++) {
-          ChannelInfo& channel = pSPU->Channels[i];
+        unsigned int ch_count = pSPU->Channels.channel_count();
+        for (unsigned int i = 0; i < ch_count; i++) {
+          ChannelInfo& channel = pSPU->Channels.At(i);
           if (channel.is_ready) continue;
           channel.Update();
         }
-        wxGetApp().GetSoundManager()->Flush();
+        pSPU->Channels.Notify();
         if (pSPU->NSSIZE <= ++pSPU->ns) {
           pSPU->ns = 0;
         }
 
-        for (int i = 0; i < 24; i++) {
-          pSPU->Channels[i].is_ready = false;
+        for (unsigned int i = 0; i < ch_count; i++) {
+          pSPU->Channels.At(i).is_ready = false;
         }
       }
       wxASSERT(numSamples_ == 0);
@@ -421,12 +412,12 @@ void* SPUThread::Entry()
       break;
 
     case SPU::STATE_NOTE_ON:
-      pSPU->Channels[processing_channel].tone->ConvertData();
-      pSPU->Channels[processing_channel].Update();
+      pSPU->Channels.At(processing_channel).tone->ConvertData();
+      pSPU->Channels.At(processing_channel).Update();
       break;
 
     case SPU::STATE_NOTE_OFF:
-      pSPU->Channels[processing_channel].Update();
+      pSPU->Channels.At(processing_channel).Update();
       break;
 
     case SPU::STATE_SET_OFFSET:
