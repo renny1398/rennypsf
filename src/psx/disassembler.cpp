@@ -1,6 +1,6 @@
-#include "disassembler.h"
-#include "r3000a.h"
-#include "memory.h"
+#include "psx/disassembler.h"
+#include "psx/r3000a.h"
+#include "psx/memory.h"
 #include <wx/sstream.h>
 
 // memo: display as follows

@@ -358,6 +358,14 @@ private:
 
 class SPUCore {
 
+public:
+  unsigned short ctrl() const { return ctrl_; }
+  unsigned short stat() const { return stat_; }
+  unsigned int irg() const { return irq_; }
+  unsigned int addr() const { return addr_; }
+  unsigned int rvb_addr() const { return rvb_addr_; }
+  unsigned int rvb_addr_end() const { return rvb_addr_end_; }
+
 private:
   unsigned short ctrl_;
   unsigned short stat_;
@@ -366,12 +374,6 @@ private:
   unsigned int rvb_addr_;
   unsigned int rvb_addr_end_;
 };
-
-
-
-
-
-
 
 
 

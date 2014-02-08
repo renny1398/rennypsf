@@ -1,5 +1,5 @@
-#include "dma.h"
-#include "../spu/spu.h"
+#include "psx/dma.h"
+#include "spu/spu.h"
 #include <wx/debug.h>
 
 

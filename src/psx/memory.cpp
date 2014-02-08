@@ -1,5 +1,5 @@
-#include "memory.h"
-#include "hardware.h"
+#include "psx/memory.h"
+#include "psx/hardware.h"
 #include <memory.h>
 #include <wx/msgout.h>
 

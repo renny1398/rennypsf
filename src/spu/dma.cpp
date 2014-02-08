@@ -1,5 +1,5 @@
-#include "spu.h"
-#include "../psx/memory.h"
+#include "spu/spu.h"
+#include "psx/memory.h"
 #include <cstring>
 
 namespace SPU {

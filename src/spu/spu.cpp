@@ -1,9 +1,9 @@
-#include "spu.h"
+#include "spu/spu.h"
 #include <wx/msgout.h>
 #include <cstring>
 
-#include "../psx/hardware.h"
-#include "../SoundManager.h"
+#include "psx/hardware.h"
+#include "SoundManager.h"
 
 namespace {
 

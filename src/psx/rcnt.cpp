@@ -1,7 +1,7 @@
-#include "rcnt.h"
-#include "r3000a.h"
-#include "memory.h"
-#include "../spu/spu.h"
+#include "psx/rcnt.h"
+#include "psx/r3000a.h"
+#include "psx/memory.h"
+#include "spu/spu.h"
 #include <cstring>
 #include <wx/msgout.h>
 
