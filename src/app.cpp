@@ -10,19 +10,13 @@
 #endif
 
 
-// implicit definition main function
-wxIMPLEMENT_APP(RennypsfApp);
+wxIMPLEMENT_APP_NO_MAIN(RennypsfApp);
 
 
 bool RennypsfApp::OnInit()
 {
   wxMessageOutputDebug().Printf(wxT("RennypsfApp::OnInit()"));
 
-#ifdef __WXMAC__
-  ProcessSerialNumber PSN;
-  GetCurrentProcess(&PSN);
-  TransformProcessType(&PSN, kProcessTransformToForegroundApplication);
-#endif
 #ifdef __WXDEBUG__
   MainFrame *frame = new MainFrame("Rennypsf (Debug mode)", wxPoint(50,50), wxSize(640,480));
 #else
@@ -63,4 +57,23 @@ bool RennypsfApp::Stop()
 
 const wxSharedPtr<SoundFormat>& RennypsfApp::GetPlayingSound() const {
   return playing_sf_;
+}
+
+
+
+int main(int argc, char** argv) {
+  wxMessageOutputDebug().Printf(wxT("Started this application."));
+
+  wxApp::SetInstance(new RennypsfApp());
+  wxEntryStart(argc, argv);
+#ifdef __WXMAC__
+  ProcessSerialNumber PSN = { 0, kCurrentProcess };
+  TransformProcessType(&PSN, kProcessTransformToForegroundApplication);
+#endif
+  wxTheApp->OnInit();
+  wxTheApp->OnRun();
+  wxTheApp->OnExit();
+  wxEntryCleanup();
+
+  return 0;
 }
