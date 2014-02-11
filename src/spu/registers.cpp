@@ -249,7 +249,6 @@ uint16_t SPU::ReadRegister(uint32_t reg)
 
   // Reverb configuration
   const uint32_t ofs = (reg - 0x1f801dc0) >> 1;
-  wxASSERT(ofs < 0x40);
   if (ofs < 0x20) {
     return Reverb().Config[ofs];
   }
@@ -631,7 +630,6 @@ void SPU::WriteRegister(uint32_t reg, uint16_t val)
 
   // Reverb configuration
   const uint32_t ofs = (reg - 0x1f801dc0) >> 1;
-  wxASSERT(ofs < 0x40);
   if (ofs < 0x20) {
     Reverb().Config[ofs] = val;
   }

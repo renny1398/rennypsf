@@ -173,20 +173,29 @@ protected:
 */
 
 
+/*!
+ @brief A base class for Sound Format (?sf).
+*/
 class SoundFormat
 {
 public:
+  //! A virtual desctructor.
   virtual ~SoundFormat();
 
+  //! Get the instance of Sample correspond to the channel number.
   Sample& Ch(int);
+  //! Get the constant instalce of Sample correspond to the channel number.
   const Sample& Ch(int) const;
 
+  //! Check if the sound is loaded.
   bool IsLoaded() const;
 
   void GetTag(const wxString &key, wxString *value) const;
   void SetTag(const wxString &key, const wxString &value);
 
+  //! Play the sound.
   bool Play(const wxSharedPtr<SoundDeviceDriver>&);
+  //! Stop the sound if it is playing.
   bool Stop();
 
 
@@ -198,9 +207,12 @@ public:
   // const Wavetable& wavetable() const;
 
 protected:
+  //! A pure virtual function called from Play().
   virtual bool DoPlay() = 0;
+  //! A pure virtual function called from Stop().
   virtual bool DoStop() = 0;
 
+  //! Get the sound block correspond to the instance.
   virtual SoundBlock& sound_block() = 0;
 
   wxFile file_;
