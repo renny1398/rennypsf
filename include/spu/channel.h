@@ -14,6 +14,7 @@ namespace SPU {
 
 class ChannelInfo;
 
+#if 0
 /*!
  * @class EnvelopeState
  * @brief A base class of envelope state.
@@ -32,7 +33,7 @@ protected:
   //! A virtual destructor.
   virtual ~EnvelopeState() {}
 };
-
+#endif
 
 
 class ChannelInfoListener {
@@ -70,12 +71,23 @@ struct ADSRInfo
 */
 
 
+enum EnvelopeState {
+  kEnvelopeStateOff,
+  kEnvelopeStateAttack,
+  kEnvelopeStateDecay,
+  kEnvelopeStateSustain,
+  kEnvelopeStateRelease,
+  kEnvelopeStateCount
+};
+
+
+
 class ADSRInfoEx
 {
 public:
   void Start();
 
-  const EnvelopeState* State;
+  EnvelopeState  State;
   bool           AttackModeExp;
   int            AttackRate;
   int            DecayRate;
@@ -108,6 +120,7 @@ public:
 
   void StartSound();
   static void InitADSR();
+  int AdvanceEnvelope();
 
   void Update();
 

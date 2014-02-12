@@ -161,7 +161,7 @@ void ChannelInfo::Update()
 
   // sval = (MixADSR() * fa) / 1023;
   int prev_envvol = ADSRX.EnvelopeVol;
-  int curr_envvol = ADSRX.State->AdvanceEnvelope(this);
+  int curr_envvol = AdvanceEnvelope();
   sval = (curr_envvol * fa) / 1023;
   if (prev_envvol != curr_envvol) {
     NotifyOnChangeVelocity();
