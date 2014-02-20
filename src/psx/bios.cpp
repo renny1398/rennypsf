@@ -642,7 +642,7 @@ namespace PSX {
 
   void BIOS::ChangeTh()  // B0:10
   {
-    u32 th = A0 &0xff;
+    u32 th = A0 & 0xff;
     if (Thread[th].status == 0 || CurThread == th) {
       V0 = 0;
       PC = RA;

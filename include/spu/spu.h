@@ -138,6 +138,9 @@ public:
   void NotifyOnChangeLoopIndex(ChannelInfo* pChannel) const;
 
 protected:
+  void ReadDMAMemoryEx(SPUCore* core, PSX::PSXAddr addr, uint32_t size);
+  void WriteDMAMemoryEx(SPUCore* core, PSX::PSXAddr addr, uint32_t size);
+
   mutable pthread_mutex_t process_mutex_;
   mutable pthread_mutex_t wait_start_mutex_;
   mutable pthread_cond_t process_cond_;
@@ -157,9 +160,6 @@ protected:
   mutable int processing_channel_;
 
   void ChangeProcessState(ProcessState state, int ch = -1);
-
-private:
-  // SPUListener listeners_;
 };
 
 
@@ -367,9 +367,6 @@ public:
   static const int kMemorySize = 0x200000;
 
 private:
-  void ReadDMAMemoryEx(SPUCore*, PSX::PSXAddr, uint32_t);
-  void WriteDMAMemoryEx(SPUCore*, PSX::PSXAddr, uint32_t);
-
   uint16_t reg_area_[32*1024];
   uint8_t mem8_[2*1024*1024];
   // uint8_t* pSpuBuffer;
