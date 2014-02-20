@@ -63,7 +63,7 @@ class BIOS;
 
 namespace SPU {
 class SPUBase;
-class SPUCore;
+struct SPUCore;
 class SPU;
 class SPU2;
 }

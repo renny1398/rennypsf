@@ -18,39 +18,6 @@ class SoundDeviceDriver;
 
 namespace SPU
 {
-/*
-class Volume
-{
-    int32_t volume;
-public:
-    uint16_t Int15() const {
-        return volume & 0x3fff;
-    }
-    void Int15(uint16_t vol) {
-        wxASSERT(vol < 0x8000);
-        if (vol > 0x3fff) {
-            volume = vol - 0x8000;
-            wxASSERT(volume < 0);
-        } else {
-            volume = vol;
-        }
-    }
-};
-
-class Pitch
-{
-    uint32_t pitch;
-public:
-    uint16_t Uint14() const {
-        return pitch;
-    }
-    void Uint14(uint16_t p) {
-        pitch = p;
-    }
-};
- */
-
-
 
 typedef uint32_t SPUAddr;
 
@@ -86,6 +53,24 @@ private:
 // WX_DECLARE_HASH_SET(wxEvtHandler*, wxPointerHash, wxPointerEqual, SPUListener);
 
 
+/**
+ * SPU Core
+ */
+
+struct SPUCore {
+
+  static const int kStateFlagDMACompleted = 0x80;
+
+  unsigned short ctrl_; // Sp0
+  unsigned short stat_;
+  unsigned int irq_;  // IRQ address
+  mutable unsigned int addr_; // DMA current pointer
+  // unsigned int rvb_addr_;
+  // unsigned int rvb_addr_end_;
+};
+
+
+
 class SPUBase : public PSX::Component
 {
 public:
@@ -104,6 +89,41 @@ public:
 
   virtual SoundBank& Soundbank() = 0;
 
+
+  // Accessor and Mutator
+  SPUCore& core(int i) {
+    const SPUBase* const this_const = this;
+    return const_cast<SPUCore&>(this_const->core(i));
+  }
+  virtual const SPUCore& core(int i) const = 0;
+  virtual unsigned int core_count() const = 0;
+  virtual uint32_t memory_size() const = 0;
+
+  // Memory
+  virtual const uint8_t* mem8_ptr(SPUAddr addr) const = 0;
+  const uint16_t* mem16_ptr(SPUAddr addr) const {
+    return reinterpret_cast<const uint16_t*>(mem8_ptr(addr));
+  }
+  uint8_t* mem8_ptr(SPUAddr addr) {
+    const SPUBase* const this_const = this;
+    return const_cast<uint8_t*>(this_const->mem8_ptr(addr));
+  }
+  uint16_t* mem16_ptr(SPUAddr addr) {
+    return reinterpret_cast<uint16_t*>(mem8_ptr(addr));
+  }
+
+  uint8_t mem8_val(SPUAddr addr) const {
+    return *mem8_ptr(addr);
+  }
+  uint16_t mem16_val(SPUAddr addr) const {
+    return *mem16_ptr(addr);
+  }
+  uint8_t& mem8_ref(SPUAddr addr) {
+    return *mem8_ptr(addr);
+  }
+  uint16_t& mem16_ref(SPUAddr addr) {
+    return *mem16_ptr(addr);
+  }
 
   // Register
   virtual unsigned short ReadRegister(uint32_t reg) = 0;
@@ -144,29 +164,6 @@ private:
 
 
 
-/**
- * SPU Core
- */
-
-class SPUCore {
-
-public:
-  unsigned short ctrl() const { return ctrl_; }
-  unsigned short stat() const { return stat_; }
-  unsigned int irg() const { return irq_; }
-  unsigned int addr() const { return addr_; }
-  unsigned int rvb_addr() const { return rvb_addr_; }
-  unsigned int rvb_addr_end() const { return rvb_addr_end_; }
-
-private:
-  unsigned short ctrl_;
-  unsigned short stat_;
-  unsigned int irq_;
-  unsigned int addr_;
-  unsigned int rvb_addr_;
-  unsigned int rvb_addr_end_;
-};
-
 
 
 
@@ -188,6 +185,12 @@ public:
   void Flush();
 
   bool IsRunning() const;
+
+  const SPUCore& core(int /*i*/) const { return core_; }
+  SPUCore& core(int i) { return SPUBase::core(i); }
+  unsigned int core_count() const { return 1; }
+
+  uint32_t memory_size() const { return kMemorySize; }
 
 protected:
   void SetupStreams();
@@ -217,9 +220,9 @@ public:
 
   // DMA
   uint16_t ReadDMA4(void);
-  void ReadDMA4Memory(uint32_t psxAddr, uint32_t size);
+  void ReadDMA4Memory(PSX::PSXAddr psxAddr, uint32_t size);
   void WriteDMA4(uint16_t);
-  void WriteDMA4Memory(uint32_t psxAddr, uint32_t size);
+  void WriteDMA4Memory(PSX::PSXAddr psxAddr, uint32_t size);
 
   // IRQ
   uint32_t GetIRQAddress() const;
@@ -250,9 +253,15 @@ private:
 
   // PSX Buffer & Addresses
   // unsigned short m_regArea[10000];
-  unsigned short m_spuMem[256*1024];
+  uint8_t mem8_[0x100000];
+  uint16_t* const mem16_;
+
 public:
-  uint8_t* const Memory;   // uchar* version of spuMem
+  const uint8_t* mem8_ptr(SPUAddr addr) const {
+    return mem8_ + addr;
+  }
+
+  static const int kMemorySize = 0x100000;
 
 public:
   unsigned char* m_pSpuIrq;
@@ -282,11 +291,12 @@ private:
 
   unsigned long m_noiseVal;
 
-public:
-  unsigned short Sp0;
-  unsigned short Status;
-  SPUAddr IrqAddr;
-  mutable SPUAddr dma_current_addr_;
+//  unsigned short Sp0;
+//  unsigned short Status;
+//  SPUAddr IrqAddr;
+//  mutable SPUAddr dma_current_addr_;
+  SPUCore core_;
+
 private:
   bool m_bEndThread;
   bool m_bThreadEnded;
@@ -309,9 +319,6 @@ private:
 
   int ns;
 
-
-  // ADSR
-  // unsigned long m_RateTable[160];
 
   // Sound bank
 public:
@@ -339,6 +346,40 @@ private:
 };
 
 
+
+class SPU2 : public SPUBase {
+public:
+  SPU2(PSX::Composite*);
+
+  uint32_t memory_size() const { return kMemorySize; }
+
+  void ReadDMA4Memory(PSX::PSXAddr psx_addr, uint32_t size);
+  void ReadDMA7Memory(PSX::PSXAddr psx_addr, uint32_t size);
+  void WriteDMA4Memory(PSX::PSXAddr psx_addr, uint32_t size);
+  void WriteDMA7Memory(PSX::PSXAddr psx_addr, uint32_t size);
+  void InterruptDMA4();
+  void InterruptDMA7();
+
+  const uint8_t* mem8_ptr(SPUAddr addr) const {
+    return mem8_ + addr;
+  }
+
+  static const int kMemorySize = 0x200000;
+
+private:
+  void ReadDMAMemoryEx(SPUCore*, PSX::PSXAddr, uint32_t);
+  void WriteDMAMemoryEx(SPUCore*, PSX::PSXAddr, uint32_t);
+
+  uint16_t reg_area_[32*1024];
+  uint8_t mem8_[2*1024*1024];
+  // uint8_t* pSpuBuffer;
+
+  SPUCore cores_[2];
+};
+
+
+
+
 /*
 class SPUListener {
 public:
@@ -358,15 +399,15 @@ inline ChannelInfo& SPU::Channel(int ch) {
 
 inline unsigned char* SPU::GetSoundBuffer() const {
   // return Memory;
-  return (uint8_t*)m_spuMem;
+  return (uint8_t*)mem16_;
 }
 
 inline uint32_t SPU::GetIRQAddress() const {
-  return IrqAddr;
+  return core_.irq_;
 }
 
 inline void SPU::SetIRQAddress(SPUAddr addr) {
-  IrqAddr = addr;
+  core_.irq_ = addr;
   m_pSpuIrq = GetSoundBuffer() + addr;
 }
 

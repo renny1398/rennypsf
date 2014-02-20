@@ -146,7 +146,7 @@ void ChannelInfo::Update()
     fa = itrTone.Next();
 
     if (bFMod != 2) {
-      if ( ( spu_.Sp0& 0x4000) == 0 ) fa = 0;
+      if ( ( spu_.core(0).ctrl_ & 0x4000 ) == 0 ) fa = 0;
       pInterpolation->StoreValue(fa);
     }
     pInterpolation->spos -= 0x10000;

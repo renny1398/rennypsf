@@ -179,22 +179,24 @@ uint16_t read1da4(const SPU& spu)
 // Get address
 uint16_t read1da6(const SPU& spu)
 {
-  return spu.dma_current_addr_ >> 3;
+  // TODO: is it corrected?
+  return spu.core(0).addr_ >> 3;
 }
 
 // Get SPU data
 uint16_t read1da8(const SPU& spu)
 {
-  uint16_t s = ((unsigned short*)spu.Memory)[spu.dma_current_addr_>>1];
-  spu.dma_current_addr_ += 2;
-  if (spu.dma_current_addr_ > 0x7ffff) spu.dma_current_addr_ = 0;
+  // ReadDMA?
+  uint16_t s = spu.mem16_val(spu.core(0).addr_);
+  spu.core(0).addr_ += 2;
+  if (spu.core(0).addr_ > 0x7ffff) spu.core(0).addr_ = 0;
   return s;
 }
 
 // Get SPU control sp0
 uint16_t read1daa(const SPU& spu)
 {
-  return spu.Sp0;
+  return spu.core(0).ctrl_;
 }
 
 static unsigned short var_1dac = 0x4;
@@ -206,7 +208,7 @@ uint16_t read1dac(const SPU& /*spu*/)
 
 uint16_t read1dae(const SPU& spu)
 {
-  return spu.Status;
+  return spu.core(0).stat_;
 }
 
 uint16_t (*const read1db0)(const SPU& /*spu*/) = readGlobalNOP;
@@ -538,21 +540,22 @@ void write1da4(SPU* spu, uint16_t val)
 // Sound buffer address
 void write1da6(SPU* spu, uint16_t val)
 {
-  spu->dma_current_addr_ = static_cast<uint32_t>(val) << 3;
+  spu->core(0).addr_ = static_cast<uint32_t>(val) << 3;
 }
 
 // Set SPU data
 void write1da8(SPU* spu, uint16_t val)
 {
-  ((uint16_t*)spu->GetSoundBuffer())[spu->dma_current_addr_>>1] = val;
-  spu->dma_current_addr_ += 2;
-  if (spu->dma_current_addr_ > 0x7ffff) spu->dma_current_addr_ = 0;
+  ((uint16_t*)spu->GetSoundBuffer())[spu->core(0).addr_>>1] = val;
+  spu->core(0).addr_ += 2;
+  if (spu->core(0).addr_ > 0x7ffff) spu->core(0).addr_ = 0;
 }
 
 // Set SPU control
 void write1daa(SPU* spu, uint16_t val)
 {
-  spu->Sp0 = val;
+  SPUCore& core = spu->core(0);
+  core.ctrl_ = val;
 }
 
 // Set var_1dac
@@ -565,7 +568,8 @@ void write1dac(SPU* /*spu*/, uint16_t val)
 void write1dae(SPU* spu, uint16_t val)
 {
   // force Spu to be ready to transfer
-  spu->Status = val & 0xf800;
+  SPUCore& core = spu->core(0);
+  core.stat_ = val & 0xf800;
 }
 
 // Set CD volume left

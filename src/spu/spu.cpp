@@ -223,7 +223,7 @@ void* SPUThread::Entry()
 
 SPU::SPU(PSX::Composite *composite)
   : SPUBase(composite),
-    Memory(reinterpret_cast<uint8_t*>(m_spuMem)), Channels(this, 24),
+    mem16_(reinterpret_cast<uint16_t*>(mem8_)), Channels(this, 24),
     reverb_(this), SoundBank_(this)
 {
   Init();
@@ -258,7 +258,7 @@ void SPU::Open()
   // m_iVolume = 3;
   reverb_.iReverbOff = -1;
   // spuIrq = 0;
-  dma_current_addr_ = 0xffffffff;
+  core(0).addr_ = 0xffffffff;
   m_bEndThread = 0;
   m_bThreadEnded = 0;
   m_pMixIrq = 0;
@@ -319,8 +319,8 @@ void SPU::Async(uint32_t cycles)
 
 
 
-// SPU SPU::Spu;
+SPU2::SPU2(PSX::Composite *composite)
+  : SPUBase(composite) {}
+
 
 }   // namespace SPU
-
-// SPU::SPU& Spu = SPU::SPU::Spu;
