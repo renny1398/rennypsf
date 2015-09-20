@@ -30,6 +30,7 @@ R3000A::InterpreterThread* Composite::Run() {
 
 void Composite::Terminate() {
   interp_.Shutdown();
+  spu_.Shutdown();
   mem_.Reset();
 }
 
@@ -63,7 +64,7 @@ BIOS& Composite::Bios() {
   return bios_;
 }
 
-SPU::SPU& Composite::Spu() {
+SPU::SPUBase& Composite::Spu() {
   return spu_;
 }
 
@@ -210,7 +211,7 @@ DMA& Component::Dma() { return composite_.Dma(); }
 BIOS& Component::Bios() { return composite_.Bios(); }
 
 
-SPU::SPU& Component::Spu() { return composite_.Spu(); }
+SPU::SPUBase& Component::Spu() { return composite_.Spu(); }
 
 
 u8 Component::ReadMemory8(PSXAddr addr) {

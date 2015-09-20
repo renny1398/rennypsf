@@ -1,5 +1,6 @@
 #include "spu/spu.h"
 #include <wx/msgout.h>
+#include <wx/hashmap.h>
 #include <cstring>
 
 #include "psx/hardware.h"
@@ -25,18 +26,136 @@ wxDEFINE_EVENT(wxEVENT_SPU_CHANNEL_CHANGE_LOOP, wxCommandEvent);
 namespace SPU {
 
 
+////////////////////////////////////////////////////////////////////////
+// SPU Request class implement
+////////////////////////////////////////////////////////////////////////
 
 
-void SPUBase::NotifyOnUpdateStartAddress(int ch) const {
-  pthread_mutex_lock(&process_mutex_);
-  process_state_ = SPU::STATE_SET_OFFSET;
-  processing_channel_ = ch;
-  pthread_cond_broadcast(&process_cond_);
-  pthread_mutex_unlock(&process_mutex_);
+namespace {
+WX_DECLARE_HASH_MAP(int, SPURequest*, wxIntegerHash, wxIntegerEqual, RequestMap);
 }
 
 
-void SPUBase::NotifyOnChangeLoopIndex(ChannelInfo* /*pChannel*/) const
+const SPURequest* SPUStepRequest::CreateRequest(int step_count) {
+  static RequestMap pool(1);
+  RequestMap::const_iterator itr = pool.find(step_count);
+  if (itr == pool.end()) {
+    SPURequest* req = new SPUStepRequest(step_count);
+    pool.insert(RequestMap::value_type(step_count, req));
+    return req;
+  }
+  return itr->second;
+}
+
+
+void SPUStepRequest::Execute(SPUBase* p_spu) const {
+  int step = step_count_;
+  while (step--) {
+    const int core_count = p_spu->core_count();
+    for (int i = 0; i < core_count; i++) {
+      SPUCore& core = p_spu->core(i);
+      core.Step();
+    }
+    p_spu->NotifyObservers();
+    p_spu->ResetStepStatus();
+  }
+}
+
+
+const SPURequest* SPUNoteOnRequest::CreateRequest(int ch) {
+  static RequestMap pool(1);
+  RequestMap::const_iterator itr = pool.find(ch);
+  if (itr == pool.end()) {
+    SPURequest* req = new SPUNoteOnRequest(ch);
+    pool.insert(RequestMap::value_type(ch, req));
+    return req;
+  }
+  return itr->second;
+}
+
+
+void SPUNoteOnRequest::Execute(SPUBase* p_spu) const {
+  p_spu->Voice(ch_).tone->ConvertData();
+  p_spu->Voice(ch_).Step();
+}
+
+
+const SPURequest* SPUNoteOffRequest::CreateRequest(int ch) {
+  static RequestMap pool(1);
+  RequestMap::const_iterator itr = pool.find(ch);
+  if (itr == pool.end()) {
+    SPURequest* req = new SPUNoteOffRequest(ch);
+    pool.insert(RequestMap::value_type(ch, req));
+    return req;
+  }
+  return itr->second;
+}
+
+
+void SPUNoteOffRequest::Execute(SPUBase* p_spu) const {
+   p_spu->Voice(ch_).Step();
+}
+
+
+const SPURequest* SPUSetOffsetRequest::CreateRequest(int ch) {
+  static RequestMap pool(1);
+  RequestMap::const_iterator itr = pool.find(ch);
+  if (itr == pool.end()) {
+    SPURequest* req = new SPUSetOffsetRequest(ch);
+    pool.insert(RequestMap::value_type(ch, req));
+    return req;
+  }
+  return itr->second;
+}
+
+
+void SPUSetOffsetRequest::Execute(SPUBase* p_spu) const {
+  p_spu->Voice(ch_).tone->ConvertData();
+}
+
+
+////////////////////////////////////////////////////////////////////////
+// SPU Core class implement
+////////////////////////////////////////////////////////////////////////
+
+
+void SPUCore::Step() {
+  voice_manager_.StepForAll();
+}
+
+
+////////////////////////////////////////////////////////////////////////
+// SPU class implement
+////////////////////////////////////////////////////////////////////////
+
+
+SPUBase::SPUBase(PSX::Composite* composite)
+  : Component(composite), sound_bank_(this), reverb_(this) {
+  cores_.assign(1, SPUCore(this));
+  // new(&cores_[0]) SPUCore(this);
+
+  mem8_.reset(new uint8_t[0x100000 * 2]);  // 1MB or 2MB
+  ::memset(mem8_.get(), 0, 0x100000 * 2);
+  p_mem16_ = (uint16_t*)mem8_.get();
+
+  Init();
+}
+
+
+void SPUBase::NotifyOnUpdateStartAddress(int ch) const {
+/*
+  pthread_mutex_lock(&process_mutex_);
+  process_state_ = SPUBase::STATE_SET_OFFSET;
+  processing_channel_ = ch;
+  pthread_cond_broadcast(&process_cond_);
+  pthread_mutex_unlock(&process_mutex_);
+*/
+  const SPURequest* req = SPUSetOffsetRequest::CreateRequest(ch);
+  thread_->PutRequest(req);
+}
+
+
+void SPUBase::NotifyOnChangeLoopIndex(SPUVoice* /*pChannel*/) const
 {
   /*
   SamplingTone* tone = pChannel->tone;
@@ -51,6 +170,7 @@ void SPUBase::NotifyOnChangeLoopIndex(ChannelInfo* /*pChannel*/) const
 }
 
 
+/*
 void SPUBase::ChangeProcessState(ProcessState state, int ch) {
   pthread_mutex_lock(&process_mutex_);
   process_state_ = state;
@@ -64,17 +184,43 @@ void SPUBase::ChangeProcessState(ProcessState state, int ch) {
   }
   pthread_mutex_unlock(&wait_start_mutex_);
 }
+*/
 
 
-
-
-SamplingTone* SPU::GetSamplingTone(uint32_t addr) const
-{
-  return const_cast<SoundBank*>(&SoundBank_)->GetSamplingTone(addr);
+bool SPUBase::Step(int step_count) {
+  if (thread_ == 0 || thread_->IsRunning() == false) {
+    return false;
+  }
+  thread_->WaitForLastStep();
+  const SPURequest* req = SPUStepRequest::CreateRequest(step_count);
+  thread_->PutRequest(req);
+  return true;
 }
 
 
-void SPU::NotifyOnAddTone(const SamplingTone& /*tone*/) const {
+void SPUBase::NotifyObservers() {
+  const wxVector<SPUCore>::iterator itr_end = cores_.end();
+  for (wxVector<SPUCore>::iterator itr = cores_.begin(); itr != itr_end; ++itr) {
+    itr->Voices().Notify();
+  }
+}
+
+
+void SPUBase::ResetStepStatus() {
+  const wxVector<SPUCore>::iterator itr_end = cores_.end();
+  for (wxVector<SPUCore>::iterator itr = cores_.begin(); itr != itr_end; ++itr) {
+    itr->Voices().ResetStepStatus();
+  }
+}
+
+
+SamplingTone* SPUBase::GetSamplingTone(uint32_t addr) const
+{
+  return const_cast<SoundBank*>(&sound_bank_)->GetSamplingTone(addr);
+}
+
+
+void SPUBase::NotifyOnAddTone(const SamplingTone& /*tone*/) const {
   /*
   ToneInfo tone_info;
   tone_info.number = tone.GetAddr();
@@ -87,7 +233,7 @@ void SPU::NotifyOnAddTone(const SamplingTone& /*tone*/) const {
 }
 
 
-void SPU::NotifyOnChangeTone(const SamplingTone& /*tone*/) const {
+void SPUBase::NotifyOnChangeTone(const SamplingTone& /*tone*/) const {
 /*
   ToneInfo tone_info;
   tone_info.number = tone.GetAddr();
@@ -100,7 +246,7 @@ void SPU::NotifyOnChangeTone(const SamplingTone& /*tone*/) const {
 }
 
 
-void SPU::NotifyOnRemoveTone(const SamplingTone& /*tone*/) const {
+void SPUBase::NotifyOnRemoveTone(const SamplingTone& /*tone*/) const {
 /*
   ToneInfo tone_info;
   tone_info.number = tone.GetAddr();
@@ -109,15 +255,15 @@ void SPU::NotifyOnRemoveTone(const SamplingTone& /*tone*/) const {
 }
 
 
-void SPU::SetupStreams()
+void SPUBase::SetupStreams()
 {
   m_pSpuBuffer = new uint8_t[32768];
 
-  SoundBank_.Reset();
+  sound_bank_.Reset();
   reverb_.Reset();
 
   for (int i = 0; i < 24; i++) {
-    ChannelInfo ch = Channels.At(i);
+    SPUVoice ch = Voice(i);
     ch.ADSRX.SustainLevel = 0xf << 27;
     // Channels[i].iIrqDone = 0;
     ch.tone = 0;
@@ -125,142 +271,115 @@ void SPU::SetupStreams()
   }
 }
 
-void SPU::RemoveStreams()
+void SPUBase::RemoveStreams()
 {
   delete [] m_pSpuBuffer;
   m_pSpuBuffer = 0;
 }
 
 
+void SPUBase::PutRequest(const SPURequest *req) {
+  if (thread_ == NULL) return;
+  thread_->PutRequest(req);
+}
 
-SPUThread::SPUThread(SPU *pSPU)
-  : wxThread(wxTHREAD_JOINABLE), pSPU_(pSPU)
+
+SPUThread::SPUThread(SPUBase *pSPU)
+  : wxThread(wxTHREAD_JOINABLE), pSPU_(pSPU), queue_cond_(queue_mutex_)
 {
 }
 
 
-void* SPUThread::Entry()
+void SPUThread::PutRequest(const SPURequest *req) {
+  wxMutexLocker locker(queue_mutex_);
+  req_queue_.push_back(req);
+  queue_cond_.Broadcast();
+}
+
+
+void SPUThread::WaitForLastStep() {
+  wxMutexLocker locker(queue_mutex_);
+  while (req_queue_.empty() == false) {
+    if (queue_cond_.WaitTimeout(1000) == wxCOND_TIMEOUT) {
+      wxMessageOutputDebug().Printf(wxT("SPUThread::WaitForLastStep(): Warning: waiting time is out."));
+    }
+  }
+}
+
+
+wxThread::ExitCode SPUThread::Entry()
 {
   wxASSERT(pSPU_ != 0);
-  SPU* pSPU = pSPU_;
-  numSamples_ = 0;
+  SPUBase* p_spu = pSPU_;
+  // numSamples_ = 0;
 
   for (int i = 0; i < 24; i++) {
-    pSPU->Channels.At(i).is_ready = false;
+    p_spu->Voice(i).is_ready = false;
   }
 
   wxMessageOutputDebug().Printf(wxT("Started SPU thread."));
 
-  pthread_mutex_t& process_mutex = pSPU->process_mutex_;
-  pthread_mutex_t& wait_start_mutex = pSPU->wait_start_mutex_;
-  pthread_cond_t& process_cond = pSPU->process_cond_;
-  pthread_mutex_t& dma_writable_mutex = pSPU->dma_writable_mutex_;
-  int& processing_channel = pSPU->processing_channel_;
-
-  pthread_mutex_lock(&process_mutex);
-
   do {
-    pthread_mutex_lock(&wait_start_mutex);
-    SPU::ProcessState process_state = pSPU->process_state_;
-    pSPU->process_state_ = SPU::STATE_START_PROCESS;
-    pthread_cond_broadcast(&process_cond);
-    pthread_mutex_unlock(&wait_start_mutex);
-
-    switch (process_state) {
-    case SPU::STATE_PSX_IS_READY:
-      pthread_mutex_lock(&dma_writable_mutex);
-      numSamples_ = processing_channel;
-      while (0 < numSamples_) {
-        --numSamples_;
-        unsigned int ch_count = pSPU->Channels.channel_count();
-        for (unsigned int i = 0; i < ch_count; i++) {
-          ChannelInfo& channel = pSPU->Channels.At(i);
-          if (channel.is_ready) continue;
-          channel.Update();
-        }
-        pSPU->Channels.Notify();
-        if (pSPU->NSSIZE <= ++pSPU->ns) {
-          pSPU->ns = 0;
-        }
-
-        for (unsigned int i = 0; i < ch_count; i++) {
-          pSPU->Channels.At(i).is_ready = false;
-        }
-      }
-      wxASSERT(numSamples_ == 0);
-      pthread_mutex_unlock(&dma_writable_mutex);
-      break;
-
-    case SPU::STATE_NOTE_ON:
-      pSPU->Channels.At(processing_channel).tone->ConvertData();
-      pSPU->Channels.At(processing_channel).Update();
-      break;
-
-    case SPU::STATE_NOTE_OFF:
-      pSPU->Channels.At(processing_channel).Update();
-      break;
-
-    case SPU::STATE_SET_OFFSET:
-      // pSPU->Channels[processing_channel].tone->ConvertData();
-      break;
-
-    default:
-      break;
+    queue_mutex_.Lock();
+    while (req_queue_.empty()) {
+      queue_cond_.Wait();
     }
+    queue_mutex_.Unlock();
 
-    if (process_state == SPU::STATE_SHUTDOWN) break;
+    const SPURequest* const p_req = req_queue_.front();
+    if (p_req == NULL) {
+      queue_mutex_.Lock();
+      req_queue_.pop_front();
+      queue_cond_.Broadcast();
+      queue_mutex_.Unlock();
+      return 0;
+    }
+    p_req->Execute(p_spu);
 
-    pthread_cond_wait(&process_cond, &process_mutex);
+    queue_mutex_.Lock();
+    req_queue_.pop_front();
+    queue_cond_.Broadcast();
+    queue_mutex_.Unlock();
   } while (true);
+}
 
-  pthread_mutex_unlock(&process_mutex);
 
+void SPUThread::OnExit() {
   wxMessageOutputDebug().Printf(wxT("Terminated SPU thread."));
-  return 0;
 }
 
 
-
-SPU::SPU(PSX::Composite *composite)
-  : SPUBase(composite),
-    mem16_(reinterpret_cast<uint16_t*>(mem8_)), Channels(this, 24),
-    reverb_(this), SoundBank_(this)
-{
-  Init();
-}
-
-
-void SPU::Init()
+void SPUBase::Init()
 {
   // m_iXAPitch = 1;
   // m_iUseTimer = 2;
   // m_iDebugMode = 0;
   // m_iRecordMode = 0;
-  m_iUseReverb = 2;
   useInterpolation = GAUSS_INTERPOLATION;
   // m_iDisStereo = 0;
   // m_iUseDBufIrq = 0;
 
+/*
   process_mutex_ = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
   wait_start_mutex_ = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
   process_cond_ = (pthread_cond_t)PTHREAD_COND_INITIALIZER;
   dma_writable_mutex_ = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
-
+*/
   //::memset(&Channels, 0, sizeof(Channels));
-  ChannelInfo::InitADSR();
+  SPUVoice::InitADSR();
+
+  thread_ = 0;
 
   wxMessageOutputDebug().Printf(wxT("Initialized SPU."));
 }
 
-void SPU::Open()
+void SPUBase::Open()
 {
   // m_iUseXA = 1;
   // m_iVolume = 3;
   reverb_.iReverbOff = -1;
   // spuIrq = 0;
   core(0).addr_ = 0xffffffff;
-  m_bEndThread = 0;
-  m_bThreadEnded = 0;
   m_pMixIrq = 0;
 
   // pSpuIrq = 0;
@@ -276,34 +395,42 @@ void SPU::Open()
   if (thread_ == 0) {
     thread_ = new SPUThread(this);
     thread_->Create();
-    process_state_ = STATE_NONE;
+    // process_state_ = STATE_NONE;
     thread_->Run();
   }
 
   wxMessageOutputDebug().Printf(wxT("Reset SPU."));
 }
 
-void SPU::Close()
+void SPUBase::Close()
 {
+  if (thread_ != 0 && thread_->IsRunning()) {
+    thread_->PutRequest(NULL);
+    thread_->Wait();
+    delete thread_;
+    thread_ = 0;
+  }
   RemoveStreams();
   isPlaying_ = false;
 }
 
 
-void SPU::Shutdown()
+void SPUBase::Shutdown()
 {
   Close();
-  thread_->Wait();
+  mem8_.reset();
   wxMessageOutputDebug().Printf(wxT("Shut down SPU."));
+  wxMessageOutputDebug().Printf(wxT("thread = %p"), thread_);
 }
 
 
-bool SPU::IsRunning() const {
+bool SPUBase::IsRunning() const {
   return isPlaying_;
 }
 
 
-void SPU::Async(uint32_t cycles)
+/*
+void SPUBase::Async(uint32_t cycles)
 {
   int32_t do_samples;
 
@@ -316,7 +443,7 @@ void SPU::Async(uint32_t cycles)
 
   ChangeProcessState(STATE_PSX_IS_READY, do_samples);
 }
-
+*/
 
 
 SPU2::SPU2(PSX::Composite *composite)

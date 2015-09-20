@@ -127,6 +127,7 @@ private:
 class SoundDeviceDriver;
 
 #include <wx/sharedptr.h>
+#include <wx/weakref.h>
 
 class SoundBlock {
 public:
@@ -151,6 +152,7 @@ public:
 
 private:
   wxSharedPtr<SoundDeviceDriver> output_;
+
 };
 
 

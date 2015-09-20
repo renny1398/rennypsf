@@ -12,7 +12,7 @@
 namespace SPU {
 
 
-class ChannelInfo;
+class SPUVoice;
 
 #if 0
 /*!
@@ -36,16 +36,16 @@ protected:
 #endif
 
 
-class ChannelInfoListener {
+class SPUVoiceListener {
 
-  friend class ChannelInfo;
+  friend class SPUVoice;
 
 public:
-  virtual ~ChannelInfoListener() {}
+  virtual ~SPUVoiceListener() {}
 
 protected:
-  virtual void OnNoteOn(const ChannelInfo&) {}
-  virtual void OnNoteOff(const ChannelInfo&) {}
+  virtual void OnNoteOn(const SPUVoice&) {}
+  virtual void OnNoteOff(const SPUVoice&) {}
 };
 
 
@@ -109,30 +109,31 @@ public:
 class InterpolationBase;
 typedef wxScopedPtr<InterpolationBase> InterpolationPtr;
 
-class SPU;
-class ChannelArray;
+class SPUBase;
+class SPUVoiceManager;
 
 
-class ChannelInfo : public ::Sample16 {
+class SPUVoice : public ::Sample16 {
 public:
-  ChannelInfo(SPU* pSPU = 0);
-  ChannelInfo(const ChannelInfo&);  // for vector construction
+  SPUVoice();   // for vector constructor
+  SPUVoice(SPUBase* pSPU);
+  SPUVoice(const SPUVoice&);  // for vector construction
 
   void StartSound();
   static void InitADSR();
   int AdvanceEnvelope();
 
-  void Update();
+  void Step();
 
-  SPU& Spu() { return spu_; }
-  const SPU& Spu() const { return spu_; }
+  SPUBase& Spu() { return *p_spu_; }
+  const SPUBase& Spu() const { return *p_spu_; }
 
 protected:
   void VoiceChangeFrequency();
   // void ADPCM2LPCM();
 
 private:
-  SPU& spu_;
+  SPUBase* const p_spu_;
 
 public:
   // for REVERB
@@ -201,42 +202,45 @@ private:
 
   // mutable wxMutex on_mutex_;
 
-  friend class ChannelArray;
+  friend class SPUVoiceManager;
 };
 
 
 
-class ChannelArray: public ::SoundBlock
+class SPUVoiceManager: public ::SoundBlock
 {
 public:
-  ChannelArray(SPU* pSPU, int channelNumber);
+  SPUVoiceManager();  // for vector constructor
+  SPUVoiceManager(SPUBase* pSPU, int channelNumber);
 
   unsigned int block_size() const {
     return channelNumber_ * 2;
   }
 
   Sample& Ch(int ch) { return channels_.at(ch); }
-  ChannelInfo& At(int ch) { return channels_.at(ch); }
+  SPUVoice& At(int ch) { return channels_.at(ch); }
 
   unsigned int channel_count() const {
     return channelNumber_;
   }
 
-  // int GetChannelNumber() const;
   bool ExistsNew() const;
   void SoundNew(uint32_t flags, int start);
   void VoiceOff(uint32_t flags, int start);
 
+  void StepForAll();
+  void ResetStepStatus();
+
   void Notify() const;
 
 private:
-  SPU* pSPU_;
+  SPUBase* const pSPU_;
   // ChannelInfo* channels_;
-  wxVector<ChannelInfo> channels_;
+  wxVector<SPUVoice> channels_;
   int channelNumber_;
   uint32_t flagNewChannels_;
 
-  friend class ChannelInfo;
+  friend class SPUVoice;
 };
 
 

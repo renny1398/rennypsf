@@ -15,8 +15,11 @@ inline int32_t CLIP(int32_t x) {
 namespace SPU {
 
 
-ChannelInfo::ChannelInfo(SPU *pSPU) :
-  spu_(*pSPU),
+SPUVoice::SPUVoice() : p_spu_(NULL), iUsedFreq(0), iRawPitch(0) {}
+
+
+SPUVoice::SPUVoice(SPUBase *pSPU) :
+  p_spu_(pSPU),
   lpcm_buffer_l(pSPU->NSSIZE), lpcm_buffer_r(pSPU->NSSIZE),
   pInterpolation(new GaussianInterpolation) {
   tone = NULL;
@@ -25,9 +28,9 @@ ChannelInfo::ChannelInfo(SPU *pSPU) :
 }
 
 
-ChannelInfo::ChannelInfo(const ChannelInfo &info)
-  : ::Sample16(), spu_(info.spu_),
-    lpcm_buffer_l(spu_.NSSIZE), lpcm_buffer_r(spu_.NSSIZE),
+SPUVoice::SPUVoice(const SPUVoice &info)
+  : ::Sample16(), p_spu_(info.p_spu_),
+    lpcm_buffer_l(p_spu_->NSSIZE), lpcm_buffer_r(p_spu_->NSSIZE),
     pInterpolation(new GaussianInterpolation) {
   tone = NULL;
   is_on_ = false;
@@ -35,7 +38,7 @@ ChannelInfo::ChannelInfo(const ChannelInfo &info)
 }
 
 
-void ChannelInfo::NotifyOnNoteOn() const {
+void SPUVoice::NotifyOnNoteOn() const {
 /*
   NoteInfo note;
   note.ch = ch;
@@ -50,7 +53,7 @@ void ChannelInfo::NotifyOnNoteOn() const {
 }
 
 
-void ChannelInfo::NotifyOnNoteOff() const {
+void SPUVoice::NotifyOnNoteOff() const {
 /*
   NoteInfo note;
   note.ch = ch;
@@ -65,7 +68,7 @@ void ChannelInfo::NotifyOnNoteOff() const {
 }
 
 
-void ChannelInfo::NotifyOnChangePitch() const {
+void SPUVoice::NotifyOnChangePitch() const {
 /*
   NoteInfo note;
   note.ch = ch;
@@ -79,7 +82,7 @@ void ChannelInfo::NotifyOnChangePitch() const {
   */
 }
 
-void ChannelInfo::NotifyOnChangeVelocity() const {
+void SPUVoice::NotifyOnChangeVelocity() const {
 /*
   NoteInfo note;
   note.ch = ch;
@@ -92,12 +95,12 @@ void ChannelInfo::NotifyOnChangeVelocity() const {
 }
 
 
-void ChannelInfo::StartSound()
+void SPUVoice::StartSound()
 {
   // wxMutexLocker locker(on_mutex_);
 
   On();
-  spu_.Reverb().StartReverb(this);
+  p_spu_->Reverb().StartReverb(this);
 
   itrTone = tone->Iterator(this);
 
@@ -112,7 +115,7 @@ void ChannelInfo::StartSound()
 }
 
 
-void ChannelInfo::VoiceChangeFrequency()
+void SPUVoice::VoiceChangeFrequency()
 {
   wxASSERT(iActFreq != iUsedFreq);
   iUsedFreq = iActFreq;
@@ -123,12 +126,12 @@ void ChannelInfo::VoiceChangeFrequency()
 
 
 
-void ChannelInfo::Update()
+void SPUVoice::Step()
 {
   is_ready = true;
 
   if (IsMuted()) return;
-  // if (IsOn() == false) return;
+  if (IsOn() == false) return;
 
   if (iActFreq != iUsedFreq) {
     VoiceChangeFrequency();
@@ -146,7 +149,7 @@ void ChannelInfo::Update()
     fa = itrTone.Next();
 
     if (bFMod != 2) {
-      if ( ( spu_.core(0).ctrl_ & 0x4000 ) == 0 ) fa = 0;
+      if ( ( p_spu_->core(0).ctrl_ & 0x4000 ) == 0 ) fa = 0;
       pInterpolation->StoreValue(fa);
     }
     pInterpolation->spos -= 0x10000;
@@ -172,8 +175,8 @@ void ChannelInfo::Update()
   } else {
     int left = (sval * iLeftVolume) / 0x4000;
     int right = (sval * iRightVolume) / 0x4000;
-    lpcm_buffer_l[spu_.ns] = CLIP(left);
-    lpcm_buffer_r[spu_.ns] = CLIP(right);
+    lpcm_buffer_l[p_spu_->ns] = CLIP(left);
+    lpcm_buffer_r[p_spu_->ns] = CLIP(right);
 
     /*
       spu_.Reverb().StoreReverb(*this);
@@ -195,21 +198,22 @@ void ChannelInfo::Update()
 }
 
 
+SPUVoiceManager::SPUVoiceManager() : pSPU_(NULL) {}
 
 
-ChannelArray::ChannelArray(SPU *pSPU, int channelNumber)
-  : pSPU_(pSPU), channels_(channelNumber, ChannelInfo(pSPU)), channelNumber_(channelNumber)
+SPUVoiceManager::SPUVoiceManager(SPUBase *pSPU, int channelNumber)
+  : pSPU_(pSPU), channels_(channelNumber, SPUVoice(pSPU)), channelNumber_(channelNumber)
 {
   wxASSERT(pSPU != NULL);
 }
 
 
-bool ChannelArray::ExistsNew() const {
+bool SPUVoiceManager::ExistsNew() const {
   return (flagNewChannels_ != 0);
 }
 
 
-void ChannelArray::SoundNew(uint32_t flags, int start)
+void SPUVoiceManager::SoundNew(uint32_t flags, int start)
 {
   wxASSERT(flags < 0x01000000);
   flagNewChannels_ |= flags << start;
@@ -220,23 +224,46 @@ void ChannelArray::SoundNew(uint32_t flags, int start)
 }
 
 
-void ChannelArray::VoiceOff(uint32_t flags, int start)
+void SPUVoiceManager::VoiceOff(uint32_t flags, int start)
 {
   wxASSERT(flags < 0x01000000);
   for (int i = start; flags != 0; i++, flags >>= 1) {
     if ((flags & 1) == 0) continue;
-    ChannelInfo& ch = channels_.at(i);
+    SPUVoice& ch = channels_.at(i);
     ch.Off();
 
-    pSPU_->ChangeProcessState(SPU::STATE_NOTE_OFF, i);
+    // pSPU_->ChangeProcessState(SPUBase::STATE_NOTE_OFF, i);
+    const SPURequest* req = SPUNoteOffRequest::CreateRequest(i);
+    pSPU_->PutRequest(req);
 
     // ch.NotifyOnNoteOff();
   }
 }
 
 
-void ChannelArray::Notify() const {
-  output()->OnUpdate(this);
+void SPUVoiceManager::StepForAll() {
+  const wxVector<SPUVoice>::iterator itr_end = channels_.end();
+  for (wxVector<SPUVoice>::iterator itr = channels_.begin(); itr != itr_end; ++itr) {
+    itr->Step();
+  }
+}
+
+
+void SPUVoiceManager::ResetStepStatus() {
+  const wxVector<SPUVoice>::iterator itr_end = channels_.end();
+  for (wxVector<SPUVoice>::iterator itr = channels_.begin(); itr != itr_end; ++itr) {
+    itr->is_ready = false;
+  }
+}
+
+
+void SPUVoiceManager::Notify() const {
+  const wxSharedPtr<SoundDeviceDriver>& sdd = output();
+  if (sdd.get() == 0) {
+    // wxMessageOutputDebug().Printf(wxT("Warning: no sound device."));
+    return;
+  }
+  sdd->OnUpdate(this);
 }
 
 

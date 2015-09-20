@@ -21,12 +21,12 @@ typedef unsigned int SPUAddr;
 
 
 class SamplingTone;
-class ChannelInfo;
+class SPUVoice;
 
 class SamplingToneIterator
 {
 public:
-  SamplingToneIterator(SamplingTone* pTone = 0, ChannelInfo* pChannel = 0);
+  SamplingToneIterator(SamplingTone* pTone = 0, SPUVoice* pChannel = 0);
   SamplingToneIterator(const SamplingToneIterator& itr);
 
   SamplingToneIterator& operator =(const SamplingToneIterator& itr);
@@ -45,7 +45,7 @@ protected:
 
 private:
   SamplingTone* pTone_;
-  ChannelInfo* pChannel_;
+  SPUVoice* pChannel_;
   mutable uint32_t index_;
 
   void* operator new(std::size_t);
@@ -84,7 +84,7 @@ public:
   bool IsMuted() const { return muted_; }
 
   // iterators
-  SamplingToneIterator Iterator(ChannelInfo *pChannel) const;
+  SamplingToneIterator Iterator(SPUVoice *pChannel) const;
   // const SamplingToneIterator& Begin() const;
   // const SamplingToneIterator& End() const;
 
@@ -156,12 +156,12 @@ private:
 WX_DECLARE_HASH_MAP(uint32_t, SamplingTone*, wxIntegerHash, wxIntegerEqual, SamplingToneMap);
 
 
-class SPU;
+class SPUBase;
 
 class SoundBank : public wxEvtHandler
 {
 public:
-  SoundBank(SPU* pSPU);
+  SoundBank(SPUBase* pSPU);
   ~SoundBank();
 
   void Init();
@@ -173,7 +173,7 @@ public:
   SamplingTone* GetSamplingTone(uint32_t addr);
 
 
-  SPU* GetSPU() const;
+  SPUBase* GetSPU() const;
   bool ContainsAddr(uint32_t addr) const;
 
   void FourierTransform(SamplingTone* tone);
@@ -190,7 +190,7 @@ protected:
   void OnUnmuteTone(wxCommandEvent& event);
 
 private:
-  SPU* pSPU_;
+  SPUBase* pSPU_;
 
   mutable SamplingToneMap tones_;
 

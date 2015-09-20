@@ -188,6 +188,13 @@ unsigned int RootCounter::ReadCount(unsigned int index)
 
 unsigned int RootCounter::SPURun()
 {
+  // for debug
+  int sec = R3000ARegs().Cycle / (PSXCLK / 2);
+  int last_sec = last / (PSXCLK / 2);
+  if (last_sec < sec) {
+    wxMessageOutputDebug().Printf(wxT("%d second prcessed..."), sec);
+  }
+
   uint32_t cycles;
   if (R3000ARegs().Cycle < last) {
     cycles = 0xffffffff - last;
@@ -196,10 +203,15 @@ unsigned int RootCounter::SPURun()
     cycles = R3000ARegs().Cycle - last;
   }
 
-  if (cycles >= 16) {
-    Spu().Async(cycles);
-    last = R3000ARegs().Cycle;
+  const uint32_t clk_p_hz = PSXCLK / 44100 / 2;
+  if (cycles >= clk_p_hz) {
+    uint32_t step_count = cycles / clk_p_hz;
+    uint32_t pool = cycles % clk_p_hz;
+    bool ret = Spu().Step(step_count);
+    last = R3000ARegs().Cycle - pool;
+    if (ret == false) return 0;
   }
+
   return 1;
 }
 

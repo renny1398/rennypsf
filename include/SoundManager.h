@@ -61,7 +61,7 @@ class SoundDeviceDriver
 {
 public:
   SoundDeviceDriver();
-  virtual ~SoundDeviceDriver() {}
+  virtual ~SoundDeviceDriver();
 
   virtual bool Play();
   virtual bool Stop();

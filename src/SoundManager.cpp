@@ -33,6 +33,10 @@ SoundDeviceDriver::SoundDeviceDriver()
     is_playing_(false), counter_(0) {}
 
 
+SoundDeviceDriver::~SoundDeviceDriver() {
+  wxMessageOutputDebug().Printf(wxT("Released a sound device."));
+}
+
 
 const short* SoundDeviceDriver::buffer(int* size) const {
   wxASSERT(size != NULL);
@@ -208,6 +212,7 @@ WaveOutAL::WaveOutAL()
 
 WaveOutAL::~WaveOutAL()
 {
+  wxMessageOutputDebug().Printf(wxT("WaveOutAL: started shutdown..."));
   Shutdown();
 }
 
@@ -230,6 +235,7 @@ void WaveOutAL::ThisThreadInit()
 
 void WaveOutAL::Init() {
   thread_->PostMessageQueue(new InitAL(this));
+  finished_writing_ = false;
 }
 
 
@@ -253,10 +259,12 @@ void WaveOutAL::ThisThreadShutdown()
 
 
 void WaveOutAL::Shutdown() {
-  thread_->PostMessageQueue(new ShutdownAL(this));
-  thread_->Wait();
-  delete thread_;
-  thread_ = 0;
+  if (thread_ != 0) {
+    thread_->PostMessageQueue(new ShutdownAL(this));
+    thread_->Wait();
+    delete thread_;
+    thread_ = 0;
+  }
   wxMessageOutputDebug().Output(wxT("Destroyed WaveOutAL."));
 }
 
@@ -295,15 +303,19 @@ void WaveOutAL::ThisThreadWriteToDevice()
     alSourceQueueBuffers(source_, 1, &buffer_);
   }
 
+  // wxMessageOutputDebug().Printf(wxT("WaveOutAL: Writing..."));
+
   mutex_.Lock();
   finished_writing_ = true;
   write_to_device_cond_.Broadcast();
   mutex_.Unlock();
+  /*
   mutex2_.Lock();
   while (finished_writing_ == true) {
     write_to_device_cond2_.Wait();
   }
   mutex2_.Unlock();
+  */
 }
 
 
@@ -313,10 +325,12 @@ void WaveOutAL::WaitForWritingToDevice() {
     write_to_device_cond_.Wait();
   }
   mutex_.Unlock();
-  mutex2_.Lock();
+//  mutex2_.Lock();
   finished_writing_ = false;
+/*
   write_to_device_cond2_.Broadcast();
   mutex2_.Unlock();
+*/
 }
 
 

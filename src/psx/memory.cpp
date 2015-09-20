@@ -9,6 +9,11 @@ namespace PSX {
 
   Memory::Memory(Composite* composite)
     : Component(composite) {
+    ::memset(segment_LUT_, 0, 0x10000);
+    ::memset(mem_user_, 0, 0x200000);
+    ::memset(mem_parallel_port_, 0, 0x10000);
+    ::memset(mem_hardware_registers_, 0, 0x3000);
+    ::memset(mem_bios_, 0, 0x80000);
     Init();
   }
 

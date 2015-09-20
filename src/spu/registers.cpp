@@ -31,7 +31,7 @@ enum {
 
 
 // Get Left Volume
-uint16_t read1xx0(const ChannelInfo& channelInfo)
+uint16_t read1xx0(const SPUVoice& channelInfo)
 {
   uint16_t ret = 0;
   int volume = channelInfo.iLeftVolume;
@@ -49,7 +49,7 @@ uint16_t read1xx0(const ChannelInfo& channelInfo)
 }
 
 // Get Right Volume
-uint16_t read1xx2(const ChannelInfo& channelInfo)
+uint16_t read1xx2(const SPUVoice& channelInfo)
 {
   uint16_t ret = 0;
   int volume = channelInfo.iRightVolume;
@@ -66,22 +66,22 @@ uint16_t read1xx2(const ChannelInfo& channelInfo)
 }
 
 // Get Pitch
-uint16_t read1xx4(const ChannelInfo& channelInfo)
+uint16_t read1xx4(const SPUVoice& channelInfo)
 {
   return channelInfo.iRawPitch;
   // return channelInfo.iActFreq * 4096 / 44100;
 }
 
 // Get start address of Sound
-uint16_t read1xx6(const ChannelInfo& channelInfo)
+uint16_t read1xx6(const SPUVoice& channelInfo)
 {
-  const SPU& Spu = channelInfo.Spu();
+  const SPUBase& Spu = channelInfo.Spu();
   uint32_t soundBuffer = channelInfo.tone->GetADPCM() - Spu.GetSoundBuffer();
   return soundBuffer >> 3;
 }
 
 // Get ADS level
-uint16_t read1xx8(const ChannelInfo& channelInfo)
+uint16_t read1xx8(const SPUVoice& channelInfo)
 {
   uint16_t ret = 0;
   if (channelInfo.ADSRX.AttackModeExp) ret |= 0x8000;
@@ -92,7 +92,7 @@ uint16_t read1xx8(const ChannelInfo& channelInfo)
 }
 
 // Get sustain rate and release rate
-uint16_t read1xxa(const ChannelInfo& channelInfo)
+uint16_t read1xxa(const SPUVoice& channelInfo)
 {
   uint16_t ret = 0;
   if (channelInfo.ADSRX.SustainModeExp) ret |= 0x8000;
@@ -104,7 +104,7 @@ uint16_t read1xxa(const ChannelInfo& channelInfo)
 }
 
 // Get current ADSR volume
-uint16_t read1xxc(const ChannelInfo& channelInfo)
+uint16_t read1xxc(const SPUVoice& channelInfo)
 {
   // if (channelInfo.bNew) return 1;
   if (channelInfo.ADSRX.lVolume && !channelInfo.ADSRX.EnvelopeVol) return 1;
@@ -112,7 +112,7 @@ uint16_t read1xxc(const ChannelInfo& channelInfo)
 }
 
 // Get repeat address
-uint16_t read1xxe(const ChannelInfo& channelInfo)
+uint16_t read1xxe(const SPUVoice& channelInfo)
 {
   //    if (channelInfo.pLoop == 0) return 0;
   //    return (channelInfo.pLoop - Spu.Memory) >> 3;
@@ -124,67 +124,67 @@ uint16_t read1xxe(const ChannelInfo& channelInfo)
 }
 
 
-uint16_t (*const readChannelRegisterLUT[8])(const ChannelInfo&) = {
+uint16_t (*const readChannelRegisterLUT[8])(const SPUVoice&) = {
     read1xx0, read1xx2, read1xx4, read1xx6, read1xx8, read1xxa, read1xxc, read1xxe
 };
 
 
 
-uint16_t readGlobalNOP(const SPU& /*spu*/) { return 0; }
+uint16_t readGlobalNOP(const SPUBase& /*spu*/) { return 0; }
 
 // Get main volume left
-uint16_t read1d80(const SPU& /*spu*/) {
+uint16_t read1d80(const SPUBase& /*spu*/) {
   wxMessageOutputDebug().Printf(wxT("WARNING: SPU::GetMainVolumeLeft is not implemented."));
   return 0;
 }
 
 // Get main volume right
-uint16_t read1d82(const SPU& /*spu*/) {
+uint16_t read1d82(const SPUBase& /*spu*/) {
   wxMessageOutputDebug().Printf(wxT("WARNING: SPU::GetMainVolumeRight is not implemeted."));
   return 0;
 }
 
 // Get reverberation depth left
-uint16_t read1d84(const SPU& spu) {
+uint16_t read1d84(const SPUBase& spu) {
   return spu.Reverb().VolLeft;
 }
 
 // Get reverberation depth right
-uint16_t read1d86(const SPU& spu) {
+uint16_t read1d86(const SPUBase& spu) {
   return spu.Reverb().VolRight;
 }
 
-uint16_t (*const read1d88)(const SPU& /*spu*/) = readGlobalNOP;
-uint16_t (*const read1d8a)(const SPU& /*spu*/) = readGlobalNOP;
-uint16_t (*const read1d8c)(const SPU& /*spu*/) = readGlobalNOP;
-uint16_t (*const read1d8e)(const SPU& /*spu*/) = readGlobalNOP;
-uint16_t (*const read1d90)(const SPU& /*spu*/) = readGlobalNOP;
-uint16_t (*const read1d92)(const SPU& /*spu*/) = readGlobalNOP;
-uint16_t (*const read1d94)(const SPU& /*spu*/) = readGlobalNOP;
-uint16_t (*const read1d96)(const SPU& /*spu*/) = readGlobalNOP;
-uint16_t (*const read1d98)(const SPU& /*spu*/) = readGlobalNOP;
-uint16_t (*const read1d9a)(const SPU& /*spu*/) = readGlobalNOP;
-uint16_t (*const read1d9c)(const SPU& /*spu*/) = readGlobalNOP;
-uint16_t (*const read1d9e)(const SPU& /*spu*/) = readGlobalNOP;
+uint16_t (*const read1d88)(const SPUBase& /*spu*/) = readGlobalNOP;
+uint16_t (*const read1d8a)(const SPUBase& /*spu*/) = readGlobalNOP;
+uint16_t (*const read1d8c)(const SPUBase& /*spu*/) = readGlobalNOP;
+uint16_t (*const read1d8e)(const SPUBase& /*spu*/) = readGlobalNOP;
+uint16_t (*const read1d90)(const SPUBase& /*spu*/) = readGlobalNOP;
+uint16_t (*const read1d92)(const SPUBase& /*spu*/) = readGlobalNOP;
+uint16_t (*const read1d94)(const SPUBase& /*spu*/) = readGlobalNOP;
+uint16_t (*const read1d96)(const SPUBase& /*spu*/) = readGlobalNOP;
+uint16_t (*const read1d98)(const SPUBase& /*spu*/) = readGlobalNOP;
+uint16_t (*const read1d9a)(const SPUBase& /*spu*/) = readGlobalNOP;
+uint16_t (*const read1d9c)(const SPUBase& /*spu*/) = readGlobalNOP;
+uint16_t (*const read1d9e)(const SPUBase& /*spu*/) = readGlobalNOP;
 
-uint16_t (*const read1da0)(const SPU& /*spu*/) = readGlobalNOP;
-uint16_t (*const read1da2)(const SPU& /*spu*/) = readGlobalNOP;
+uint16_t (*const read1da0)(const SPUBase& /*spu*/) = readGlobalNOP;
+uint16_t (*const read1da2)(const SPUBase& /*spu*/) = readGlobalNOP;
 
 // Get IRQ address
-uint16_t read1da4(const SPU& spu)
+uint16_t read1da4(const SPUBase& spu)
 {
   return spu.GetIRQAddress() >> 3;
 }
 
 // Get address
-uint16_t read1da6(const SPU& spu)
+uint16_t read1da6(const SPUBase& spu)
 {
   // TODO: is it corrected?
   return spu.core(0).addr_ >> 3;
 }
 
 // Get SPU data
-uint16_t read1da8(const SPU& spu)
+uint16_t read1da8(const SPUBase& spu)
 {
   // ReadDMA?
   uint16_t s = spu.mem16_val(spu.core(0).addr_);
@@ -194,30 +194,30 @@ uint16_t read1da8(const SPU& spu)
 }
 
 // Get SPU control sp0
-uint16_t read1daa(const SPU& spu)
+uint16_t read1daa(const SPUBase& spu)
 {
   return spu.core(0).ctrl_;
 }
 
 static unsigned short var_1dac = 0x4;
 
-uint16_t read1dac(const SPU& /*spu*/)
+uint16_t read1dac(const SPUBase& /*spu*/)
 {
   return var_1dac;
 }
 
-uint16_t read1dae(const SPU& spu)
+uint16_t read1dae(const SPUBase& spu)
 {
   return spu.core(0).stat_;
 }
 
-uint16_t (*const read1db0)(const SPU& /*spu*/) = readGlobalNOP;
-uint16_t (*const read1db2)(const SPU& /*spu*/) = readGlobalNOP;
-uint16_t (*const read1db4)(const SPU& /*spu*/) = readGlobalNOP;
-uint16_t (*const read1db6)(const SPU& /*spu*/) = readGlobalNOP;
+uint16_t (*const read1db0)(const SPUBase& /*spu*/) = readGlobalNOP;
+uint16_t (*const read1db2)(const SPUBase& /*spu*/) = readGlobalNOP;
+uint16_t (*const read1db4)(const SPUBase& /*spu*/) = readGlobalNOP;
+uint16_t (*const read1db6)(const SPUBase& /*spu*/) = readGlobalNOP;
 
 
-uint16_t (*const readGlobalRegisterLUT[])(const SPU& /*spu*/) = {
+uint16_t (*const readGlobalRegisterLUT[])(const SPUBase& /*spu*/) = {
     read1d80, read1d82, read1d84, read1d86, read1d88, read1d8a, read1d8c, read1d8e,
     read1d90, read1d92, read1d94, read1d96, read1d98, read1d9a, read1d9c, read1d9e,
     read1da0, read1da2, read1da4, read1da6, read1da8, read1daa, read1dac, read1dae,
@@ -229,7 +229,7 @@ uint16_t (*const readGlobalRegisterLUT[])(const SPU& /*spu*/) = {
 // SPUreadRegister
 ////////////////////////////////////////////////////////////////
 
-uint16_t SPU::ReadRegister(uint32_t reg)
+uint16_t SPUBase::ReadRegister(uint32_t reg)
 {
   wxASSERT((reg & 0xfffffe00) == 0x1f801c00);
   // TODO: mutex lock
@@ -240,7 +240,7 @@ uint16_t SPU::ReadRegister(uint32_t reg)
 
   if (ch < 24) {
     const int ofs = (reg & 0xf) >> 1;
-    return readChannelRegisterLUT[ofs](Channel(ch));
+    return readChannelRegisterLUT[ofs](Voice(ch));
   }
 
   // SPU Global Registers
@@ -265,9 +265,9 @@ uint16_t SPU::ReadRegister(uint32_t reg)
 ////////////////////////////////////////////////////////////////////////
 
 
-void writeChannelNOP(ChannelInfo&, uint16_t) {}
+void writeChannelNOP(SPUVoice&, uint16_t) {}
 
-void write1xx0(ChannelInfo& channelInfo, uint16_t volume)
+void write1xx0(SPUVoice& channelInfo, uint16_t volume)
 {
   if (volume & 0x8000) {
     channelInfo.isLeftSweep = true;
@@ -293,7 +293,7 @@ void write1xx0(ChannelInfo& channelInfo, uint16_t volume)
 }
 
 
-void write1xx2(ChannelInfo& channelInfo, uint16_t volume)
+void write1xx2(SPUVoice& channelInfo, uint16_t volume)
 {
   if (volume & 0x8000) {
     channelInfo.isRightSweep = true;
@@ -318,7 +318,7 @@ void write1xx2(ChannelInfo& channelInfo, uint16_t volume)
 }
 
 // Set pitch
-void write1xx4(ChannelInfo& channelInfo, uint16_t val)
+void write1xx4(SPUVoice& channelInfo, uint16_t val)
 {
   int NP = (val > 0x3fff) ? 0x3fff : val;
   if (channelInfo.iRawPitch != NP) {
@@ -339,9 +339,9 @@ void write1xx4(ChannelInfo& channelInfo, uint16_t val)
 }
 
 // Set start address of Sound
-void write1xx6(ChannelInfo& channelInfo, uint16_t val)
+void write1xx6(SPUVoice& channelInfo, uint16_t val)
 {
-  SPU& Spu = channelInfo.Spu();
+  SPUBase& Spu = channelInfo.Spu();
   SamplingTone* tone = Spu.GetSamplingTone(static_cast<uint32_t>(val) << 3);
   channelInfo.tone = tone;
 
@@ -349,7 +349,7 @@ void write1xx6(ChannelInfo& channelInfo, uint16_t val)
 }
 
 // Set ADS level
-void write1xx8(ChannelInfo& channelInfo, uint16_t val)
+void write1xx8(SPUVoice& channelInfo, uint16_t val)
 {
   ADSRInfoEx& adsrx = channelInfo.ADSRX;
   adsrx.AttackModeExp = ( (val & 0x8000) != 0 );
@@ -359,7 +359,7 @@ void write1xx8(ChannelInfo& channelInfo, uint16_t val)
 }
 
 // Set Sustain rate & Release rate
-void write1xxa(ChannelInfo& channelInfo, uint16_t val)
+void write1xxa(SPUVoice& channelInfo, uint16_t val)
 {
   ADSRInfoEx& adsrx = channelInfo.ADSRX;
   adsrx.SustainModeExp = ( (val & 0x8000) != 0 );
@@ -370,10 +370,10 @@ void write1xxa(ChannelInfo& channelInfo, uint16_t val)
 }
 
 // Set current ADSR volume = NOP
-void (*const write1xxc)(ChannelInfo&, uint16_t) = writeChannelNOP;
+void (*const write1xxc)(SPUVoice&, uint16_t) = writeChannelNOP;
 
 // Set repeat address
-void write1xxe(ChannelInfo& channelInfo, uint16_t val)
+void write1xxe(SPUVoice& channelInfo, uint16_t val)
 {
   // channelInfo.pLoop = Spu.GetSoundBuffer() + (static_cast<uint32_t>(val) << 3);
   channelInfo.addrExternalLoop = static_cast<uint32_t>(val) << 3;
@@ -383,168 +383,168 @@ void write1xxe(ChannelInfo& channelInfo, uint16_t val)
     SPUAddr prev_addr = channelInfo.tone->GetExternalLoopAddr();
     channelInfo.tone->SetExternalLoopAddr(channelInfo.addrExternalLoop);
     if (prev_addr != channelInfo.addrExternalLoop) {
-      SPU& Spu = channelInfo.Spu();
+      SPUBase& Spu = channelInfo.Spu();
       Spu.NotifyOnChangeLoopIndex(&channelInfo);
     }
   }
 }
 
 
-void (*const writeChannelRegisterLUT[8])(ChannelInfo&, uint16_t) = {
+void (*const writeChannelRegisterLUT[8])(SPUVoice&, uint16_t) = {
     write1xx0, write1xx2, write1xx4, write1xx6, write1xx8, write1xxa, write1xxc, write1xxe
 };
 
 
 
-void writeGlobalNOP(SPU* /*spu*/, uint16_t) {}
+void writeGlobalNOP(SPUBase* /*spu*/, uint16_t) {}
 
 // Set main volume left
-void write1d80(SPU* /*spu*/, uint16_t) {
+void write1d80(SPUBase* /*spu*/, uint16_t) {
   wxMessageOutputDebug().Printf(wxT("WARNING: SPU::SetMainVolumeLeft is not implemented."));
 }
 // Set main volume right
-void write1d82(SPU* /*spu*/, uint16_t) {
+void write1d82(SPUBase* /*spu*/, uint16_t) {
   wxMessageOutputDebug().Printf(wxT("WARNING: SPU::SetMainVolumeRight is not implemented."));
 }
 
 // Set reverberation depth left
-void write1d84(SPU* spu, uint16_t depth)
+void write1d84(SPUBase* spu, uint16_t depth)
 {
   spu->Reverb().SetReverbDepthLeft(static_cast<int16_t>(depth));
 }
 
 // Set reverberation depth right
-void write1d86(SPU* spu, uint16_t depth)
+void write1d86(SPUBase* spu, uint16_t depth)
 {
   spu->Reverb().SetReverbDepthRight(static_cast<int16_t>(depth));
 }
 
 // Voice ON (0-15)
-void write1d88(SPU* spu, uint16_t flags)
+void write1d88(SPUBase* spu, uint16_t flags)
 {
-  spu->Channels.SoundNew(flags, 0);
+  spu->core(0).Voices().SoundNew(flags, 0);
 }
 
 // Voice ON (16-23)
-void write1d8a(SPU* spu, uint16_t flags)
+void write1d8a(SPUBase* spu, uint16_t flags)
 {
-  spu->Channels.SoundNew(flags & 0xff, 16);
+  spu->core(0).Voices().SoundNew(flags & 0xff, 16);
 }
 
 // Voice OFF (0-15)
-void write1d8c(SPU* spu, uint16_t flags)
+void write1d8c(SPUBase* spu, uint16_t flags)
 {
-  spu->Channels.VoiceOff(flags, 0);
+  spu->core(0).Voices().VoiceOff(flags, 0);
 }
 
 // Voice 0FF (16-23)
-void write1d8e(SPU* spu, uint16_t flags)
+void write1d8e(SPUBase* spu, uint16_t flags)
 {
   // 0xff can't be omitted.
-  spu->Channels.VoiceOff(flags & 0xff, 16);
+  spu->core(0).Voices().VoiceOff(flags & 0xff, 16);
 }
 
 // Channel FM mode (inline func)
-inline void channelFMMode(SPU* spu, int start, int end, uint16_t flag)
+inline void channelFMMode(SPUBase* spu, int start, int end, uint16_t flag)
 {
   for (int ch = start; ch < end; ch++, flag >>= 1) {
     if ((flag & 1) == 0) {
-      spu->Channel(ch).bFMod = 0;
+      spu->Voice(ch).bFMod = 0;
       continue;
     }
     if (ch == 0) continue;
-    spu->Channel(ch).bFMod = 1;
-    spu->Channel(ch-1).bFMod = 2;
+    spu->Voice(ch).bFMod = 1;
+    spu->Voice(ch-1).bFMod = 2;
   }
 }
 
 // Channel FM mode (0-15)
-void write1d90(SPU* spu, uint16_t flag)
+void write1d90(SPUBase* spu, uint16_t flag)
 {
   channelFMMode(spu, 0, 16, flag);
 }
 
 // Channel FM mode (16-23)
-void write1d92(SPU* spu, uint16_t flag)
+void write1d92(SPUBase* spu, uint16_t flag)
 {
   channelFMMode(spu, 16, 24, flag);
 }
 
 // Channel Noise mode (inline func)
-inline void channelNoiseMode(SPU* spu, int start, int end, uint16_t flag)
+inline void channelNoiseMode(SPUBase* spu, int start, int end, uint16_t flag)
 {
   for (int ch = start; ch < end; ch++, flag >>= 1) {
     if (flag & 1) {
-      spu->Channel(ch).bNoise = true;
+      spu->Voice(ch).bNoise = true;
       continue;
     }
-    spu->Channel(ch).bNoise = false;
+    spu->Voice(ch).bNoise = false;
   }
 }
 
 // Channel Noise mode (0-15)
-void write1d94(SPU* spu, uint16_t flag)
+void write1d94(SPUBase* spu, uint16_t flag)
 {
   channelNoiseMode(spu, 0, 16, flag);
 }
 
 // Channel Noise mode (16-23)
-void write1d96(SPU* spu, uint16_t flag)
+void write1d96(SPUBase* spu, uint16_t flag)
 {
   channelNoiseMode(spu, 16, 24, flag);
 }
 
 // Channel Reverb mode (inline func)
-inline void channelReverbMode(SPU* spu, int start, int end, uint16_t flag)
+inline void channelReverbMode(SPUBase* spu, int start, int end, uint16_t flag)
 {
   for (int ch = start; ch < end; ch++, flag >>= 1) {
     if (flag & 1) {
-      spu->Channel(ch).hasReverb = true;
+      spu->Voice(ch).hasReverb = true;
       continue;
     }
-    spu->Channel(ch).hasReverb = false;
+    spu->Voice(ch).hasReverb = false;
   }
 }
 
 // Channel Reverb mode (0-15)
-void write1d98(SPU* spu, uint16_t flag)
+void write1d98(SPUBase* spu, uint16_t flag)
 {
   channelReverbMode(spu, 0, 16, flag);
 }
 
 // Channel Reverb mode (16-23)
-void write1d9a(SPU* spu, uint16_t flag)
+void write1d9a(SPUBase* spu, uint16_t flag)
 {
   channelReverbMode(spu, 16, 24, flag);
 }
 
 // Channel mute
-void (*const write1d9c)(SPU* /*spu*/, uint16_t) = writeGlobalNOP;
-void (*const write1d9e)(SPU* /*spu*/, uint16_t) = writeGlobalNOP;
+void (*const write1d9c)(SPUBase* /*spu*/, uint16_t) = writeGlobalNOP;
+void (*const write1d9e)(SPUBase* /*spu*/, uint16_t) = writeGlobalNOP;
 
 // nop
-void (*const write1da0)(SPU* /*spu*/, uint16_t) = writeGlobalNOP;
+void (*const write1da0)(SPUBase* /*spu*/, uint16_t) = writeGlobalNOP;
 
 // Reverb work area start
-void write1da2(SPU* spu, uint16_t val)
+void write1da2(SPUBase* spu, uint16_t val)
 {
   spu->Reverb().WorkAreaStart(val);
 }
 
 // Sound buffer IRQ address
-void write1da4(SPU* spu, uint16_t val)
+void write1da4(SPUBase* spu, uint16_t val)
 {
   spu->SetIRQAddress(val << 3);
 }
 
 // Sound buffer address
-void write1da6(SPU* spu, uint16_t val)
+void write1da6(SPUBase* spu, uint16_t val)
 {
   spu->core(0).addr_ = static_cast<uint32_t>(val) << 3;
 }
 
 // Set SPU data
-void write1da8(SPU* spu, uint16_t val)
+void write1da8(SPUBase* spu, uint16_t val)
 {
   ((uint16_t*)spu->GetSoundBuffer())[spu->core(0).addr_>>1] = val;
   spu->core(0).addr_ += 2;
@@ -552,20 +552,20 @@ void write1da8(SPU* spu, uint16_t val)
 }
 
 // Set SPU control
-void write1daa(SPU* spu, uint16_t val)
+void write1daa(SPUBase* spu, uint16_t val)
 {
   SPUCore& core = spu->core(0);
   core.ctrl_ = val;
 }
 
 // Set var_1dac
-void write1dac(SPU* /*spu*/, uint16_t val)
+void write1dac(SPUBase* /*spu*/, uint16_t val)
 {
   var_1dac = val;
 }
 
 // Set SPU status
-void write1dae(SPU* spu, uint16_t val)
+void write1dae(SPUBase* spu, uint16_t val)
 {
   // force Spu to be ready to transfer
   SPUCore& core = spu->core(0);
@@ -573,23 +573,23 @@ void write1dae(SPU* spu, uint16_t val)
 }
 
 // Set CD volume left
-void write1db0(SPU* /*spu*/, uint16_t)
+void write1db0(SPUBase* /*spu*/, uint16_t)
 {
   wxMessageOutputDebug().Printf(wxT("WARNING: SPU::SetCDVolumeLeft is not implemented."));
 }
 
 // Set CD volume right
-void write1db2(SPU* /*spu*/, uint16_t)
+void write1db2(SPUBase* /*spu*/, uint16_t)
 {
   wxMessageOutputDebug().Printf(wxT("WARNING: SPU::SetCDVolumeRight is not implemented."));
 }
 
 // Set extern volumes
-void write1db4(SPU* /*spu*/, uint16_t) {}
-void write1db6(SPU* /*spu*/, uint16_t) {}
+void write1db4(SPUBase* /*spu*/, uint16_t) {}
+void write1db6(SPUBase* /*spu*/, uint16_t) {}
 
 
-void (*const writeGlobalRegisterLUT[])(SPU* spu, uint16_t) = {
+void (*const writeGlobalRegisterLUT[])(SPUBase* spu, uint16_t) = {
     write1d80, write1d82, write1d84, write1d86, write1d88, write1d8a, write1d8c, write1d8e,
     write1d90, write1d92, write1d94, write1d96, write1d98, write1d9a, write1d9c, write1d9e,
     write1da0, write1da2, write1da4, write1da6, write1da8, write1daa, write1dac, write1dae,
@@ -601,18 +601,18 @@ void (*const writeGlobalRegisterLUT[])(SPU* spu, uint16_t) = {
 // SPUwriteRegister
 ////////////////////////////////////////////////////////////////
 
-void SPU::WriteRegister(uint32_t reg, uint16_t val)
+void SPUBase::WriteRegister(uint32_t reg, uint16_t val)
 {
   wxASSERT((reg & 0xfffffe00) == 0x1f801c00);
 
-  wxCriticalSectionLocker csLocker(csDMAWritable_);
+  // wxCriticalSectionLocker csLocker(csDMAWritable_);
 
   //wxMessageOutputDebug().Printf("SPUwriteRegister at 0x%08x", reg);
 
   uint32_t ch = (reg & 0x3ff) >> 4;
 
   if (ch < 24) {
-    ChannelInfo& channelInfo = Channel(ch);
+    SPUVoice& channelInfo = Voice(ch);
     const int ofs = (reg & 0xf) >> 1;
     /*
         mutexUpdate_.Lock();

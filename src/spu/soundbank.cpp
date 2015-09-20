@@ -216,7 +216,7 @@ void SamplingTone::ConvertData()
 }
 
 
-SamplingToneIterator SamplingTone::Iterator(ChannelInfo *pChannel) const
+SamplingToneIterator SamplingTone::Iterator(SPUVoice *pChannel) const
 {
   // clone the 'begin' iterator
   return SamplingToneIterator(const_cast<SamplingTone*>(this), pChannel);
@@ -224,7 +224,7 @@ SamplingToneIterator SamplingTone::Iterator(ChannelInfo *pChannel) const
 
 
 
-SamplingToneIterator::SamplingToneIterator(SamplingTone *pTone, ChannelInfo *pChannel) :
+SamplingToneIterator::SamplingToneIterator(SamplingTone *pTone, SPUVoice *pChannel) :
   pTone_(pTone), pChannel_(pChannel), index_(0)
 {}
 
@@ -465,13 +465,15 @@ void* FourierTransformer::mainLoop(void *param)
 }
 
 
-SoundBank::SoundBank(SPU *pSPU) : pSPU_(pSPU)
+SoundBank::SoundBank(SPUBase *pSPU) : pSPU_(pSPU)
 {
   Init();
 }
 
 
-SoundBank::~SoundBank() {}
+SoundBank::~SoundBank() {
+  Shutdown();
+}
 
 
 void SoundBank::Init() {
@@ -480,7 +482,7 @@ void SoundBank::Init() {
 }
 
 void SoundBank::Shutdown() {
-
+  tones_.clear();
 }
 
 
@@ -565,7 +567,7 @@ void SoundBank::Reset()
 }
 
 
-SPU* SoundBank::GetSPU() const
+SPUBase* SoundBank::GetSPU() const
 {
   return pSPU_;
 }

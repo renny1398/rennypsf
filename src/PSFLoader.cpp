@@ -21,7 +21,8 @@ SoundFormat *PSFLoader::LoadInfo(const wxString& path, PSX::Composite* psx)
 {
     wxFile file(path);
     if (file.IsOpened() == false) {
-        return 0;
+      wxMessageOutputDebug().Printf(wxT("Failed to open the file '%s'."), path);
+      return 0;
     }
 
     char signature[4];

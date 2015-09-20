@@ -42,7 +42,7 @@ public:
   DMA& Dma();
   BIOS& Bios();
 
-  SPU::SPU& Spu();
+  SPU::SPUBase& Spu();
 
 
   void InitMemory();
@@ -87,7 +87,7 @@ private:
   R3000A::Processor r3000a_;
   R3000A::Interpreter interp_;
   RootCounter rcnt_;
-  SPU::SPU spu_;
+  SPU::SPUBase spu_;
 
   R3000A::Registers r3000a_regs_;
   Memory mem_;

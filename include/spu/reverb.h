@@ -6,22 +6,23 @@
 namespace SPU {
 
 
-class SPU;
-class ChannelInfo;
+class SPUBase;
+class SPUVoice;
 
 class REVERBInfo
 {
 public:
-    REVERBInfo(SPU* spu);
+    REVERBInfo(SPUBase* spu);
     virtual ~REVERBInfo();
 
     // Reverb
     void InitReverb();
     void Reset();
+    virtual void DoReset() {}
 
     void SetReverb(unsigned short value);
-    virtual void StartReverb(ChannelInfo* ch) = 0;
-    virtual void StoreReverb(const ChannelInfo &ch) = 0;
+    virtual void StartReverb(SPUVoice* ch) = 0;
+    virtual void StoreReverb(const SPUVoice &ch) = 0;
 
     void SetReverbDepthLeft(int depth);
     void SetReverbDepthRight(int depth);
@@ -44,7 +45,7 @@ public:
     int VolRight;
 
 protected:
-    SPU& spu_;
+    SPUBase& spu_;
 
 public:
     int *sReverbPlay;
@@ -131,9 +132,9 @@ inline void REVERBInfo::WorkAreaStart(uint16_t val)
 
 class NullReverb : public REVERBInfo {
 public:
-  NullReverb(SPU* spu) : REVERBInfo(spu) {}
-  virtual void StartReverb(ChannelInfo* ch);
-  virtual void StoreReverb(const ChannelInfo &ch);
+  NullReverb(SPUBase* spu) : REVERBInfo(spu) {}
+  virtual void StartReverb(SPUVoice* ch);
+  virtual void StoreReverb(const SPUVoice &ch);
   virtual void Mix();
 };
 
@@ -141,21 +142,20 @@ public:
 
 class PeteReverb : public REVERBInfo {
 public:
-  PeteReverb(SPU* spu) : REVERBInfo(spu) {}
-  virtual void StartReverb(ChannelInfo* ch);
-  virtual void StoreReverb(const ChannelInfo &ch);
+  PeteReverb(SPUBase* spu) : REVERBInfo(spu) {}
+  virtual void StartReverb(SPUVoice* ch);
+  virtual void StoreReverb(const SPUVoice &ch);
   virtual void Mix();
 };
 
 
 
-
-
 class NeilReverb : public REVERBInfo {
 public:
-  NeilReverb(SPU* spu) : REVERBInfo(spu) {}
-  virtual void StartReverb(ChannelInfo* ch);
-  virtual void StoreReverb(const ChannelInfo &ch);
+  NeilReverb(SPUBase* spu) : REVERBInfo(spu) {}
+  void DoReset();
+  virtual void StartReverb(SPUVoice* ch);
+  virtual void StoreReverb(const SPUVoice &ch);
   virtual void Mix();
 };
 

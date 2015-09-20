@@ -64,7 +64,7 @@ class BIOS;
 namespace SPU {
 class SPUBase;
 struct SPUCore;
-class SPU;
+class SPUBase;
 class SPU2;
 }
 
@@ -122,7 +122,7 @@ public:
 
 
   // TODO: replace SPU with SPUCore
-  SPU::SPU& Spu();
+  SPU::SPUBase& Spu();
   SPU::SPU2& Spu2();
 
 private:

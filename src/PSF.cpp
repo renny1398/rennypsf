@@ -26,7 +26,9 @@ PSF::~PSF()
     delete psf;
     m_libs.pop_back();
   }
-  delete psx_;
+  if (psx_ != NULL) {
+    delete psx_;
+  }
 }
 
 
@@ -53,6 +55,7 @@ void PSF::LoadLibrary() {
   for (IntStrHash::iterator it = libname_hash.begin(), it_end = libname_hash.end(); it != it_end; ++it) {
     PSF *psflib = LoadLib(it->second);
     if (psflib) {
+      psflib->psx_ = NULL;
       m_libs.push_back(psflib);
     }
   }
@@ -84,6 +87,7 @@ bool PSF::DoPlay()
 
 bool PSF::DoStop()
 {
+  wxMessageOutputDebug().Printf(wxT("Terminating PSX..."));
   psx_->Terminate();
   m_thread = 0;
   wxMessageOutputDebug().Printf(wxT("PSF is stopped."));

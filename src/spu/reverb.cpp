@@ -15,13 +15,14 @@ namespace SPU {
   ////////////////////////////////////////////////////////////////////////
 
 
-  REVERBInfo::REVERBInfo(SPU *spu) :
+  REVERBInfo::REVERBInfo(SPUBase *spu) :
     spu_(*spu) {
     InitReverb();
   }
 
 
   REVERBInfo::~REVERBInfo() {
+    sReverbStart.reset();
   }
 
 
@@ -52,10 +53,7 @@ namespace SPU {
     dbpos_ = 0;
 
     ::memset(Config, 0, sizeof(Config));
-
-    if (spu_.m_iUseReverb == 2) {
-      memset(sReverbStart.get(), 0, NSSIZE*2*4);
-    }
+    DoReset();
 
     wxMessageOutputDebug().Printf(wxT("Initialized SPU Reverb."));
   }
@@ -99,12 +97,12 @@ namespace SPU {
   }
 
 
-  void NullReverb::StartReverb(ChannelInfo* ch) {
+  void NullReverb::StartReverb(SPUVoice* ch) {
     ch->bRVBActive = false;
   }
 
 
-  void PeteReverb::StartReverb(ChannelInfo *ch) {
+  void PeteReverb::StartReverb(SPUVoice *ch) {
     if (ch->hasReverb && (spu_.core(0).ctrl_ & 0x80)) {
       if (iReverbOff > 0) {
         ch->bRVBActive = true;
@@ -116,7 +114,11 @@ namespace SPU {
   }
 
 
-  void NeilReverb::StartReverb(ChannelInfo *ch) {
+  void NeilReverb::DoReset() {
+    ::memset(sReverbStart.get(), 0, NSSIZE*2*4);
+  }
+
+  void NeilReverb::StartReverb(SPUVoice *ch) {
     if (ch->hasReverb && (spu_.core(0).ctrl_ & 0x80)) {
       ch->bRVBActive = true;
     }
@@ -124,13 +126,13 @@ namespace SPU {
 
 
 
-  void NullReverb::StoreReverb(const ChannelInfo& /*ch*/) {
+  void NullReverb::StoreReverb(const SPUVoice& /*ch*/) {
     return;
   }
 
 
 
-  void PeteReverb::StoreReverb(const ChannelInfo &ch)
+  void PeteReverb::StoreReverb(const SPUVoice &ch)
   {
     // Pete's easy fake reverb
     int *pN;
@@ -153,7 +155,7 @@ namespace SPU {
   }
 
 
-  void NeilReverb::StoreReverb(const ChannelInfo &ch) {
+  void NeilReverb::StoreReverb(const SPUVoice &ch) {
     const int iRxl = (ch.sval * ch.iLeftVolume) / 0x4000;
     const int iRxr = (ch.sval * ch.iRightVolume) / 0x4000;
     sReverbStart[2*dbpos_+0] += iRxl;
@@ -163,7 +165,7 @@ namespace SPU {
 
   int REVERBInfo::GetBuffer(int ofs) const
   {
-    short *p = (short*)spu_.mem16_;
+    short *p = (short*)spu_.mem16_ptr(0);
     ofs = (ofs*4) + iCurrAddr;
     while (ofs > 0x3ffff) {
       ofs = iStartAddr + (ofs - 0x40000);
@@ -177,7 +179,7 @@ namespace SPU {
 
   void REVERBInfo::SetBuffer(int ofs, int val)
   {
-    short *p = (short*)spu_.mem16_;
+    short *p = (short*)spu_.mem16_ptr(0);
     ofs = (ofs*4) + iCurrAddr;
     while (ofs > 0x3ffff) {
       ofs = iStartAddr + (ofs - 0x40000);
@@ -193,7 +195,7 @@ namespace SPU {
 
   void REVERBInfo::SetBufferPlus1(int ofs, int val)
   {
-    short *p = (short*)spu_.mem16_;
+    short *p = (short*)spu_.mem16_ptr(0);
     ofs = (ofs*4) + iCurrAddr + 1;
     while (ofs > 0x3ffff) {
       ofs = iStartAddr + (ofs - 0x40000);

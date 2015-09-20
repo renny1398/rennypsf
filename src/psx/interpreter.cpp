@@ -954,6 +954,7 @@ wxThread::ExitCode InterpreterThread::Entry()
     //#warning PSX::Interpreter::Thread don't call SPUendflush
     interp_.ExecuteOnce();
   } while (isRunning_);
+
   return 0;
 }
 
@@ -962,13 +963,14 @@ void InterpreterThread::Shutdown()
 {
   if (isRunning_ == false) return;
   isRunning_ = false;
+  wxMessageOutputDebug().Printf(wxT("Requested that PSX interpreter thread stop running."));
   wxThread::Wait();
 }
 
 
 void InterpreterThread::OnExit()
 {
-  interp_.Spu().Close();
+  // interp_.Spu().Close();
   wxMessageOutputDebug().Printf(wxT("PSX Thread is ended."));
 }
 
@@ -994,8 +996,9 @@ InterpreterThread *Interpreter::Execute()
 void Interpreter::Shutdown()
 {
   if (thread == 0) return;
-  if (thread->IsRunning() == false) return;
-  thread->Shutdown();
+  if (thread->IsRunning()) {
+    thread->Shutdown();
+  }
   delete thread;  // WARN
   thread = 0;
 }

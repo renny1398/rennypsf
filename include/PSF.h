@@ -16,9 +16,9 @@ public:
   void Init();
   void Reset();
 
-  bool DoPlay();
+  virtual bool DoPlay();
   // bool Pause();
-  bool DoStop();
+  virtual bool DoStop();
   // bool Seek();
   // bool Tell();
 
@@ -57,7 +57,8 @@ protected:
   virtual bool LoadBinary() = 0;
 
   SoundBlock& sound_block() {
-    return psx_->Spu().Channels;
+    // TODO: multicore
+    return psx_->Spu().core(0).Voices();
   }
 
 

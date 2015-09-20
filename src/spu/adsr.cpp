@@ -15,10 +15,10 @@ const unsigned int TableDisp[] = {
 };
 
 
-int AdvanceEnvelopeOff(SPU::ChannelInfo*) { return 0; }
+int AdvanceEnvelopeOff(SPU::SPUVoice*) { return 0; }
 
 
-int AdvanceEnvelopeOnAttack(SPU::ChannelInfo* ch) {
+int AdvanceEnvelopeOnAttack(SPU::SPUVoice* ch) {
   int32_t envVol = ch->ADSRX.EnvelopeVol;
   uint32_t disp = -0x10 + 32;
   if (ch->ADSRX.AttackModeExp && envVol >= 0x60000000) {
@@ -35,7 +35,7 @@ int AdvanceEnvelopeOnAttack(SPU::ChannelInfo* ch) {
 }
 
 
-int AdvanceEnvelopeOnDecay(SPU::ChannelInfo* ch) {
+int AdvanceEnvelopeOnDecay(SPU::SPUVoice* ch) {
   int32_t envVol = ch->ADSRX.EnvelopeVol;
   uint32_t disp = TableDisp[(envVol >> 28) & 0x7];
   envVol -= rateTable[ch->ADSRX.DecayRate + disp];
@@ -49,7 +49,7 @@ int AdvanceEnvelopeOnDecay(SPU::ChannelInfo* ch) {
 }
 
 
-int AdvanceEnvelopeOnSustain(SPU::ChannelInfo* ch) {
+int AdvanceEnvelopeOnSustain(SPU::SPUVoice* ch) {
   int32_t envVol = ch->ADSRX.EnvelopeVol;
   uint32_t disp;
   if (ch->ADSRX.SustainIncrease) {
@@ -74,7 +74,7 @@ int AdvanceEnvelopeOnSustain(SPU::ChannelInfo* ch) {
 }
 
 
-int AdvanceEnvelopeOnRelease(SPU::ChannelInfo* ch) {
+int AdvanceEnvelopeOnRelease(SPU::SPUVoice* ch) {
   int32_t envVol = ch->ADSRX.EnvelopeVol;
   uint32_t disp = (ch->ADSRX.ReleaseModeExp) ? TableDisp[(envVol >> 28) & 0x7] : -0x0c + 32;
   envVol -= rateTable[ch->ADSRX.ReleaseRate + disp];
@@ -88,7 +88,7 @@ int AdvanceEnvelopeOnRelease(SPU::ChannelInfo* ch) {
 }
 
 
-int (*const advance_envelope_LUT[SPU::kEnvelopeStateCount])(SPU::ChannelInfo*) = {
+int (*const advance_envelope_LUT[SPU::kEnvelopeStateCount])(SPU::SPUVoice*) = {
     AdvanceEnvelopeOff,
     AdvanceEnvelopeOnAttack,
     AdvanceEnvelopeOnDecay,
@@ -103,7 +103,7 @@ int (*const advance_envelope_LUT[SPU::kEnvelopeStateCount])(SPU::ChannelInfo*) =
 namespace SPU {
 
 
-void ChannelInfo::InitADSR()
+void SPUVoice::InitADSR()
 {
   // initialize RateTable
   // RateTable + 32 = { 4, 5, 6, 7, 8, 10, 12, 14, 16, 20, 24, 28, 32, ...}
@@ -125,13 +125,13 @@ void ChannelInfo::InitADSR()
 }
 
 
-void ChannelInfo::On() {
+void SPUVoice::On() {
   is_on_ = true;
   ADSRX.Start();
 }
 
 
-void ChannelInfo::Off() {
+void SPUVoice::Off() {
   is_on_ = false;
   ADSRX.State = kEnvelopeStateRelease;
 }
@@ -144,7 +144,7 @@ void ADSRInfoEx::Start() {
 }
 
 
-int ChannelInfo::AdvanceEnvelope() {
+int SPUVoice::AdvanceEnvelope() {
   return advance_envelope_LUT[ADSRX.State](this);
 }
 

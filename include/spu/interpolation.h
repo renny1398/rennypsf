@@ -32,7 +32,7 @@ enum InterpolationType {
 namespace SPU
 {
 
-class ChannelInfo;
+class SPUVoice;
 
 class InterpolationBase
 {

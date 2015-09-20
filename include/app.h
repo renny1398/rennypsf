@@ -11,6 +11,13 @@ public:
   virtual bool OnInit();
   virtual int OnExit();
 
+#ifndef USE_GUI
+  virtual int OnRun();
+#ifdef __APPLE__
+  virtual bool OSXIsGUIApplication() { return false; }
+#endif  // __APPLE__
+#endif  // USE_GUI
+
   bool Play(SoundFormat*);
   bool Stop();
 

@@ -285,8 +285,12 @@ bool SoundFormat::Play(const wxSharedPtr<SoundDeviceDriver>& sdd) {
 bool SoundFormat::Stop() {
   const wxSharedPtr<SoundDeviceDriver>& sdd = sound_block().output();
   sound_block().Reset();
-  sdd->Stop();
-  return DoStop();
+  bool ret = DoStop();
+  wxMessageOutputDebug().Printf(wxT("The instance derived from SoundFormat is stopped."));
+  if (sdd != 0) {
+    sdd->Stop();
+  }
+  return ret;
 }
 
 

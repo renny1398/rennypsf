@@ -29,7 +29,6 @@ SET(CMAKE_BUILD_TYPE "Debug")
 SET(wxWidgets_USE_DEBUG ON)
 SET(wxWidgets_USE_REL_AND_DBG ON)
 
-
 FIND_LIBRARY(OPENAL_LIBRARY
   NAMES OpenAL al openal OpenAL32
   HINTS
@@ -49,10 +48,19 @@ FIND_LIBRARY(OPENAL_LIBRARY
 
 INCLUDE_DIRECTORIES(${OPENAL_INCLUDE_DIR})
 
+CMAKE_POLICY(SET CMP0046 OLD)
+
 IF(wxWidgets_FOUND)
+
+    # use CUI
+    # SET(USE_GUI)
+
     INCLUDE(${wxWidgets_USE_FILE})
     INCLUDE_DIRECTORIES(${wxWidgets_INCLUDE_DIRS})
     INCLUDE_DIRECTORIES(include)
+
+    FILE(GLOB CC_COMMON src/common/*.cc)
+    FILE(GLOB HDR_COMMON include/common/*.h)
 
     FILE(GLOB CPPFILES src/*.cpp)
     FILE(GLOB CCFILES src/*.cc)
@@ -61,20 +69,24 @@ IF(wxWidgets_FOUND)
     FILE(GLOB PSX_SRC_CPP src/psx/*.cpp)
     FILE(GLOB PSX_SRC_CC src/psx/*.cc)
     FILE(GLOB PSX_HDR include/psx/*.h)
-    ADD_LIBRARY(psx ${PSX_SRC_CPP} ${PSX_SRC_CC})
+    ADD_LIBRARY(psx ${PSX_SRC_CPP} ${PSX_SRC_CC} ${PSX_HDR})
     ADD_DEPENDENCIES(psx ${PSX_HDR})
     FILE(GLOB SPU_SRC_CPP src/spu/*.cpp)
     FILE(GLOB SPU_SRC_CC src/spu/*.cc)
     FILE(GLOB SPU_HDR include/spu/*.h)
-    ADD_LIBRARY(spu ${SPU_SRC_CPP} ${SPU_SRC_CC} src/spu/fftsg.c)
+    ADD_LIBRARY(spu ${SPU_SRC_CPP} ${SPU_SRC_CC} ${SPU_HDR} src/spu/fftsg.c)
     ADD_DEPENDENCIES(spu ${SPU_HDR})   
 
-    IF(wxUSE_GUI)
+#    IF(USE_GUI)
 	FILE(GLOB GUI_SRC src/gui/*.cc)
     	FILE(GLOB GUI_HDR include/gui/*.h)
-    ENDIF(wxUSE_GUI)
+#        ADD_EXECUTABLE(rennypsf ${CPPFILES} ${CCFILES} ${GUI_SRC} ${GUI_HDR} ${HEADERS})
+#    ELSE(USE_GUI)
+        FILE(GLOB CUI_SRC src/cui/*.cc)
+        FILE(GLOB CUI_HDR include/cui/*.h)
+#    ENDIF(USE_GUI)
+    ADD_EXECUTABLE(rennypsf ${CC_COMMON} ${HDR_COMMON} ${CPPFILES} ${CCFILES} ${GUI_SRC} ${GUI_HDR} ${CUI_SRC} ${CUI_HDR} ${HEADERS})
 
-    ADD_EXECUTABLE(rennypsf ${CPPFILES} ${CCFILES})
     ADD_DEPENDENCIES(rennypsf ${HEADERS})
     TARGET_LINK_LIBRARIES(rennypsf ${wxWidgets_LIBRARIES} ${OPENAL_LIBRARY} psx spu)
 ENDIF(wxWidgets_FOUND)

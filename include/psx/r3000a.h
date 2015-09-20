@@ -38,7 +38,7 @@ union GeneralPurposeRegisters {
         u32 GP, SP, FP, RA, HI, LO, PC;
     };
     u32 R[35];
-    GeneralPurposeRegisters(): ZR(0) {}
+    GeneralPurposeRegisters() { ::memset(R, 0, sizeof(u32)*35); }
 };
 
 enum GPR_ENUM {
@@ -57,6 +57,7 @@ union Cop0Registers {
         BADV, BDAM, TLBH, BPCM, SR, CAUSE, EPC, PRID, ERREG;
     };
     u32 R[17];
+    Cop0Registers() { ::memset(R, 0, sizeof(u32)*17); }
 };
 
 
@@ -142,7 +143,8 @@ struct Registers {
   u32 Cycle;  // clock count
   u32 Interrupt;
 
-  Registers() : HI(GPR.HI), LO(GPR.LO), PC(GPR.PC) {}
+  Registers() : HI(GPR.HI), LO(GPR.LO), PC(GPR.PC),
+                Cycle(0), Interrupt(0) {}
 };
 
 

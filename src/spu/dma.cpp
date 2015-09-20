@@ -74,6 +74,22 @@ void SPUBase::WriteDMAMemoryEx(SPUCore* core, PSXAddr psx_addr, uint32_t size) {
 }
 
 
+void SPUBase::ReadDMA4Memory(PSXAddr psx_addr, uint32_t size) {
+  ReadDMAMemoryEx(&cores_[0], psx_addr, size);
+}
+
+void SPUBase::ReadDMA7Memory(PSXAddr psx_addr, uint32_t size) {
+  ReadDMAMemoryEx(&cores_[1], psx_addr, size);
+}
+
+void SPUBase::WriteDMA4Memory(PSXAddr psx_addr, uint32_t size) {
+  WriteDMAMemoryEx(&cores_[0], psx_addr, size);
+}
+
+void SPUBase::WriteDMA7Memory(PSXAddr psx_addr, uint32_t size) {
+  WriteDMAMemoryEx(&cores_[1], psx_addr, size);
+}
+
 
 
 ////////////////////////////////////////////////////////////////////////
@@ -82,58 +98,24 @@ void SPUBase::WriteDMAMemoryEx(SPUCore* core, PSXAddr psx_addr, uint32_t size) {
 
 
 uint16_t SPU::ReadDMA4() {
-  SPUAddr spuAddr = core_.addr_;
-  uint16_t s = mem16_[spuAddr >> 1];
-  spuAddr += 2;
-  if (spuAddr > 0x7ffff) spuAddr = 0;
-  core_.addr_ = spuAddr;
+  SPUAddr spu_addr = cores_[0].addr_;
+  uint16_t s = mem16_val(spu_addr);
+  spu_addr += 2;
+  if (spu_addr > 0x7ffff) spu_addr = 0;
+  cores_[0].addr_ = spu_addr;
   // iSpuAsyncWait = 0;
   return s;
 }
 
 
-void SPU::ReadDMA4Memory(PSXAddr psxAddr, uint32_t size) {
-  ReadDMAMemoryEx(&core_, psxAddr, size);
-}
-
-
 void SPU::WriteDMA4(uint16_t value) {
-  SPUAddr spuAddr = core_.addr_;
-  mem16_[spuAddr >> 1] = value;
-  spuAddr += 2;
-  if (spuAddr > 0x7ffff) spuAddr = 0;
-  core_.addr_ = spuAddr;
+  SPUAddr spu_addr = cores_[0].addr_;
+  *mem16_ptr(spu_addr) = value;
+  spu_addr += 2;
+  if (spu_addr > 0x7ffff) spu_addr = 0;
+  cores_[0].addr_ = spu_addr;
   // iSpuAsyncWait = 0;
   // wxMessageOutputDebug().Printf(wxT("Transfer WORD(0x%04x) to SPU(0x%08x)"), value, Addr-2);
-}
-
-
-void SPU::WriteDMA4Memory(uint32_t psxAddr, uint32_t size) {
-  WriteDMAMemoryEx(&core_, psxAddr, size);
-}
-
-
-
-
-////////////////////////////////////////////////////////////////////////
-// PS2 DMA
-////////////////////////////////////////////////////////////////////////
-
-
-void SPU2::ReadDMA4Memory(PSXAddr psx_addr, uint32_t size) {
-  ReadDMAMemoryEx(&cores_[0], psx_addr, size);
-}
-
-void SPU2::ReadDMA7Memory(PSXAddr psx_addr, uint32_t size) {
-  ReadDMAMemoryEx(&cores_[1], psx_addr, size);
-}
-
-void SPU2::WriteDMA4Memory(PSXAddr psx_addr, uint32_t size) {
-  WriteDMAMemoryEx(&cores_[0], psx_addr, size);
-}
-
-void SPU2::WriteDMA7Memory(PSXAddr psx_addr, uint32_t size) {
-  WriteDMAMemoryEx(&cores_[1], psx_addr, size);
 }
 
 
