@@ -182,14 +182,21 @@ void SamplingTone::ADPCM2LPCM()
     // pLoop = start - 16;
     // loop_offset_ = (processedBlockNumber_ - 1) * 28;
     loop_offset_ = ((p - 16) - GetADPCM()) * 28 / 16;
+    // wxMessageOutputDebug().Printf(wxT("loop_offset_ = %d (id: %d)"), loop_offset_, GetAddr() / 16);
     soundbank_.NotifyOnModify(this);
   } else if ( flags & 1 ) {
-    if (external_loop_addr_ != 0xffffffff &&
+    if (WXUNUSED(external_loop_addr_ != 0xffffffff &&)
         external_loop_addr_ < GetAddr() &&
         0 < current_pointer_ - GetADPCM()) {
+      /* loop_offset_ = (p - GetADPCM()) * 28 / 16; */
       current_pointer_ = soundbank_.GetSPU()->GetSoundBuffer() + external_loop_addr_;
+      wxMessageOutputDebug().Printf(wxT("Exists external_loop (id: %d"), GetAddr() / 16);
     } else {
       // the end of this tone
+      if (external_loop_addr_ != 0xffffffff && GetAddr() <= external_loop_addr_) {
+        wxASSERT(external_loop_addr <= current_pointer_ - GetADPCM() + GetAddr());
+        loop_offset_ = (external_loop_addr_ - GetAddr()) * 28 / 16;
+      }
       soundbank_.NotifyOnModify(this);
 
       if (flags != 3) {
@@ -199,6 +206,8 @@ void SamplingTone::ADPCM2LPCM()
       end_addr_ = current_pointer_ - GetADPCM() + GetAddr();
       current_pointer_ = NULL;
       processedBlockNumber_ = 0xffffffff;
+
+      // wxMessageOutputDebug().Printf(wxT("End of this voice. (id: %d, start_addr: 0x%08x, ext_loop_addr: 0x%08x, end_addr: 0x%08x)"), GetAddr() / 16, GetAddr(), external_loop_addr_, end_addr_);
     }
   }
 
@@ -308,7 +317,7 @@ bool SamplingToneIterator::HasNext() const
     return false;
   }
 
-  // wxMessageOutputDebug().Printf(wxT("Loop index = %d, Loop length = %d"), indexLoop, lenLoop);
+  // wxMessageOutputDebug().Printf(wxT("Loop offset = %d, Loop length = %d"), loop_offset, lenLoop);
   while (pTone_->GetLength() <= index_) {
     index_ -= lenLoop;
   }

@@ -131,7 +131,7 @@ void SPUVoice::Step()
   is_ready = true;
 
   if (IsMuted()) return;
-  if (IsOn() == false) return;
+  if (IsOn() == false && ADSRX.State != kEnvelopeStateRelease) return;
 
   if (iActFreq != iUsedFreq) {
     VoiceChangeFrequency();
@@ -141,6 +141,7 @@ void SPUVoice::Step()
   while (pInterpolation->spos >= 0x10000) {
     if (itrTone.HasNext() == false) {
       Off();
+      ADSRX.State = kEnvelopeStateOff;
       ADSRX.lVolume = 0;
       ADSRX.EnvelopeVol = 0;
       set_envelope(0);
@@ -215,7 +216,7 @@ bool SPUVoiceManager::ExistsNew() const {
 
 void SPUVoiceManager::SoundNew(uint32_t flags, int start)
 {
-  wxASSERT(flags < 0x01000000);
+  wxASSERT(flags < 0x01000000); // WARNING: this is for PSX.
   flagNewChannels_ |= flags << start;
   for (int i = start; flags != 0; i++, flags >>= 1) {
     if (!(flags & 1) || (channels_.at(i).tone->GetADPCM() == 0)) continue;
@@ -226,7 +227,7 @@ void SPUVoiceManager::SoundNew(uint32_t flags, int start)
 
 void SPUVoiceManager::VoiceOff(uint32_t flags, int start)
 {
-  wxASSERT(flags < 0x01000000);
+  wxASSERT(flags < 0x01000000); // WARNING: this is for PSX.
   for (int i = start; flags != 0; i++, flags >>= 1) {
     if ((flags & 1) == 0) continue;
     SPUVoice& ch = channels_.at(i);

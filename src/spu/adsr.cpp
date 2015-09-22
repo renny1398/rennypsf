@@ -77,10 +77,14 @@ int AdvanceEnvelopeOnSustain(SPU::SPUVoice* ch) {
 int AdvanceEnvelopeOnRelease(SPU::SPUVoice* ch) {
   int32_t envVol = ch->ADSRX.EnvelopeVol;
   uint32_t disp = (ch->ADSRX.ReleaseModeExp) ? TableDisp[(envVol >> 28) & 0x7] : -0x0c + 32;
+  if (ch->ADSRX.ReleaseRate + disp >= 160) {
+    wxMessageOutputDebug().Printf(wxT("WARNING: rateTable index is too large."));
+  }
   envVol -= rateTable[ch->ADSRX.ReleaseRate + disp];
   if (envVol <= 0) {
     envVol = 0;
     ch->ADSRX.State = SPU::kEnvelopeStateOff;
+    // wxMessageOutputDebug().Printf(wxT("Envelope: completed release."));
   }
   ch->ADSRX.EnvelopeVol = envVol;
   ch->ADSRX.lVolume = (envVol >>= 21);

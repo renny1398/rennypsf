@@ -189,12 +189,13 @@ unsigned int RootCounter::ReadCount(unsigned int index)
 unsigned int RootCounter::SPURun()
 {
   // for debug
+/*
   int sec = R3000ARegs().Cycle / (PSXCLK / 2);
   int last_sec = last / (PSXCLK / 2);
   if (last_sec < sec) {
-    wxMessageOutputDebug().Printf(wxT("%d second prcessed..."), sec);
+    wxMessageOutputDebug().Printf(wxT("%d second processed..."), sec);
   }
-
+*/
   uint32_t cycles;
   if (R3000ARegs().Cycle < last) {
     cycles = 0xffffffff - last;
