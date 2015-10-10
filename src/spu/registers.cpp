@@ -76,7 +76,7 @@ uint16_t read1xx4(const SPUVoice& channelInfo)
 uint16_t read1xx6(const SPUVoice& channelInfo)
 {
   const SPUBase& Spu = channelInfo.Spu();
-  uint32_t soundBuffer = channelInfo.tone->GetADPCM() - Spu.GetSoundBuffer();
+  uint32_t soundBuffer = channelInfo.tone->addr();
   return soundBuffer >> 3;
 }
 
@@ -118,9 +118,9 @@ uint16_t read1xxe(const SPUVoice& channelInfo)
   //    return (channelInfo.pLoop - Spu.Memory) >> 3;
   const uint32_t offsetLoop = channelInfo.addrExternalLoop;
   if (offsetLoop <= 0x80000000) return (offsetLoop >> 3);
-  const uint32_t indexLoop = channelInfo.tone->GetLoopOffset();
-  if (0x80000000 <= indexLoop) return 0;
-  return (channelInfo.tone->GetAddr() + indexLoop / 28 * 16) >> 3;
+  const int indexLoop = channelInfo.tone->loop();
+  if (indexLoop < 0) return 0;
+  return (channelInfo.tone->addr() + indexLoop / 28 * 16) >> 3;
 }
 
 
@@ -329,7 +329,7 @@ void write1xx4(SPUVoice& channelInfo, uint16_t val)
   if (NP < 1) NP = 1;
   channelInfo.iActFreq = NP;
   if (channelInfo.tone != NULL) {
-    const double freq = channelInfo.tone->GetFreq();
+    const double freq = channelInfo.tone->freq();
     if (1.0 <= freq) {
       channelInfo.Pitch = (freq * channelInfo.iRawPitch) / 0x1000;
     } else {
@@ -341,9 +341,20 @@ void write1xx4(SPUVoice& channelInfo, uint16_t val)
 // Set start address of Sound
 void write1xx6(SPUVoice& channelInfo, uint16_t val)
 {
+/*
   SPUBase& Spu = channelInfo.Spu();
-  SamplingTone* tone = Spu.GetSamplingTone(static_cast<uint32_t>(val) << 3);
-  channelInfo.tone = tone;
+  int id = static_cast<int>(val);
+  // SPUInstrument_New* tone = Spu.GetSamplingTone(addr);
+  Instrument* inst = &(Spu.soundbank().instrument(id));
+  SPUInstrument_New* spu_inst = dynamic_cast<SPUInstrument_New*>(inst);
+  if (spu_inst == 0) {
+    spu_inst = new SPUInstrument_New(Spu, id << 3, channelInfo.addrExternalLoop);
+    Spu.soundbank().set_instrument(spu_inst);
+    wxMessageOutputDebug().Printf(wxT("SPU: created a new instrument. (id = %d)"), inst->id());
+  }
+  channelInfo.tone = spu_inst;
+*/
+  channelInfo.addr = static_cast<int>(val) << 3;
 
   // Spu.NotifyOnUpdateStartAddress(channelInfo.ch);
 }
@@ -379,14 +390,17 @@ void write1xxe(SPUVoice& channelInfo, uint16_t val)
   channelInfo.addrExternalLoop = static_cast<uint32_t>(val) << 3;
   channelInfo.useExternalLoop = true;
   if (channelInfo.addrExternalLoop >= 0x80000000) return;
+  // wxMessageOutputDebug().Printf(wxT("SPU: set repeat address. (value = %d)"), val);
+/*
   if (channelInfo.tone) {
-    SPUAddr prev_addr = channelInfo.tone->GetExternalLoopAddr();
-    channelInfo.tone->SetExternalLoopAddr(channelInfo.addrExternalLoop);
+    // SPUAddr prev_addr = channelInfo.tone->GetExternalLoopAddr();
+    // hannelInfo.tone->SetExternalLoopAddr(channelInfo.addrExternalLoop);
     if (prev_addr != channelInfo.addrExternalLoop) {
       SPUBase& Spu = channelInfo.Spu();
       Spu.NotifyOnChangeLoopIndex(&channelInfo);
     }
   }
+*/
 }
 
 
@@ -607,7 +621,7 @@ void SPUBase::WriteRegister(uint32_t reg, uint16_t val)
 
   // wxCriticalSectionLocker csLocker(csDMAWritable_);
 
-  //wxMessageOutputDebug().Printf("SPUwriteRegister at 0x%08x", reg);
+  // wxMessageOutputDebug().Printf("SPUwriteRegister at 0x%08x", reg);
 
   uint32_t ch = (reg & 0x3ff) >> 4;
 

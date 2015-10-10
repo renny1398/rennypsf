@@ -269,6 +269,23 @@ void WaveOutAL::Shutdown() {
 }
 
 
+float WaveOutAL::GetVolume() const {
+  if (source_ == 0) return 0.0f;
+  ALfloat gain;
+  alGetSourcef(source_, AL_GAIN, &gain);
+  return gain;
+}
+
+
+void WaveOutAL::SetVolume(float vol) {
+  if (source_ == 0) {
+    wxMessageOutputDebug().Printf(wxT("Warning: no OpenAL source is generated."));
+    return;
+  }
+  alSourcef(source_, AL_GAIN, vol);
+}
+
+
 //
 // This function can be called only from WaveOutALThread::Entry()
 //

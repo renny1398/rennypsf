@@ -36,7 +36,7 @@ protected:
     void onListRightClick(wxListEvent& event);
     void onPopupClick(wxCommandEvent& event);
 
-    void ExportTone(SPU::SamplingTone* tone);
+    void ExportTone(Instrument* tone);
 
 private:
     enum COLUMN_INDEX {

@@ -75,7 +75,7 @@ const SPURequest* SPUNoteOnRequest::CreateRequest(int ch) {
 
 
 void SPUNoteOnRequest::Execute(SPUBase* p_spu) const {
-  p_spu->Voice(ch_).tone->ConvertData();
+  // p_spu->Voice(ch_).tone->ConvertData();
   p_spu->Voice(ch_).Step();
 }
 
@@ -110,7 +110,7 @@ const SPURequest* SPUSetOffsetRequest::CreateRequest(int ch) {
 
 
 void SPUSetOffsetRequest::Execute(SPUBase* p_spu) const {
-  p_spu->Voice(ch_).tone->ConvertData();
+  // p_spu->Voice(ch_).tone->ConvertData();
 }
 
 
@@ -130,7 +130,7 @@ void SPUCore::Step() {
 
 
 SPUBase::SPUBase(PSX::Composite* composite)
-  : Component(composite), sound_bank_(this), reverb_(this) {
+  : Component(composite), soundbank_(), reverb_(this) {
   cores_.assign(1, SPUCore(this));
   // new(&cores_[0]) SPUCore(this);
 
@@ -214,13 +214,15 @@ void SPUBase::ResetStepStatus() {
 }
 
 
-SamplingTone* SPUBase::GetSamplingTone(uint32_t addr) const
+SPUInstrument_New *SPUBase::GetSamplingTone(uint32_t addr) const
 {
-  return const_cast<SoundBank*>(&sound_bank_)->GetSamplingTone(addr);
+  Soundbank& soundbank = const_cast<Soundbank&>(soundbank_);
+  SPUInstrument_New& p_inst = dynamic_cast<SPUInstrument_New&>(soundbank.instrument(addr / 16));
+  return &p_inst;
 }
 
 
-void SPUBase::NotifyOnAddTone(const SamplingTone& /*tone*/) const {
+void SPUBase::NotifyOnAddTone(const SPUInstrument_New & /*tone*/) const {
   /*
   ToneInfo tone_info;
   tone_info.number = tone.GetAddr();
@@ -233,7 +235,7 @@ void SPUBase::NotifyOnAddTone(const SamplingTone& /*tone*/) const {
 }
 
 
-void SPUBase::NotifyOnChangeTone(const SamplingTone& /*tone*/) const {
+void SPUBase::NotifyOnChangeTone(const SPUInstrument_New & /*tone*/) const {
 /*
   ToneInfo tone_info;
   tone_info.number = tone.GetAddr();
@@ -246,7 +248,7 @@ void SPUBase::NotifyOnChangeTone(const SamplingTone& /*tone*/) const {
 }
 
 
-void SPUBase::NotifyOnRemoveTone(const SamplingTone& /*tone*/) const {
+void SPUBase::NotifyOnRemoveTone(const SPUInstrument_New & /*tone*/) const {
 /*
   ToneInfo tone_info;
   tone_info.number = tone.GetAddr();
@@ -259,7 +261,7 @@ void SPUBase::SetupStreams()
 {
   m_pSpuBuffer = new uint8_t[32768];
 
-  sound_bank_.Reset();
+  soundbank_.Clear();
   reverb_.Reset();
 
   for (int i = 0; i < 24; i++) {
@@ -267,7 +269,7 @@ void SPUBase::SetupStreams()
     ch.ADSRX.SustainLevel = 0xf << 27;
     // Channels[i].iIrqDone = 0;
     ch.tone = 0;
-    ch.itrTone = SamplingToneIterator();
+    ch.itrTone = InstrumentDataIterator();
   }
 }
 

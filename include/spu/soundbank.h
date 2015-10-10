@@ -9,7 +9,7 @@
 #include <wx/hashmap.h>
 #include <wx/thread.h>
 
-#include <wx/event.h>
+#include <wx/scopedarray.h>
 
 
 class wxEvtHandler;
@@ -20,13 +20,13 @@ namespace SPU {
 typedef unsigned int SPUAddr;
 
 
-class SamplingTone;
+class SPUInstrument;
 class SPUVoice;
 
 class SamplingToneIterator
 {
 public:
-  SamplingToneIterator(SamplingTone* pTone = 0, SPUVoice* pChannel = 0);
+  SamplingToneIterator(SPUInstrument* pTone = 0, SPUVoice* pChannel = 0);
   SamplingToneIterator(const SamplingToneIterator& itr);
 
   SamplingToneIterator& operator =(const SamplingToneIterator& itr);
@@ -36,7 +36,7 @@ public:
 
   SamplingToneIterator& operator +=(int n);
 
-  SamplingTone* GetTone() const;
+  SPUInstrument* GetTone() const;
   // void SetPreferredLoop(uint32_t index);
   int32_t GetLoopOffset() const;
 
@@ -44,7 +44,7 @@ protected:
   void clone(SamplingToneIterator* itrTone) const;
 
 private:
-  SamplingTone* pTone_;
+  SPUInstrument* pTone_;
   SPUVoice* pChannel_;
   mutable uint32_t index_;
 
@@ -55,13 +55,13 @@ private:
 
 class SoundBank;
 
-class SamplingTone
+class SPUInstrument
 {
 public:
-  SamplingTone(SoundBank *soundbank, uint8_t* pADPCM);
+  SPUInstrument(SoundBank *soundbank, uint8_t* pADPCM);
 
-  SoundBank& Soundbank() { return soundbank_; }
-  const SoundBank& Soundbank() const { return soundbank_; }
+  SoundBank& soundbank() { return soundbank_; }
+  const SoundBank& soundbank() const { return soundbank_; }
 
   const int32_t* GetData() const;
   const uint8_t* GetADPCM() const;
@@ -133,14 +133,14 @@ public:
   FourierTransformer();
   ~FourierTransformer();
 
-  void PostTransform(SamplingTone* tone, int sampling_rate);
+  void PostTransform(SPUInstrument* tone, int sampling_rate);
 
 private:
   static void* mainLoop(void *);
 
   int sampling_rate_;
 
-  std::deque<SamplingTone*> queue_;
+  std::deque<SPUInstrument*> queue_;
   pthread_t thread_;
   pthread_mutex_t mutexQueue_;
   pthread_cond_t condQueue_;
@@ -153,7 +153,7 @@ private:
 
 
 
-WX_DECLARE_HASH_MAP(uint32_t, SamplingTone*, wxIntegerHash, wxIntegerEqual, SamplingToneMap);
+WX_DECLARE_HASH_MAP(uint32_t, SPUInstrument*, wxIntegerHash, wxIntegerEqual, SamplingToneMap);
 
 
 class SPUBase;
@@ -169,21 +169,21 @@ public:
   void Shutdown();
 
   // const SamplineTone* GetSamplingTone(uint8_t* pADPCM) const;
-  SamplingTone* GetSamplingTone(uint32_t addr) const;
-  SamplingTone* GetSamplingTone(uint32_t addr);
+  SPUInstrument* GetSamplingTone(uint32_t addr) const;
+  SPUInstrument* GetSamplingTone(uint32_t addr);
 
 
   SPUBase* GetSPU() const;
   bool ContainsAddr(uint32_t addr) const;
 
-  void FourierTransform(SamplingTone* tone);
+  void FourierTransform(SPUInstrument* tone);
 
   void AddListener(wxEvtHandler* listener);
   void RemoveListener(wxEvtHandler* listener);
 
-  void NotifyOnAdd(SamplingTone* tone) const;
-  void NotifyOnModify(SamplingTone* tone) const;
-  void NotifyOnRemove(SamplingTone* tone) const;
+  void NotifyOnAdd(SPUInstrument* tone) const;
+  void NotifyOnModify(SPUInstrument* tone) const;
+  void NotifyOnRemove(SPUInstrument* tone) const;
 
 protected:
   void OnMuteTone(wxCommandEvent& event);
@@ -200,6 +200,65 @@ private:
 
   std::set<wxEvtHandler*> listeners_;
 };
+
+
+
+////////////////////////////////////////////////////////////////////////
+// New Soundbank and Instrument
+////////////////////////////////////////////////////////////////////////
+
+}
+#include "common/soundbank.h"
+namespace SPU {
+
+
+class SPUInstrument_New;
+
+class PCM_Converter : public wxThread {
+public:
+  PCM_Converter(SPUInstrument_New*, uint8_t* p_adpcm);
+protected:
+  wxThread::ExitCode Entry();
+  void OnExit();
+private:
+  SPUInstrument_New* const p_inst_;
+  const uint8_t* const p_adpcm_;
+};
+
+
+class SPUInstrument_New : public Instrument {
+public:
+  SPUInstrument_New(const SPUBase& spu, SPUAddr addr, SPUAddr loop);
+  ~SPUInstrument_New();
+
+  int id() const;
+  int at(int i) const;
+  unsigned int length() const;
+  int loop() const;
+
+  SPUAddr addr() const { return addr_; }
+
+protected:
+  void MeasureLength(const SPUBase&);
+
+private:
+  SPUAddr addr_;
+  wxVector<int> data_;
+  unsigned int length_;
+  int loop_;
+
+  SPUAddr external_loop_addr_;
+
+  unsigned int read_size_;
+  PCM_Converter* thread_;
+  mutable wxMutex read_mutex_;
+  mutable wxCondition read_cond_;
+
+  friend class PCM_Converter;
+};
+
+
+
 
 
 

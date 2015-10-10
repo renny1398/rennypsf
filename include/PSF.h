@@ -13,6 +13,8 @@ public:
   explicit PSF(PSX::Composite* psx = NULL);
   virtual ~PSF();
 
+  Soundbank& soundbank();
+
   void Init();
   void Reset();
 
@@ -60,7 +62,6 @@ protected:
     // TODO: multicore
     return psx_->Spu().core(0).Voices();
   }
-
 
   PSX::Composite* psx_;
 

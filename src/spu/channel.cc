@@ -18,10 +18,11 @@ namespace SPU {
 SPUVoice::SPUVoice() : p_spu_(NULL), iUsedFreq(0), iRawPitch(0) {}
 
 
-SPUVoice::SPUVoice(SPUBase *pSPU) :
+SPUVoice::SPUVoice(SPUBase *pSPU, int ch) :
   p_spu_(pSPU),
   lpcm_buffer_l(pSPU->NSSIZE), lpcm_buffer_r(pSPU->NSSIZE),
   pInterpolation(new GaussianInterpolation) {
+  this->ch = ch;
   tone = NULL;
   is_on_ = false;
   is_ready = false;
@@ -102,13 +103,26 @@ void SPUVoice::StartSound()
   On();
   p_spu_->Reverb().StartReverb(this);
 
-  itrTone = tone->Iterator(this);
+  SPUInstrument_New* p_inst = tone;
+  if (p_inst == 0 || addr != p_inst->addr()) {
+    p_inst = dynamic_cast<SPUInstrument_New*>(&Spu().soundbank().instrument(addr >> 4));
+    if (p_inst == 0) {
+    p_inst = new SPUInstrument_New(Spu(), addr, useExternalLoop ? addrExternalLoop : 0xffffffff);
+    Spu().soundbank().set_instrument(p_inst);
+    wxMessageOutputDebug().Printf(wxT("Created a new instrument. (id = %d)"), p_inst->id());
+    }
+    tone = p_inst;
+  }
+  itrTone = p_inst->Iterator(true);
 
   pInterpolation->Start();
 
   useExternalLoop = false;
 
   // Spu().ChangeProcessState(SPU::STATE_NOTE_ON, ch);
+  const SPURequest* req = SPUNoteOnRequest::CreateRequest(ch);
+  p_spu_->PutRequest(req);
+
   NotifyOnNoteOn();
 
   // TODO: Change newChannelFlags
@@ -203,7 +217,7 @@ SPUVoiceManager::SPUVoiceManager() : pSPU_(NULL) {}
 
 
 SPUVoiceManager::SPUVoiceManager(SPUBase *pSPU, int channelNumber)
-  : pSPU_(pSPU), channels_(channelNumber, SPUVoice(pSPU)), channelNumber_(channelNumber)
+  : pSPU_(pSPU), channels_(channelNumber, SPUVoice(pSPU, channelNumber)), channelNumber_(channelNumber)
 {
   wxASSERT(pSPU != NULL);
 }
@@ -219,7 +233,7 @@ void SPUVoiceManager::SoundNew(uint32_t flags, int start)
   wxASSERT(flags < 0x01000000); // WARNING: this is for PSX.
   flagNewChannels_ |= flags << start;
   for (int i = start; flags != 0; i++, flags >>= 1) {
-    if (!(flags & 1) || (channels_.at(i).tone->GetADPCM() == 0)) continue;
+    if ((flags & 1) == 0) continue;
     channels_.at(i).StartSound();
   }
 }

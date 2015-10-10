@@ -210,7 +210,10 @@ unsigned int RootCounter::SPURun()
     uint32_t pool = cycles % clk_p_hz;
     bool ret = Spu().Step(step_count);
     last = R3000ARegs().Cycle - pool;
-    if (ret == false) return 0;
+    if (ret == false) {
+      // wxMessageOutputDebug().Printf(wxT("RootCounter: counter = %d"), R3000ARegs().Cycle);
+      return 0;
+    }
   }
 
   return 1;

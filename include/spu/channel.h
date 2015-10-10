@@ -101,6 +101,8 @@ public:
   long           lVolume;
   long           lDummy1;
   long           lDummy2;
+
+  ADSRInfoEx() : State(kEnvelopeStateOff) {}
 };
 
 
@@ -116,7 +118,7 @@ class SPUVoiceManager;
 class SPUVoice : public ::Sample16 {
 public:
   SPUVoice();   // for vector constructor
-  SPUVoice(SPUBase* pSPU);
+  SPUVoice(SPUBase* pSPU, int ch);
   SPUVoice(const SPUVoice&);  // for vector construction
 
   void StartSound();
@@ -150,9 +152,11 @@ public:
   InterpolationPtr  pInterpolation;
 
   int             sval;
-  SamplingTone* tone;
-  SamplingToneIterator itrTone;
+  SPUInstrument_New* tone;
+  InstrumentDataIterator itrTone;
+  SPUAddr addr;
 
+  int ch;
   // bool            is_muted;
   bool            hasReverb;                            // can we do reverb on this channel? must have ctrl register bit, to get active
   int             iActFreq;                           // current psx pitch

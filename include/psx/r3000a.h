@@ -12,33 +12,34 @@ namespace R3000A {
 ////////////////////////////////
 
 union GeneralPurposeRegisters {
-    struct {
-        u32 ZR, AT;
-        union {
-            struct { u32 V0, V1; };
-            u32 V[2];
-        };
-        union {
-            struct { u32 A0, A1, A2, A3; };
-            u32 A[4];
-        };
-        union {
-            struct { u32 T0, T1, T2, T3, T4, T5, T6, T7; };
-            u32 T[8];
-        };
-        union {
-            struct { u32 S0, S1, S2, S3, S4, S5, S6, S7; };
-            u32 S[8];
-        };
-        u32 T8, T9;
-        union {
-            struct { u32 K0, K1; };
-            u32 K[2];
-        };
-        u32 GP, SP, FP, RA, HI, LO, PC;
+  struct {
+    u32 ZR, AT;
+    union {
+      struct { u32 V0, V1; };
+      u32 V[2];
     };
-    u32 R[35];
-    GeneralPurposeRegisters() { ::memset(R, 0, sizeof(u32)*35); }
+    union {
+      struct { u32 A0, A1, A2, A3; };
+      u32 A[4];
+    };
+    union {
+      struct { u32 T0, T1, T2, T3, T4, T5, T6, T7; };
+      u32 T[8];
+    };
+    union {
+      struct { u32 S0, S1, S2, S3, S4, S5, S6, S7; };
+      u32 S[8];
+    };
+    u32 T8, T9;
+    union {
+      struct { u32 K0, K1; };
+      u32 K[2];
+    };
+    u32 GP, SP, FP, RA, HI, LO, PC;
+  };
+  u32 R[35];
+  GeneralPurposeRegisters();
+  GeneralPurposeRegisters(const GeneralPurposeRegisters&);
 };
 
 enum GPR_ENUM {
@@ -52,12 +53,12 @@ enum GPR_ENUM {
 extern const char *strGPR[35];
 
 union Cop0Registers {
-    struct {
-        u32 INDX, RAND, TLBL, BPC, CTXT, BDA, PIDMASK, DCIC,
-        BADV, BDAM, TLBH, BPCM, SR, CAUSE, EPC, PRID, ERREG;
-    };
-    u32 R[17];
-    Cop0Registers() { ::memset(R, 0, sizeof(u32)*17); }
+  struct {
+      u32 INDX, RAND, TLBL, BPC, CTXT, BDA, PIDMASK, DCIC,
+      BADV, BDAM, TLBH, BPCM, SR, CAUSE, EPC, PRID, ERREG;
+  };
+  u32 R[17];
+  Cop0Registers();
 };
 
 
@@ -67,21 +68,21 @@ union Cop0Registers {
 
 
 enum OPCODE_ENUM {
-    OPCODE_SPECIAL, OPCODE_BCOND, OPCODE_J, OPCODE_JAL, OPCODE_BEQ, OPCODE_BNE, OPCODE_BLEZ, OPCODE_BGTZ,
-    OPCODE_ADDI, OPCODE_ADDIU, OPCODE_SLTI, OPCODE_SLTIU, OPCODE_ANDI, OPCODE_ORI, OPCODE_XORI, OPCODE_LUI,
-    OPCODE_COP0, OPCODE_COP1, OPCODE_COP2, OPCODE_COP3,
-    OPCODE_LB = 0x20, OPCODE_LH, OPCODE_LWL, OPCODE_LW, OPCODE_LBU, OPCODE_LHU, OPCODE_LWR,
-    OPCODE_SB = 0x28, OPCODE_SH, OPCODE_SWL, OPCODE_SW, OPCODE_SWR = 0x2e,
-    OPCODE_LWC0 = 0x30, OPCODE_LWC1, OPCODE_LWC2, OPCODE_LWC3,
-    OPCODE_SWC0 = 0x38, OPCODE_SWC1, OPCODE_SWC2, OPCODE_SWC3, OPCODE_HLECALL = 0x3b
+  OPCODE_SPECIAL, OPCODE_BCOND, OPCODE_J, OPCODE_JAL, OPCODE_BEQ, OPCODE_BNE, OPCODE_BLEZ, OPCODE_BGTZ,
+  OPCODE_ADDI, OPCODE_ADDIU, OPCODE_SLTI, OPCODE_SLTIU, OPCODE_ANDI, OPCODE_ORI, OPCODE_XORI, OPCODE_LUI,
+  OPCODE_COP0, OPCODE_COP1, OPCODE_COP2, OPCODE_COP3,
+  OPCODE_LB = 0x20, OPCODE_LH, OPCODE_LWL, OPCODE_LW, OPCODE_LBU, OPCODE_LHU, OPCODE_LWR,
+  OPCODE_SB = 0x28, OPCODE_SH, OPCODE_SWL, OPCODE_SW, OPCODE_SWR = 0x2e,
+  OPCODE_LWC0 = 0x30, OPCODE_LWC1, OPCODE_LWC2, OPCODE_LWC3,
+  OPCODE_SWC0 = 0x38, OPCODE_SWC1, OPCODE_SWC2, OPCODE_SWC3, OPCODE_HLECALL = 0x3b
 };
 
 enum SPECIAL_ENUM {
-    SPECIAL_SLL, SPECIAL_SRL = 0x02, SPECIAL_SRA, SPECIAL_SLLV, SPECIAL_SRLV = 0x06, SPECIAL_SRAV,
-    SPECIAL_JR, SPECIAL_JALR, SPECIAL_SYSCALL = 0x0c, SPECIAL_BREAK,
-    SPECIAL_MFHI = 0x10, SPECIAL_MTHI, SPECIAL_MFLO, SPECIAL_MTLO,
-    SPECIAL_MULT = 0x18, SPECIAL_MULTU, SPECIAL_DIV, SPECIAL_DIVU,
-    SPECIAL_ADD = 0x20, SPECIAL_ADDU, SPECIAL_SUB, SPECIAL_SUBU, SPECIAL_AND, SPECIAL_OR, SPECIAL_XOR, SPECIAL_NOR
+  SPECIAL_SLL, SPECIAL_SRL = 0x02, SPECIAL_SRA, SPECIAL_SLLV, SPECIAL_SRLV = 0x06, SPECIAL_SRAV,
+  SPECIAL_JR, SPECIAL_JALR, SPECIAL_SYSCALL = 0x0c, SPECIAL_BREAK,
+  SPECIAL_MFHI = 0x10, SPECIAL_MTHI, SPECIAL_MFLO, SPECIAL_MTLO,
+  SPECIAL_MULT = 0x18, SPECIAL_MULTU, SPECIAL_DIV, SPECIAL_DIVU,
+  SPECIAL_ADD = 0x20, SPECIAL_ADDU, SPECIAL_SUB, SPECIAL_SUBU, SPECIAL_AND, SPECIAL_OR, SPECIAL_XOR, SPECIAL_NOR
 };
 
 enum BCOND_ENUM {
@@ -94,29 +95,29 @@ class Processor;
 class Instruction
 {
 public:
-    Instruction(Processor*, u32);
+  Instruction(Processor*, u32);
 
-    u32 Opcode() const;
-    u32 Rs() const;
-    u32 Rt() const;
-    u32 Rd() const;
-    int32_t Imm() const;
-    u32 ImmU() const;
-    u32 Target() const;
-    u32 Shamt() const;
-    u32 Funct() const;
+  u32 Opcode() const;
+  u32 Rs() const;
+  u32 Rt() const;
+  u32 Rd() const;
+  int32_t Imm() const;
+  u32 ImmU() const;
+  u32 Target() const;
+  u32 Shamt() const;
+  u32 Funct() const;
 
-    u32& RsVal() const;
-    u32& RtVal() const;
-    u32& RdVal() const;
+  u32& RsVal() const;
+  u32& RtVal() const;
+  u32& RdVal() const;
 
-    u32 Addr() const;
+  u32 Addr() const;
 
-    operator u32() const;
+  operator u32() const;
 
 private:
-    Processor& cpu_;
-    u32 code_;
+  Processor& cpu_;
+  u32 code_;
 };
 
 

@@ -95,6 +95,24 @@ public:
 };
 
 
+class SetVolumeCommand : public Command {
+public:
+  SetVolumeCommand(const std::string& p) : Command(p) {}
+
+  bool Execute() {
+    const std::string& param = params().at(0);
+    if (param.empty()) return false;
+    float vol = std::stof(param);
+    wxSharedPtr<SoundDeviceDriver> sdd = wxGetApp().GetSoundManager();
+    if (sdd == 0) {
+      wxMessageOutputDebug().Printf(wxT("Warning: SoundDevice is not initialized."));
+      return false;
+    }
+    sdd->SetVolume(vol);
+    return true;
+  }
+};
+
 /*
 class ExitCommand : public Command {
 public:
@@ -127,6 +145,9 @@ Command* CommandFactory::CreateCommand(const std::string &line) {
   }
   if (cmd == "stop") {
     return new StopCommand(params);
+  }
+  if (cmd == "set-volume") {
+    return new SetVolumeCommand(params);
   }
   if (cmd == "exit") {
     return NULL;

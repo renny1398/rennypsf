@@ -66,6 +66,9 @@ public:
   virtual bool Play();
   virtual bool Stop();
 
+  virtual float GetVolume() const = 0;
+  virtual void SetVolume(float vol) = 0;
+
   bool IsPlaying() const;
 
   void OnUpdate(const SoundBlock*);
@@ -142,6 +145,9 @@ public:
   void Init();
   virtual bool Stop();
   void Shutdown();
+
+  float GetVolume() const;
+  void SetVolume(float vol);
 
   // Functions which only the Init()-ed thead can call
   void ThisThreadInit();

@@ -174,6 +174,7 @@ protected:
 };
 */
 
+class Soundbank;
 
 /*!
  @brief A base class for Sound Format (?sf).
@@ -200,6 +201,8 @@ public:
   //! Stop the sound if it is playing.
   bool Stop();
 
+  //! Returns the reference of Soundbank.
+  virtual Soundbank& soundbank() = 0;
 
   const wxString& GetFileName() const;
   virtual unsigned int GetSamplingRate() const = 0;

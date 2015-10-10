@@ -32,6 +32,11 @@ PSF::~PSF()
 }
 
 
+Soundbank& PSF::soundbank() {
+  return psx_->Spu().soundbank();
+}
+
+
 WX_DECLARE_HASH_MAP(int, wxString, wxIntegerHash, wxIntegerEqual, IntStrHash);
 
 void PSF::LoadLibrary() {

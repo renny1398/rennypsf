@@ -75,7 +75,9 @@ inline uint32_t InterpolationBase::GetSinc() const { return sinc; }
 class GaussianInterpolation: public InterpolationBase
 {
 public:
-    GaussianInterpolation() {}
+  GaussianInterpolation() : gpos(0) {
+    samples[0] = samples[1] = samples[2] = samples[3] = 0;
+  }
     void Start();
 
     InterpolationType GetInterpolationType() const { return GAUSS_INTERPOLATION; }

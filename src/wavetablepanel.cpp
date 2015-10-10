@@ -172,8 +172,8 @@ void WavetableList::OnChar(wxKeyEvent &event) {
 void WavetableList::onPopupClick(wxCommandEvent &event)
 {
   using namespace SPU;
-  SamplingTone *tone = reinterpret_cast<SamplingTone*>(static_cast<wxMenu *>(event.GetEventObject())->GetClientData());
-  wxMessageOutputDebug().Printf(wxT("offset: %d"), tone->GetAddr());
+  Instrument *tone = reinterpret_cast<Instrument*>(static_cast<wxMenu *>(event.GetEventObject())->GetClientData());
+  wxMessageOutputDebug().Printf(wxT("offset: %d"), tone->id());
   switch (event.GetId()) {
   case ID_EXPORT_WAVE:
     ExportTone(tone);
@@ -186,12 +186,12 @@ void WavetableList::onPopupClick(wxCommandEvent &event)
 
 #include <wx/file.h>
 
-void WavetableList::ExportTone(SPU::SamplingTone *tone)
+void WavetableList::ExportTone(Instrument *tone)
 {
   using namespace SPU;
 
   wxString strFileName;
-  strFileName << tone->GetAddr() << ".wav";
+  strFileName << tone->id() << ".wav";
 
   wxFile file(strFileName, wxFile::write);
 
@@ -220,9 +220,9 @@ void WavetableList::ExportTone(SPU::SamplingTone *tone)
   file.Write("data", 4);
   file.Write(&length, 4);
 
-  length = tone->GetLength();
+  length = tone->length();
   for (int i = 0; i < length; i++) {
-    int s = tone->At(i);
+    int s = tone->at(i);
     file.Write(&s, 2);
   }
 

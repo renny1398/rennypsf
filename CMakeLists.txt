@@ -20,8 +20,8 @@ SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO_INIT "-O2 -g")
 #SET(CMAKE_CXX_FLAGS "-O3 -DNDEBUG")
 #SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3 -W -Wall -finline-functions -ffast-math -DwxDEBUG_LEVEL=0")
 
-SET(CMAKE_C_FLAGS_DEBUG "-g -W -Wall")
-SET(CMAKE_CXX_FLAGS_DEBUG "-g -W -Wall")
+SET(CMAKE_C_FLAGS_DEBUG "-g -W -Wall -Wpotentially-evaluated-expression")
+SET(CMAKE_CXX_FLAGS_DEBUG "-g -W -Wall -Wpotentially-evaluated-expression")
 SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3 -W -Wall -finline-functions -ffast-math -DwxDEBUG_LEVEL=0")
 
 #SET(CMAKE_BUILD_TYPE "Release")

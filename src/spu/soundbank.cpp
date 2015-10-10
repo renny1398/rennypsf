@@ -15,7 +15,7 @@ wxDEFINE_EVENT(wxEVENT_SPU_REMOVE_TONE, wxCommandEvent);
 namespace SPU {
 
 
-SamplingTone::SamplingTone(SoundBank *soundbank, uint8_t *pADPCM) :
+SPUInstrument::SPUInstrument(SoundBank *soundbank, uint8_t *pADPCM) :
   soundbank_(*soundbank), pADPCM_(pADPCM), loop_offset_(0xffffffff), forcesStop_(false),
   processedBlockNumber_(0), freq_(0.0), begin_(this), prev1_(0), prev2_(0)
 {
@@ -27,26 +27,26 @@ SamplingTone::SamplingTone(SoundBank *soundbank, uint8_t *pADPCM) :
 }
 
 
-const uint8_t* SamplingTone::GetADPCM() const
+const uint8_t* SPUInstrument::GetADPCM() const
 {
   return pADPCM_;
 }
 
 
-const int32_t* SamplingTone::GetData() const
+const int32_t* SPUInstrument::GetData() const
 {
   if (LPCM_.empty()) return NULL;
   return &LPCM_[0];
 }
 
 
-SPUAddr SamplingTone::GetAddr() const
+SPUAddr SPUInstrument::GetAddr() const
 {
   return ( pADPCM_ - soundbank_.GetSPU()->GetSoundBuffer() );
 }
 
 
-uint32_t SamplingTone::GetLength() const
+uint32_t SPUInstrument::GetLength() const
 {
   const uint32_t len = LPCM_.size();
   // wxASSERT(len % 28 == 0);
@@ -54,47 +54,47 @@ uint32_t SamplingTone::GetLength() const
 }
 
 
-uint32_t SamplingTone::GetLoopOffset() const
+uint32_t SPUInstrument::GetLoopOffset() const
 {
   wxASSERT(loop_offset_ % 28 == 0 || loop_offset_ == 0xffffffff);
   return loop_offset_;
 }
 
 
-SPUAddr SamplingTone::GetExternalLoopAddr() const {
+SPUAddr SPUInstrument::GetExternalLoopAddr() const {
   return external_loop_addr_;
 }
 
 
-void SamplingTone::SetExternalLoopAddr(SPUAddr addr) {
+void SPUInstrument::SetExternalLoopAddr(SPUAddr addr) {
   external_loop_addr_ = addr;
 }
 
 
-SPUAddr SamplingTone::GetEndAddr() const {
+SPUAddr SPUInstrument::GetEndAddr() const {
   return end_addr_;
 }
 
-double SamplingTone::GetFreq() const
+double SPUInstrument::GetFreq() const
 {
   return freq_;
 }
 
 
-void SamplingTone::SetFreq(double f)
+void SPUInstrument::SetFreq(double f)
 {
   freq_ = f;
 }
 
 
-bool SamplingTone::hasFinishedConv() const
+bool SPUInstrument::hasFinishedConv() const
 {
   // return (0x80000000 <= processedBlockNumber_);
   return (current_pointer_ == NULL);
 }
 
 
-int SamplingTone::At(int index) const
+int SPUInstrument::At(int index) const
 {
   if (muted_) return 0;
 
@@ -110,7 +110,7 @@ int SamplingTone::At(int index) const
 
   wxASSERT(static_cast<uint32_t>(len) == processedBlockNumber_ * 28);
   for (int i = len; i <= index; i += 28) {
-    const_cast<SamplingTone*>(this)->ADPCM2LPCM();
+    const_cast<SPUInstrument*>(this)->ADPCM2LPCM();
     if (hasFinishedConv()) break;
   }
 
@@ -118,7 +118,7 @@ int SamplingTone::At(int index) const
 }
 
 
-void SamplingTone::ADPCM2LPCM()
+void SPUInstrument::ADPCM2LPCM()
 {
   wxASSERT(current_pointer_ != NULL);
 
@@ -216,7 +216,7 @@ void SamplingTone::ADPCM2LPCM()
 }
 
 
-void SamplingTone::ConvertData()
+void SPUInstrument::ConvertData()
 {
   while (hasFinishedConv() == false) {
     ADPCM2LPCM();
@@ -225,15 +225,15 @@ void SamplingTone::ConvertData()
 }
 
 
-SamplingToneIterator SamplingTone::Iterator(SPUVoice *pChannel) const
+SamplingToneIterator SPUInstrument::Iterator(SPUVoice *pChannel) const
 {
   // clone the 'begin' iterator
-  return SamplingToneIterator(const_cast<SamplingTone*>(this), pChannel);
+  return SamplingToneIterator(const_cast<SPUInstrument*>(this), pChannel);
 }
 
 
 
-SamplingToneIterator::SamplingToneIterator(SamplingTone *pTone, SPUVoice *pChannel) :
+SamplingToneIterator::SamplingToneIterator(SPUInstrument *pTone, SPUVoice *pChannel) :
   pTone_(pTone), pChannel_(pChannel), index_(0)
 {}
 
@@ -259,7 +259,7 @@ SamplingToneIterator& SamplingToneIterator::operator=(const SamplingToneIterator
 }
 
 
-SamplingTone* SamplingToneIterator::GetTone() const
+SPUInstrument* SamplingToneIterator::GetTone() const
 {
   return pTone_;
 }
@@ -361,7 +361,7 @@ FourierTransformer::~FourierTransformer()
 }
 
 
-void FourierTransformer::PostTransform(SamplingTone* tone, int sampling_rate)
+void FourierTransformer::PostTransform(SPUInstrument* tone, int sampling_rate)
 {
   if (0.0 < tone->GetFreq()) return;
 
@@ -382,7 +382,7 @@ extern "C" void cdft(int, int, double *, int *, double *);
 void* FourierTransformer::mainLoop(void *param)
 {
   FourierTransformer *ft = (FourierTransformer*)param;
-  SamplingTone* tone = 0;
+  SPUInstrument* tone = 0;
 
   double* a = 0;
   int* ip = 0;
@@ -452,7 +452,7 @@ void* FourierTransformer::mainLoop(void *param)
 
       double freq = static_cast<double>(ft->sampling_rate_) * indexMax / n;
       tone->SetFreq(freq);
-      tone->Soundbank().NotifyOnModify(tone);
+      tone->soundbank().NotifyOnModify(tone);
       // wxMessageOutputDebug().Printf(wxT("Finished FFT (offset = %d, freq = %d)"), tone->GetAddr(), indexMax);
     } while (true);
 
@@ -495,7 +495,7 @@ void SoundBank::Shutdown() {
 }
 
 
-void SoundBank::NotifyOnAdd(SamplingTone *tone) const
+void SoundBank::NotifyOnAdd(SPUInstrument *tone) const
 {
   /*
     wxCommandEvent event(wxEVENT_SPU_ADD_TONE, wxID_ANY);
@@ -506,11 +506,11 @@ void SoundBank::NotifyOnAdd(SamplingTone *tone) const
       (*itr)->AddPendingEvent(event);
     }
 */
-  GetSPU()->NotifyOnAddTone(*tone);
+  // GetSPU()->NotifyOnAddTone(*tone);
 }
 
 
-void SoundBank::NotifyOnModify(SamplingTone *tone) const
+void SoundBank::NotifyOnModify(SPUInstrument *tone) const
 {
   /*
     wxCommandEvent event(wxEVENT_SPU_MODIFY_TONE, wxID_ANY);
@@ -522,11 +522,11 @@ void SoundBank::NotifyOnModify(SamplingTone *tone) const
     }
 */
 
-  GetSPU()->NotifyOnChangeTone(*tone);
+  // GetSPU()->NotifyOnChangeTone(*tone);
 }
 
 
-void SoundBank::NotifyOnRemove(SamplingTone *tone) const
+void SoundBank::NotifyOnRemove(SPUInstrument *tone) const
 {
   /*
     wxCommandEvent event(wxEVENT_SPU_REMOVE_TONE, wxID_ANY);
@@ -537,11 +537,11 @@ void SoundBank::NotifyOnRemove(SamplingTone *tone) const
       (*itr)->ProcessEvent(event);
     }
 */
-  GetSPU()->NotifyOnRemoveTone(*tone);
+  // GetSPU()->NotifyOnRemoveTone(*tone);
 }
 
 
-SamplingTone* SoundBank::GetSamplingTone(uint32_t addr) const {
+SPUInstrument* SoundBank::GetSamplingTone(uint32_t addr) const {
   SamplingToneMap::Iterator it = tones_.find(addr);
   if (it != tones_.end()) {
     return it.m_node->m_value.second;
@@ -550,11 +550,11 @@ SamplingTone* SoundBank::GetSamplingTone(uint32_t addr) const {
 }
 
 
-SamplingTone* SoundBank::GetSamplingTone(uint32_t addr)
+SPUInstrument* SoundBank::GetSamplingTone(uint32_t addr)
 {
-  SamplingTone* tone = static_cast<const SoundBank*>(this)->GetSamplingTone(addr);
+  SPUInstrument* tone = static_cast<const SoundBank*>(this)->GetSamplingTone(addr);
   if (tone != NULL) return tone;
-  tone = new SamplingTone(const_cast<SoundBank*>(this), pSPU_->GetSoundBuffer() + addr);
+  tone = new SPUInstrument(const_cast<SoundBank*>(this), pSPU_->GetSoundBuffer() + addr);
   // tones_.insert(addr, tone);
   tones_[addr] = tone;
   NotifyOnAdd(tone);
@@ -567,7 +567,7 @@ void SoundBank::Reset()
 {
   while (tones_.empty() == false) {
     uint32_t offset = (tones_.begin()).m_node->m_value.first;
-    SamplingTone* tone = (tones_.begin()).m_node->m_value.second;
+    SPUInstrument* tone = (tones_.begin()).m_node->m_value.second;
     NotifyOnRemove(tone);
     tones_.erase(offset);
     delete tone;
@@ -588,7 +588,7 @@ bool SoundBank::ContainsAddr(uint32_t addr) const
 }
 
 
-void SoundBank::FourierTransform(SamplingTone *tone)
+void SoundBank::FourierTransform(SPUInstrument *tone)
 {
   fft_.PostTransform(tone, GetSPU()->GetDefaultSamplingRate());
 }
@@ -607,16 +607,223 @@ void SoundBank::RemoveListener(wxEvtHandler* listener)
 
 void SoundBank::OnMuteTone(wxCommandEvent& event) {
   const int id = event.GetInt();
-  SamplingTone* const tone = static_cast<const SoundBank*>(this)->GetSamplingTone(id);
+  SPUInstrument* const tone = static_cast<const SoundBank*>(this)->GetSamplingTone(id);
   if (tone == NULL) return;
   tone->Mute();
 }
 
 void SoundBank::OnUnmuteTone(wxCommandEvent& event) {
   const int id = event.GetInt();
-  SamplingTone* const tone = static_cast<const SoundBank*>(this)->GetSamplingTone(id);
+  SPUInstrument* const tone = static_cast<const SoundBank*>(this)->GetSamplingTone(id);
   if (tone == NULL) return;
   tone->Unmute();
 }
+
+
+
+////////////////////////////////////////////////////////////////////////
+// New Soundbank and Instrument
+////////////////////////////////////////////////////////////////////////
+
+
+PCM_Converter::PCM_Converter(SPUInstrument_New* p_inst, uint8_t *p_adpcm)
+  : wxThread(wxTHREAD_JOINABLE), p_inst_(p_inst), p_adpcm_(p_adpcm) {}
+
+
+wxThread::ExitCode PCM_Converter::Entry() {
+
+  static const int xa_adpcm_table[5][2] = {
+    {   0,   0 },
+    {  60,   0 },
+    { 115, -52 },
+    {  98, -55 },
+    { 122, -60 }
+  };
+
+  const SPUAddr addr = p_inst_->addr_;
+  const uint8_t* const p_adpcm = p_adpcm_;
+  const uint8_t* const p_spu_buffer = p_adpcm - addr;
+  const SPUAddr ext_loop_addr = p_inst_->external_loop_addr_;
+
+  int prev1 = 0;
+  int prev2 = 0;
+  const uint8_t* p_curr_adpcm = p_adpcm;
+  // int* p_curr_lpcm = p_inst_->data_.get();
+
+  int d, s, fa;
+
+  unsigned int& read_size = p_inst_->read_size_;
+  wxMutex& read_mutex = p_inst_->read_mutex_;
+  wxCondition& read_cond = p_inst_->read_cond_;
+
+  wxMessageOutputDebug().Printf(wxT("Read instrument data. (addr = %d, ext_loop_addr = %d)"),
+                                addr, ext_loop_addr);
+
+  while (TestDestroy() == false) {
+
+    if (read_size >= p_inst_->length_) {
+      wxMessageOutputDebug().Printf(wxT("Warning: memory is over."));
+      break;
+    }
+
+    int predict_nr = *p_curr_adpcm++;
+    int shift_factor = predict_nr & 0xf;
+    int flags = *p_curr_adpcm++;
+    predict_nr >>= 4;
+
+    for (int i = 0; i < 14; i++) {
+      d = *p_curr_adpcm++;
+
+      s = (d & 0xf) << 12;
+      if (s & 0x8000) s |= 0xffff0000;
+      fa = (s >> shift_factor);
+      fa += ((prev1 * xa_adpcm_table[predict_nr][0]) >> 6) + ((prev2 * xa_adpcm_table[predict_nr][1]) >> 6);
+      prev2 = prev1; prev1 = fa;
+
+      // *p_curr_lpcm++ = fa;
+      p_inst_->data_.push_back(fa);
+
+      s = (d & 0xf0) << 8;
+      if (s & 0x8000) s |= 0xffff0000;
+      fa = (s >> shift_factor);
+      fa += ((prev1 * xa_adpcm_table[predict_nr][0]) >> 6) + ((prev2 * xa_adpcm_table[predict_nr][1]) >> 6);
+      prev2 = prev1; prev1 = fa;
+
+      // *p_curr_lpcm++ = fa;
+      p_inst_->data_.push_back(fa);
+    }
+
+    read_mutex.Lock();
+    read_size += 28;
+    read_cond.Broadcast();
+    read_mutex.Unlock();
+
+    if ( (flags & 4) == 0 ) continue;
+
+    if ( flags & 1 ) {
+      if (ext_loop_addr < addr && 0 < p_curr_adpcm - p_adpcm) {
+        if (read_size >= p_inst_->length_) break;
+        p_curr_adpcm = p_spu_buffer + ext_loop_addr;
+      } else {
+        // the end of this tone
+        /*
+        if (addr <= ext_loop_addr && ext_loop_addr < 0x80000000) {
+        }
+        if (flags != 3) {
+          // forcesStop_ = true;
+        }
+        */
+        break;
+      }
+    }
+
+
+  }
+  return 0;
+}
+
+
+void PCM_Converter::OnExit() {
+  wxMessageOutputDebug().Printf(wxT("Created instrument data. (id = %d, read_size = %d)"),
+                                p_inst_->id(), p_inst_->read_size_);
+}
+
+
+
+void SPUInstrument_New::MeasureLength(const SPUBase& spu) {
+
+  const SPUAddr addr = addr_;
+  const SPUAddr ext_loop_addr = external_loop_addr_;
+
+  unsigned int len = 0;
+  const uint8_t* const p_adpcm = spu.GetSoundBuffer() + addr;
+  const uint8_t* p_curr_adpcm = p_adpcm;
+
+  wxMessageOutputDebug().Printf(wxT("Measure instrument data length. (addr = %d, ext_loop_addr = %d)"),
+                                addr, ext_loop_addr);
+
+  do {
+    int flags = *(p_curr_adpcm + 1);
+    p_curr_adpcm += 16;
+    len += 28;
+    if (flags & 4) {
+      loop_ = len - 28;
+    } else if (flags & 1) {
+      if (ext_loop_addr < addr && 0 < p_curr_adpcm - p_adpcm) {
+        if (0 < loop_) break;
+        loop_ = len;
+        p_curr_adpcm = spu.GetSoundBuffer() + ext_loop_addr;
+        wxMessageOutputDebug().Printf(wxT("ext = %d, addr = %d"), ext_loop_addr, addr);
+      } else {
+        if (addr <= ext_loop_addr && ext_loop_addr < 0x80000000) {
+          loop_ = (ext_loop_addr - addr) * 28 / 16;
+        }
+        if (flags != 3) {
+          loop_ = -1;
+        }
+        break;
+      }
+    }
+    if (spu.GetSoundBuffer() + spu.kMemorySize <= p_curr_adpcm) {
+      wxMessageOutputDebug().Printf(wxT("Warning: invalid instrument data."));
+      length_ = 0;
+      return;
+    }
+  } while (true);
+
+
+  wxMessageOutputDebug().Printf(wxT("length : %d, loop : %d"), len, loop_);
+
+  length_ = len;
+}
+
+
+SPUInstrument_New::SPUInstrument_New(const SPUBase& spu, SPUAddr addr, SPUAddr loop)
+  : addr_(addr), data_(0), length_(0), loop_(-1), external_loop_addr_(loop),
+    read_size_(0), thread_(0), read_mutex_(), read_cond_(read_mutex_) {
+
+  MeasureLength(spu);
+  data_.reserve(length_);
+  thread_ = new PCM_Converter(this, spu.GetSoundBuffer() + addr);
+  thread_->Create();
+  thread_->Run();
+}
+
+
+SPUInstrument_New::~SPUInstrument_New() {
+  if (thread_) {
+    if (thread_->IsRunning()) {
+      thread_->Wait();
+    }
+    delete [] thread_;
+    thread_ = 0;
+  }
+}
+
+
+int SPUInstrument_New::id() const {
+  return addr_ >> 4;
+}
+
+
+int SPUInstrument_New::at(int i) const {
+  if (static_cast<int>(length()) <= i) return kInvalidData;
+  wxMutexLocker locker(read_mutex_);
+  while (static_cast<int>(read_size_) <= i) {
+    read_cond_.Wait();
+  }
+  return data_.at(i);
+}
+
+
+unsigned int SPUInstrument_New::length() const {
+  return length_;
+}
+
+
+int SPUInstrument_New::loop() const {
+  return loop_;
+}
+
 
 }   // namespace SPU

@@ -179,7 +179,7 @@ public:
   REVERBInfo& Reverb() { return reverb_; }
   const REVERBInfo& Reverb() const { return reverb_; }
 
-  SoundBank& Soundbank() { return sound_bank_; }
+  Soundbank& soundbank() { return soundbank_; }
 
   unsigned char* GetSoundBuffer() const;
 
@@ -232,7 +232,7 @@ public:
   // void AddListener(wxEvtHandler *listener, int ch);
   // void RemoveListener(wxEvtHandler *listener, int ch);
 
-  SamplingTone* GetSamplingTone(uint32_t addr) const;
+  SPUInstrument_New* GetSamplingTone(uint32_t addr) const;
 
   // Processing
   void PutRequest(const SPURequest* req);
@@ -241,9 +241,9 @@ public:
   void NotifyOnUpdateStartAddress(int ch) const;
   void NotifyOnChangeLoopIndex(SPUVoice* pChannel) const;
 
-  void NotifyOnAddTone(const SamplingTone& tone) const;
-  void NotifyOnChangeTone(const SamplingTone& tone) const;
-  void NotifyOnRemoveTone(const SamplingTone& tone) const;
+  void NotifyOnAddTone(const SPUInstrument_New& tone) const;
+  void NotifyOnChangeTone(const SPUInstrument_New& tone) const;
+  void NotifyOnRemoveTone(const SPUInstrument_New& tone) const;
 
   void ReadDMA4Memory(PSX::PSXAddr addr, uint32_t size);
   void WriteDMA4Memory(PSX::PSXAddr addr, uint32_t size);
@@ -293,7 +293,7 @@ public:
 
 private:
 
-  SoundBank sound_bank_;
+  Soundbank soundbank_;
   NeilReverb reverb_;
 
   wxScopedArray<uint8_t> mem8_;

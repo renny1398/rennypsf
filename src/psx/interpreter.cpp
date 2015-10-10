@@ -971,7 +971,7 @@ void InterpreterThread::Shutdown()
 void InterpreterThread::OnExit()
 {
   // interp_.Spu().Close();
-  wxMessageOutputDebug().Printf(wxT("PSX Thread is ended."));
+  wxMessageOutputDebug().Printf(wxT("PSX Thread is ended. (cycle = %d)"), interp_.R3000ARegs().Cycle);
 }
 
 
