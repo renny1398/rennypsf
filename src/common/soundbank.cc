@@ -1,4 +1,5 @@
 #include "common/soundbank.h"
+#include <wx/msgout.h>
 
 
 InstrumentDataIterator::InstrumentDataIterator()
@@ -12,6 +13,8 @@ InstrumentDataIterator::~InstrumentDataIterator() {}
 
 
 bool InstrumentDataIterator::HasNext() const {
+  if (p_inst_ == 0) return false;
+  if (p_inst_->IsMuted()) return false;
   int data = p_inst_ ? p_inst_->at(index_) : Instrument::kInvalidData;
   data_ = data;
   return (data != Instrument::kInvalidData);
@@ -30,7 +33,7 @@ int InstrumentDataIterator::Next() {
     data_ = Instrument::kInvalidData;
   }
   ++i;
-  if (p_inst_->length() <= i && is_loop_) {
+  if (static_cast<int>(p_inst_->length()) <= i && is_loop_) {
     i = p_inst_->loop();
   }
   index_ = i;

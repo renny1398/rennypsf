@@ -1,4 +1,8 @@
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 2.8)
+
+if(APPLE)
+  set(CMAKE_OSX_DEPLOYMENT_TARGET "10.10")
+endif(APPLE)
 
 project(Rennypsf)
 
@@ -10,18 +14,14 @@ SET(CMAKE_C_FLAGS_MINSIZEREL_INIT     "-Os -DNDEBUG")
 SET(CMAKE_C_FLAGS_RELEASE_INIT        "-O4 -DNDEBUG")
 SET(CMAKE_C_FLAGS_RELWITHDEBINFO_INIT "-O2 -g")
 
-SET(CMAKE_CXX_FLAGS_INIT                "-Wall")
+SET(CMAKE_CXX_FLAGS_INIT                "-Wall -Wno-potentially-evaluated-expression")
 SET(CMAKE_CXX_FLAGS_DEBUG_INIT          "-g")
 SET(CMAKE_CXX_FLAGS_MINSIZEREL_INIT     "-Os -DNDEBUG")
 SET(CMAKE_CXX_FLAGS_RELEASE_INIT        "-O4 -DNDEBUG")
 SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO_INIT "-O2 -g")
 
-#SET(CMAKE_C_FLAGS "-O3 -DNDEBUG")
-#SET(CMAKE_CXX_FLAGS "-O3 -DNDEBUG")
-#SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3 -W -Wall -finline-functions -ffast-math -DwxDEBUG_LEVEL=0")
-
-SET(CMAKE_C_FLAGS_DEBUG "-g -W -Wall -Wpotentially-evaluated-expression")
-SET(CMAKE_CXX_FLAGS_DEBUG "-g -W -Wall -Wpotentially-evaluated-expression")
+SET(CMAKE_C_FLAGS_DEBUG "-g -W -Wall -Wno-potentially-evaluated-expression")
+SET(CMAKE_CXX_FLAGS_DEBUG "-g -W -Wall -Wno-potentially-evaluated-expression")
 SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3 -W -Wall -finline-functions -ffast-math -DwxDEBUG_LEVEL=0")
 
 #SET(CMAKE_BUILD_TYPE "Release")
@@ -65,6 +65,11 @@ IF(wxWidgets_FOUND)
     FILE(GLOB CPPFILES src/*.cpp)
     FILE(GLOB CCFILES src/*.cc)
     FILE(GLOB HEADERS include/*.h)
+
+#    FILE(GLOB SNESAPU_SRC src/snesapu/*.cc)
+#    FILE(GLOB SNESAPU_HDR include/snesapu/*.h)
+#    ADD_LIBRARY(snesapu ${SNESAPU_SRC} ${SNESAPU_HDR})
+#    ADD_DEPENDENCIES(snesapu ${SNESAPU_HDR})
 
     FILE(GLOB PSX_SRC_CPP src/psx/*.cpp)
     FILE(GLOB PSX_SRC_CC src/psx/*.cc)

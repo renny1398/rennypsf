@@ -1,7 +1,6 @@
 #ifndef SPU_CHANNEL_H_
 #define SPU_CHANNEL_H_
 
-
 #include <wx/scopedptr.h>
 #include <wx/vector.h>
 
@@ -14,7 +13,23 @@ namespace SPU {
 
 class SPUVoice;
 
-#if 0
+/*!
+ * @class Rate
+ * @brief Rate class for envelope.
+ */
+class Rate {
+public:
+  Rate() : rate_(0) {}
+  ~Rate();
+
+  int32_t Get() const;
+  void Set(int32_t r);
+
+private:
+  int32_t rate_;
+};
+
+
 /*!
  * @class EnvelopeState
  * @brief A base class of envelope state.
@@ -26,14 +41,16 @@ public:
    * \param ch A pointer to ChannelInfo.
    * \return An envelope state.
    */
-  virtual int AdvanceEnvelope(ChannelInfo* ch) const = 0;
+  virtual int Advance(SPUVoice* ch) const = 0;
+
+  static void SetState(SPUVoice* ch, const EnvelopeState* state);
+
 protected:
   //! A default constructor.
   EnvelopeState() {}
   //! A virtual destructor.
   virtual ~EnvelopeState() {}
 };
-#endif
 
 
 class SPUVoiceListener {
@@ -49,62 +66,89 @@ protected:
 };
 
 
+class EnvelopeInfo {
 
-/*
-struct ADSRInfo
-{
-  int            AttackModeExp;
-  long           AttackTime;
-  long           DecayTime;
-  long           SustainLevel;
-  int            SustainModeExp;
-  long           SustainModeDec;
-  long           SustainTime;
-  int            ReleaseModeExp;
-  unsigned long  ReleaseVal;
-  long           ReleaseTime;
-  long           ReleaseStartTime;
-  long           ReleaseVol;
-  long           lTime;
-  long           lVolume; // from -1024 to 1023
-};
-*/
-
-
-enum EnvelopeState {
-  kEnvelopeStateOff,
-  kEnvelopeStateAttack,
-  kEnvelopeStateDecay,
-  kEnvelopeStateSustain,
-  kEnvelopeStateRelease,
-  kEnvelopeStateCount
-};
-
-
-
-class ADSRInfoEx
-{
 public:
-  void Start();
+  EnvelopeInfo();
+  ~EnvelopeInfo();
 
-  EnvelopeState  State;
-  bool           AttackModeExp;
-  int            AttackRate;
-  int            DecayRate;
-  int            SustainLevel;
-  bool           SustainModeExp;
-  int            SustainIncrease;
-  int            SustainRate;
-  bool           ReleaseModeExp;
-  int            ReleaseRate;
+  bool attack_mode_exp() const;
+  char attack_rate() const;
+
+  char decay_rate() const;
+
+  int sustain_level() const;
+  bool sustain_mode_exp() const;
+  int sustain_increase() const;
+  char sustain_rate() const;
+
+  bool release_mode_exp() const;
+  char release_rate() const;
+
+protected:
+  bool attack_mode_exp_;
+  char attack_rate_;            // 0 - 127
+
+  char decay_rate_;             // 64 - 127
+
+  int  sustain_level_;
+  bool sustain_mode_exp_;
+  int sustain_increase_;
+  char sustain_rate_;           // 0 - 127
+
+  bool release_mode_exp_;
+  char release_rate_;           // 0 - 127
+};
+
+
+class EnvelopePassive : public EnvelopeInfo {
+
+public:
+  void set_attack_mode_exp(bool exp);
+  void set_attack_rate(char rate);
+
+  void set_decay_rate(char rate);
+
+  void set_sustain_level(int level);
+  void set_sustain_mode_exp(bool exp);
+  void set_sustain_increase(int inc);
+  void set_sustain_rate(char rate);
+
+  void set_release_mode_exp(bool exp);
+  void set_release_rate(char rate);
+};
+
+
+class EnvelopeActive : public EnvelopeInfo {
+
+public:
+  EnvelopeActive();
+
+  void Set(const EnvelopePassive& passive);
+  void Release();
+  void Stop();
+  int AdvanceEnvelope(SPUVoice* ch);
+
+  bool IsAttack() const;
+  bool IsDecay() const;
+  bool IsSustain() const;
+  bool IsRelease() const;
+  bool IsOff() const;
+
+  int envelope_volume() const;
+  void set_envelope_volume(int vol);
+  long volume() const;
+  void set_volume(long vol);
+
+private:
   int            EnvelopeVol;
   long           lVolume;
-  long           lDummy1;
-  long           lDummy2;
 
-  ADSRInfoEx() : State(kEnvelopeStateOff) {}
+  const EnvelopeState* State;
+
+  friend class EnvelopeState;
+  void set_envelope_state(const EnvelopeState* state);
 };
-
 
 
 
@@ -118,8 +162,8 @@ class SPUVoiceManager;
 class SPUVoice : public ::Sample16 {
 public:
   SPUVoice();   // for vector constructor
+  SPUVoice(const SPUVoice&);
   SPUVoice(SPUBase* pSPU, int ch);
-  SPUVoice(const SPUVoice&);  // for vector construction
 
   void StartSound();
   static void InitADSR();
@@ -138,6 +182,8 @@ private:
   SPUBase* const p_spu_;
 
 public:
+  const int ch;
+
   // for REVERB
   // wxSharedArray<short> lpcm_buffer_l;
   // wxSharedArray<short> lpcm_buffer_r;
@@ -156,7 +202,6 @@ public:
   InstrumentDataIterator itrTone;
   SPUAddr addr;
 
-  int ch;
   // bool            is_muted;
   bool            hasReverb;                            // can we do reverb on this channel? must have ctrl register bit, to get active
   int             iActFreq;                           // current psx pitch
@@ -184,16 +229,17 @@ public:
   int            bFMod;                              // freq mod (0=off, 1=sound channel, 2=freq channel)
   int             iRVBNum;                            // another reverb helper
   int             iOldNoise;                          // old noise val for this channel
-  // ADSRInfo        ADSR;                               // active ADSR settings
-  ADSRInfoEx      ADSRX;                              // next ADSR settings (will be moved to active on sample start)
+  EnvelopeActive        ADSR;                               // active ADSR settings
+  EnvelopePassive      ADSRX;                              // next ADSR settings (will be moved to active on sample start)
 
   bool IsOn() const {
     // wxMutexLocker locker(on_mutex_);
     return is_on_;
   }
 
-  void On();
-  void Off();
+  void VoiceOn();
+  void VoiceOff();
+  void VoiceOffAndStop();
 
   void NotifyOnNoteOn() const;
   void NotifyOnNoteOff() const;

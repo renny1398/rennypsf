@@ -145,6 +145,9 @@ void InterpolationBase::Start() {}
 
 void InterpolationBase::SetSinc(uint32_t pitch)
 {
+  if (pitch >= 0x5000) {
+    wxMessageOutputDebug().Printf(wxT("Warning: the pitch '0x04x' is too large."), pitch);
+  }
   sinc = (pitch << 4);
   if (sinc == 0) sinc = 1;
 }

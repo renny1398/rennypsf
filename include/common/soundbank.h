@@ -63,12 +63,17 @@ class SoundbankObserver {
 
 class Soundbank {
  public:
+  WX_DECLARE_HASH_MAP(int, Instrument*, wxIntegerHash, wxIntegerEqual, InstrumentMap);
+
   Soundbank();
   ~Soundbank();
 
   const Instrument& instrument(int id) const;
   Instrument& instrument(int id);
   void set_instrument(Instrument*);
+
+  InstrumentMap::iterator begin() { return insts_.begin(); }
+  InstrumentMap::iterator end() { return insts_.end(); }
 
   void Clear();
 
@@ -78,7 +83,6 @@ class Soundbank {
   void NotifyObserver(int id);
 
  private:
-  WX_DECLARE_HASH_MAP(int, Instrument*, wxIntegerHash, wxIntegerEqual, InstrumentMap);
   InstrumentMap insts_;
   SoundbankObserver* observer_;
 };

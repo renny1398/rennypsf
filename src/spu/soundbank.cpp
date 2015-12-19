@@ -656,13 +656,13 @@ wxThread::ExitCode PCM_Converter::Entry() {
   wxMutex& read_mutex = p_inst_->read_mutex_;
   wxCondition& read_cond = p_inst_->read_cond_;
 
-  wxMessageOutputDebug().Printf(wxT("Read instrument data. (addr = %d, ext_loop_addr = %d)"),
-                                addr, ext_loop_addr);
+  // wxMessageOutputDebug().Printf(wxT("Read instrument data. (addr = %d, ext_loop_addr = %d, p_adpcm = %p)"),
+  //                               addr, ext_loop_addr, p_adpcm);
 
   while (TestDestroy() == false) {
 
     if (read_size >= p_inst_->length_) {
-      wxMessageOutputDebug().Printf(wxT("Warning: memory is over."));
+      wxMessageOutputDebug().Printf(wxT("Warning: memory is over. (id = %d)"), p_inst_->id());
       break;
     }
 
@@ -698,49 +698,40 @@ wxThread::ExitCode PCM_Converter::Entry() {
     read_cond.Broadcast();
     read_mutex.Unlock();
 
-    if ( (flags & 4) == 0 ) continue;
-
+    if ( flags & 4 ) continue;
     if ( flags & 1 ) {
       if (ext_loop_addr < addr && 0 < p_curr_adpcm - p_adpcm) {
         if (read_size >= p_inst_->length_) break;
         p_curr_adpcm = p_spu_buffer + ext_loop_addr;
       } else {
-        // the end of this tone
-        /*
-        if (addr <= ext_loop_addr && ext_loop_addr < 0x80000000) {
-        }
-        if (flags != 3) {
-          // forcesStop_ = true;
-        }
-        */
         break;
       }
     }
-
-
   }
   return 0;
 }
 
 
-void PCM_Converter::OnExit() {
-  wxMessageOutputDebug().Printf(wxT("Created instrument data. (id = %d, read_size = %d)"),
+void PCM_Converter::OnExit() {  
+/*
+  wxMessageOutputDebug().Printf(wxT("Finished creating instrument data. (id = %d, read_size = %d)"),
                                 p_inst_->id(), p_inst_->read_size_);
+*/
 }
 
 
 
-void SPUInstrument_New::MeasureLength(const SPUBase& spu) {
+void SPUInstrument_New::MeasureLength() {
 
   const SPUAddr addr = addr_;
   const SPUAddr ext_loop_addr = external_loop_addr_;
 
   unsigned int len = 0;
-  const uint8_t* const p_adpcm = spu.GetSoundBuffer() + addr;
+  const uint8_t* const p_adpcm = spu_.GetSoundBuffer() + addr;
   const uint8_t* p_curr_adpcm = p_adpcm;
 
-  wxMessageOutputDebug().Printf(wxT("Measure instrument data length. (addr = %d, ext_loop_addr = %d)"),
-                                addr, ext_loop_addr);
+  // wxMessageOutputDebug().Printf(wxT("Measure instrument data length. (id = %d, addr = %d, ext_loop_addr = %d, p_adpcm = %p)"),
+  //                              id(), addr, ext_loop_addr, p_adpcm);
 
   do {
     int flags = *(p_curr_adpcm + 1);
@@ -752,8 +743,8 @@ void SPUInstrument_New::MeasureLength(const SPUBase& spu) {
       if (ext_loop_addr < addr && 0 < p_curr_adpcm - p_adpcm) {
         if (0 < loop_) break;
         loop_ = len;
-        p_curr_adpcm = spu.GetSoundBuffer() + ext_loop_addr;
-        wxMessageOutputDebug().Printf(wxT("ext = %d, addr = %d"), ext_loop_addr, addr);
+        p_curr_adpcm = spu_.GetSoundBuffer() + ext_loop_addr;
+        // wxMessageOutputDebug().Printf(wxT("ext = %d, addr = %d"), ext_loop_addr, addr);
       } else {
         if (addr <= ext_loop_addr && ext_loop_addr < 0x80000000) {
           loop_ = (ext_loop_addr - addr) * 28 / 16;
@@ -764,45 +755,55 @@ void SPUInstrument_New::MeasureLength(const SPUBase& spu) {
         break;
       }
     }
-    if (spu.GetSoundBuffer() + spu.kMemorySize <= p_curr_adpcm) {
-      wxMessageOutputDebug().Printf(wxT("Warning: invalid instrument data."));
+    if (spu_.GetSoundBuffer() + spu_.kMemorySize <= p_curr_adpcm) {
+      // wxMessageOutputDebug().Printf(wxT("Warning: invalid instrument data."));
       length_ = 0;
       return;
     }
   } while (true);
 
-
-  wxMessageOutputDebug().Printf(wxT("length : %d, loop : %d"), len, loop_);
-
   length_ = len;
 }
 
 
-SPUInstrument_New::SPUInstrument_New(const SPUBase& spu, SPUAddr addr, SPUAddr loop)
-  : addr_(addr), data_(0), length_(0), loop_(-1), external_loop_addr_(loop),
-    read_size_(0), thread_(0), read_mutex_(), read_cond_(read_mutex_) {
-
-  MeasureLength(spu);
+void SPUInstrument_New::Init() {
+  MeasureLength();
   data_.reserve(length_);
-  thread_ = new PCM_Converter(this, spu.GetSoundBuffer() + addr);
+  thread_ = new PCM_Converter(this, spu_.GetSoundBuffer() + addr_);
   thread_->Create();
   thread_->Run();
 }
 
 
-SPUInstrument_New::~SPUInstrument_New() {
+void SPUInstrument_New::Reset() {
   if (thread_) {
     if (thread_->IsRunning()) {
       thread_->Wait();
     }
-    delete [] thread_;
+    delete thread_;
     thread_ = 0;
   }
+  read_size_ = 0;
+  data_.clear();
+  length_ = 0;
+  loop_ = -1;
+}
+
+
+SPUInstrument_New::SPUInstrument_New(const SPUBase& spu, SPUAddr addr, SPUAddr loop)
+  : spu_(spu), addr_(addr), data_(0), length_(0), loop_(-1), external_loop_addr_(loop),
+    read_size_(0), thread_(0), read_mutex_(), read_cond_(read_mutex_) {
+  Init();
+}
+
+
+SPUInstrument_New::~SPUInstrument_New() {
+  Reset();
 }
 
 
 int SPUInstrument_New::id() const {
-  return addr_ >> 4;
+  return CalculateId(addr_, external_loop_addr_);
 }
 
 
@@ -825,5 +826,27 @@ int SPUInstrument_New::loop() const {
   return loop_;
 }
 
+
+SPUAddr SPUInstrument_New::addr() const {
+  return addr_;
+}
+
+
+SPUAddr SPUInstrument_New::external_loop() const {
+  return external_loop_addr_;
+}
+
+
+void SPUInstrument_New::set_external_loop(SPUAddr addr) {
+  if (addr == external_loop_addr_) return;
+  external_loop_addr_ = addr;
+  Reset();
+  Init();
+}
+
+
+int SPUInstrument_New::CalculateId(SPUAddr addr, SPUAddr external_loop) {
+  return ((addr >> 4) << 17) + external_loop;
+}
 
 }   // namespace SPU

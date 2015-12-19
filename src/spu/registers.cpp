@@ -84,10 +84,11 @@ uint16_t read1xx6(const SPUVoice& channelInfo)
 uint16_t read1xx8(const SPUVoice& channelInfo)
 {
   uint16_t ret = 0;
-  if (channelInfo.ADSRX.AttackModeExp) ret |= 0x8000;
-  ret |= (channelInfo.ADSRX.AttackRate^0x7f) << 8;
-  ret |= ( ((channelInfo.ADSRX.DecayRate>>2)^0x1f) & 0xf ) << 4;
-  ret |= (channelInfo.ADSRX.SustainLevel >> 27) & 0xf;
+  const EnvelopePassive& adsr = channelInfo.ADSRX;
+  if (adsr.attack_mode_exp()) ret |= 0x8000;
+  ret |= (adsr.attack_rate()^0x7f) << 8;
+  ret |= ( ((adsr.decay_rate()>>2)^0x1f) & 0xf ) << 4;
+  ret |= (adsr.sustain_level() >> 27) & 0xf;
   return ret;
 }
 
@@ -95,20 +96,21 @@ uint16_t read1xx8(const SPUVoice& channelInfo)
 uint16_t read1xxa(const SPUVoice& channelInfo)
 {
   uint16_t ret = 0;
-  if (channelInfo.ADSRX.SustainModeExp) ret |= 0x8000;
-  if (!channelInfo.ADSRX.SustainIncrease) ret |= 0x4000;
-  ret |= (channelInfo.ADSRX.SustainRate^0x7f) << 6;
-  if (channelInfo.ADSRX.ReleaseModeExp) ret |= 0x0020;
-  ret |= (channelInfo.ADSRX.ReleaseRate>>2)^0x1f;
+  const EnvelopePassive& adsr = channelInfo.ADSRX;
+  if (adsr.sustain_mode_exp()) ret |= 0x8000;
+  if (!adsr.sustain_increase()) ret |= 0x4000;
+  ret |= (adsr.sustain_rate()^0x7f) << 6;
+  if (adsr.release_mode_exp()) ret |= 0x0020;
+  ret |= (adsr.release_rate()>>2)^0x1f;
   return ret;
 }
 
 // Get current ADSR volume
 uint16_t read1xxc(const SPUVoice& channelInfo)
 {
-  // if (channelInfo.bNew) return 1;
-  if (channelInfo.ADSRX.lVolume && !channelInfo.ADSRX.EnvelopeVol) return 1;
-  return channelInfo.ADSRX.EnvelopeVol >> 16;
+  const EnvelopeActive& adsr = channelInfo.ADSR;
+  if (adsr.volume() > 0L && adsr.envelope_volume() == 0) return 1;
+  return adsr.envelope_volume() >> 16;
 }
 
 // Get repeat address
@@ -354,7 +356,11 @@ void write1xx6(SPUVoice& channelInfo, uint16_t val)
   }
   channelInfo.tone = spu_inst;
 */
-  channelInfo.addr = static_cast<int>(val) << 3;
+  SPUAddr addr = static_cast<SPUAddr>(val) << 3;
+  if (channelInfo.IsOn() == true) {
+    wxMessageOutputDebug().Printf(wxT("Warning(set start address): channel %d is on."), channelInfo.ch);
+  }
+  channelInfo.addr = addr;
 
   // Spu.NotifyOnUpdateStartAddress(channelInfo.ch);
 }
@@ -362,22 +368,22 @@ void write1xx6(SPUVoice& channelInfo, uint16_t val)
 // Set ADS level
 void write1xx8(SPUVoice& channelInfo, uint16_t val)
 {
-  ADSRInfoEx& adsrx = channelInfo.ADSRX;
-  adsrx.AttackModeExp = ( (val & 0x8000) != 0 );
-  adsrx.AttackRate = ((val>>8) & 0x007f)^0x7f;
-  adsrx.DecayRate = 4*( ((val>>4) & 0x000f)^0x1f );
-  adsrx.SustainLevel = (val & 0x000f) << 27;
+  EnvelopePassive& adsr = channelInfo.ADSRX;
+  adsr.set_attack_mode_exp( (val & 0x8000) != 0 );
+  adsr.set_attack_rate( ((val>>8) & 0x007f)^0x7f );
+  adsr.set_decay_rate( 4 * ( ((val>>4) & 0x000f)^0x1f ) );
+  adsr.set_sustain_level((val & 0x000f) << 27);
 }
 
 // Set Sustain rate & Release rate
 void write1xxa(SPUVoice& channelInfo, uint16_t val)
 {
-  ADSRInfoEx& adsrx = channelInfo.ADSRX;
-  adsrx.SustainModeExp = ( (val & 0x8000) != 0 );
-  adsrx.SustainIncrease = ( (val & 0x4000) == 0 );
-  adsrx.SustainRate = ((val>>6) & 0x007f)^0x7f;
-  adsrx.ReleaseModeExp = ( (val & 0x0020) != 0 );
-  adsrx.ReleaseRate = 4*((val & 0x001f)^0x1f);
+  EnvelopePassive& adsr = channelInfo.ADSRX;
+  adsr.set_sustain_mode_exp( (val & 0x8000) != 0 );
+  adsr.set_sustain_increase( (val & 0x4000) == 0 );
+  adsr.set_sustain_rate( ((val>>6) & 0x007f)^0x7f );
+  adsr.set_release_mode_exp( (val & 0x0020) != 0 );
+  adsr.set_release_rate( 4 * ((val & 0x001f)^0x1f) );
 }
 
 // Set current ADSR volume = NOP
@@ -387,10 +393,13 @@ void (*const write1xxc)(SPUVoice&, uint16_t) = writeChannelNOP;
 void write1xxe(SPUVoice& channelInfo, uint16_t val)
 {
   // channelInfo.pLoop = Spu.GetSoundBuffer() + (static_cast<uint32_t>(val) << 3);
-  channelInfo.addrExternalLoop = static_cast<uint32_t>(val) << 3;
+  SPUAddr addr = static_cast<SPUAddr>(val) << 3;
+  if (channelInfo.IsOn() == true) {
+    wxMessageOutputDebug().Printf(wxT("Warning(set repeat address): channel %d is on."), channelInfo.ch);
+  }
+  channelInfo.addrExternalLoop = addr;
   channelInfo.useExternalLoop = true;
-  if (channelInfo.addrExternalLoop >= 0x80000000) return;
-  // wxMessageOutputDebug().Printf(wxT("SPU: set repeat address. (value = %d)"), val);
+  if (addr >= 0x80000000) return;
 /*
   if (channelInfo.tone) {
     // SPUAddr prev_addr = channelInfo.tone->GetExternalLoopAddr();

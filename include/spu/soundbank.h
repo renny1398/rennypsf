@@ -236,12 +236,20 @@ public:
   unsigned int length() const;
   int loop() const;
 
-  SPUAddr addr() const { return addr_; }
+  SPUAddr addr() const;
+  SPUAddr external_loop() const;
+  void set_external_loop(SPUAddr addr);
+
+  static int CalculateId(SPUAddr addr, SPUAddr external_loop);
 
 protected:
-  void MeasureLength(const SPUBase&);
+  void Init();
+  void Reset();
+  void MeasureLength();
 
 private:
+  const SPUBase& spu_;
+
   SPUAddr addr_;
   wxVector<int> data_;
   unsigned int length_;

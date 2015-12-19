@@ -63,6 +63,11 @@ void SPUStepRequest::Execute(SPUBase* p_spu) const {
 
 
 const SPURequest* SPUNoteOnRequest::CreateRequest(int ch) {
+  if (24 <= ch) {
+    wxMessageOutputDebug().Printf(wxT("Warning: invalid channel number %d."), ch);
+    return NULL;
+  }
+
   static RequestMap pool(1);
   RequestMap::const_iterator itr = pool.find(ch);
   if (itr == pool.end()) {
@@ -265,8 +270,8 @@ void SPUBase::SetupStreams()
   reverb_.Reset();
 
   for (int i = 0; i < 24; i++) {
-    SPUVoice ch = Voice(i);
-    ch.ADSRX.SustainLevel = 0xf << 27;
+    SPUVoice& ch = Voice(i);
+    // ch.ADSRX.SustainLevel = 0xf << 27;
     // Channels[i].iIrqDone = 0;
     ch.tone = 0;
     ch.itrTone = InstrumentDataIterator();

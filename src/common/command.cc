@@ -7,6 +7,7 @@
 
 #include "Sound.h"
 #include "app.h"
+#include "common/soundbank.h"
 
 namespace {
 
@@ -113,6 +114,90 @@ public:
   }
 };
 
+
+class ShowSoundbank : public Command {
+public:
+  ShowSoundbank(const std::string& p) : Command(p) {}
+
+  bool Execute() {
+    wxSharedPtr<SoundFormat> sf = wxGetApp().GetPlayingSound();
+    if (sf == 0) {
+      std::cout << "No playing sound." << std::endl;
+      return false;
+    }
+    Soundbank& sb = sf->soundbank();
+
+    std::cout << "  id   | length | loop   " << std::endl;
+    std::cout << "-------|--------|--------" << std::endl;
+
+    for (Soundbank::InstrumentMap::iterator itr = sb.begin(); itr != sb.end(); ++itr) {
+      const int id = itr->first;
+      const unsigned int length = itr->second->length();
+      const int loop = itr->second->loop();
+      std::printf(" %5d | %6d | %6d \n", id, length, loop);
+    }
+    return true;
+  }
+};
+
+
+class MuteInstrument : public Command {
+public:
+  MuteInstrument(const std::string& p) : Command(p) {}
+
+  bool Execute() {
+    const std::string& str_id = params().at(0);
+    if (str_id.empty()) return false;
+    wxSharedPtr<SoundFormat> sf = wxGetApp().GetPlayingSound();
+    if (sf == 0) {
+      std::cout << "No playing sound." << std::endl;
+      return false;
+    }
+    Soundbank& sb = sf->soundbank();
+    int id = std::stoi(str_id);
+    Instrument& inst = sb.instrument(id);
+    if (inst.length() == 0) {
+      std::cout << "'" << id << "' is invalid instrument id." << std::endl;
+      return false;
+    }
+    bool is_muted = inst.IsMuted();
+    if (is_muted) {
+      inst.Unmute();
+      std::cout << "Unmuted ";
+    } else {
+      inst.Mute();
+      std::cout << "Muted ";
+    }
+    std::cout << "instrument '" << id << "'." << std::endl;
+    return true;
+  }
+};
+
+
+class MuteChannel : public Command {
+public:
+  MuteChannel(const std::string& p) : Command(p) {}
+
+  bool Execute() {
+    const std::string& str_ch = params().at(0);
+    if (str_ch.empty()) return false;
+    wxSharedPtr<SoundFormat> sf = wxGetApp().GetPlayingSound();
+    if (sf == 0) {
+      std::cout << "No playing sound." << std::endl;
+      return false;
+    }
+    int ch = std::stoi(str_ch);
+    Sample& sample = sf->Ch(ch);
+    if (sample.IsMuted()) {
+      sample.Unmute();
+    } else {
+      sample.Mute();
+    }
+    return true;
+  }
+};
+
+
 /*
 class ExitCommand : public Command {
 public:
@@ -148,6 +233,15 @@ Command* CommandFactory::CreateCommand(const std::string &line) {
   }
   if (cmd == "set-volume") {
     return new SetVolumeCommand(params);
+  }
+  if (cmd == "show-soundbank") {
+    return new ShowSoundbank(params);
+  }
+  if (cmd == "mute-inst") {
+    return new MuteInstrument(params);
+  }
+  if (cmd == "mute-channel") {
+      return new MuteChannel(params);
   }
   if (cmd == "exit") {
     return NULL;

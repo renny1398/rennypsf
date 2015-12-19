@@ -15,14 +15,13 @@ inline int32_t CLIP(int32_t x) {
 namespace SPU {
 
 
-SPUVoice::SPUVoice() : p_spu_(NULL), iUsedFreq(0), iRawPitch(0) {}
+SPUVoice::SPUVoice() : p_spu_(NULL), ch(0xffffffff), iUsedFreq(0), iRawPitch(0) {}
 
 
 SPUVoice::SPUVoice(SPUBase *pSPU, int ch) :
-  p_spu_(pSPU),
+  p_spu_(pSPU), ch(ch),
   lpcm_buffer_l(pSPU->NSSIZE), lpcm_buffer_r(pSPU->NSSIZE),
   pInterpolation(new GaussianInterpolation) {
-  this->ch = ch;
   tone = NULL;
   is_on_ = false;
   is_ready = false;
@@ -30,7 +29,7 @@ SPUVoice::SPUVoice(SPUBase *pSPU, int ch) :
 
 
 SPUVoice::SPUVoice(const SPUVoice &info)
-  : ::Sample16(), p_spu_(info.p_spu_),
+  : ::Sample16(), p_spu_(info.p_spu_), ch(info.ch),
     lpcm_buffer_l(p_spu_->NSSIZE), lpcm_buffer_r(p_spu_->NSSIZE),
     pInterpolation(new GaussianInterpolation) {
   tone = NULL;
@@ -98,18 +97,16 @@ void SPUVoice::NotifyOnChangeVelocity() const {
 
 void SPUVoice::StartSound()
 {
-  // wxMutexLocker locker(on_mutex_);
-
-  On();
-  p_spu_->Reverb().StartReverb(this);
+  // TODO: Mutex Lock
 
   SPUInstrument_New* p_inst = tone;
-  if (p_inst == 0 || addr != p_inst->addr()) {
-    p_inst = dynamic_cast<SPUInstrument_New*>(&Spu().soundbank().instrument(addr >> 4));
+  if (p_inst == 0 || addr != p_inst->addr() || 0x80000000 <= addr) {
+    p_inst = dynamic_cast<SPUInstrument_New*>(&Spu().soundbank().instrument(SPUInstrument_New::CalculateId(addr, useExternalLoop ? addrExternalLoop : 0xffffffff)));
     if (p_inst == 0) {
-    p_inst = new SPUInstrument_New(Spu(), addr, useExternalLoop ? addrExternalLoop : 0xffffffff);
-    Spu().soundbank().set_instrument(p_inst);
-    wxMessageOutputDebug().Printf(wxT("Created a new instrument. (id = %d)"), p_inst->id());
+      p_inst = new SPUInstrument_New(Spu(), addr, useExternalLoop ? addrExternalLoop : 0xffffffff);
+      Spu().soundbank().set_instrument(p_inst);
+      wxMessageOutputDebug().Printf(wxT("Created a new instrument. (id = %d, length = %d, loop = %d)"),
+                                    p_inst->id(), p_inst->length(), p_inst->loop());
     }
     tone = p_inst;
   }
@@ -119,8 +116,15 @@ void SPUVoice::StartSound()
 
   useExternalLoop = false;
 
+  VoiceOn();
+  p_spu_->Reverb().StartReverb(this);
+
   // Spu().ChangeProcessState(SPU::STATE_NOTE_ON, ch);
   const SPURequest* req = SPUNoteOnRequest::CreateRequest(ch);
+  if (req == 0) {
+    VoiceOffAndStop();
+    return;
+  }
   p_spu_->PutRequest(req);
 
   NotifyOnNoteOn();
@@ -145,7 +149,9 @@ void SPUVoice::Step()
   is_ready = true;
 
   if (IsMuted()) return;
-  if (IsOn() == false && ADSRX.State != kEnvelopeStateRelease) return;
+  if (ADSR.IsOff()) {
+    return;
+  }
 
   if (iActFreq != iUsedFreq) {
     VoiceChangeFrequency();
@@ -154,11 +160,7 @@ void SPUVoice::Step()
   int fa;
   while (pInterpolation->spos >= 0x10000) {
     if (itrTone.HasNext() == false) {
-      Off();
-      ADSRX.State = kEnvelopeStateOff;
-      ADSRX.lVolume = 0;
-      ADSRX.EnvelopeVol = 0;
-      set_envelope(0);
+      VoiceOffAndStop();
       return;
     }
     fa = itrTone.Next();
@@ -178,7 +180,7 @@ void SPUVoice::Step()
   }
 
   // sval = (MixADSR() * fa) / 1023;
-  int prev_envvol = ADSRX.EnvelopeVol;
+  int prev_envvol = ADSR.envelope_volume();
   int curr_envvol = AdvanceEnvelope();
   sval = (curr_envvol * fa) / 1023;
   if (prev_envvol != curr_envvol) {
@@ -203,7 +205,7 @@ void SPUVoice::Step()
       CLIP(left);  CLIP(right);
 */
 
-    set_envelope(ADSRX.EnvelopeVol);
+    set_envelope(ADSR.envelope_volume());
     Set16(sval);
     set_volume(iLeftVolume, iRightVolume);
     set_volume_max(0x4000);
@@ -213,13 +215,17 @@ void SPUVoice::Step()
 }
 
 
-SPUVoiceManager::SPUVoiceManager() : pSPU_(NULL) {}
+SPUVoiceManager::SPUVoiceManager() : pSPU_(NULL), channelNumber_(0) {}
 
 
 SPUVoiceManager::SPUVoiceManager(SPUBase *pSPU, int channelNumber)
-  : pSPU_(pSPU), channels_(channelNumber, SPUVoice(pSPU, channelNumber)), channelNumber_(channelNumber)
+  : pSPU_(pSPU), channels_(channelNumber, SPUVoice()), channelNumber_(channelNumber)
 {
   wxASSERT(pSPU != NULL);
+  for (int i = 0; i < channelNumber; i++) {
+    SPUVoice* p_voice = &channels_.at(i);
+    new(p_voice) SPUVoice(pSPU, i);
+  }
 }
 
 
@@ -245,7 +251,7 @@ void SPUVoiceManager::VoiceOff(uint32_t flags, int start)
   for (int i = start; flags != 0; i++, flags >>= 1) {
     if ((flags & 1) == 0) continue;
     SPUVoice& ch = channels_.at(i);
-    ch.Off();
+    ch.VoiceOff();
 
     // pSPU_->ChangeProcessState(SPUBase::STATE_NOTE_OFF, i);
     const SPURequest* req = SPUNoteOffRequest::CreateRequest(i);
