@@ -52,9 +52,29 @@ void SPUStepRequest::Execute(SPUBase* p_spu) const {
   int step = step_count_;
   while (step--) {
     const int core_count = p_spu->core_count();
+    REVERBInfo& rvb = p_spu->Reverb();
     for (int i = 0; i < core_count; i++) {
       SPUCore& core = p_spu->core(i);
       core.Step();
+
+      // rvb.ClearReverb();
+      for (unsigned int j = 0; j < 24; j++) {
+        SPUVoice& ch = core.Voice(j);
+        if (ch.bRVBActive == true) {
+          rvb.StoreReverb(ch);
+        }
+      }
+      rvb.Mix();
+
+      SPUVoiceManager& ch_mgr = core.Voices();
+      SPUVoice& rvb_left = ch_mgr.At(24);
+      SPUVoice& rvb_right = ch_mgr.At(25);
+      rvb_left.Set16(rvb.GetLeft());
+      rvb_left.set_volume_max(0x4000);
+      rvb_left.set_volume(0x4000, 0);
+      rvb_right.Set16(rvb.GetRight());
+      rvb_right.set_volume_max(0x4000);
+      rvb_right.set_volume(0, 0x4000);
     }
     p_spu->NotifyObservers();
     p_spu->ResetStepStatus();
@@ -139,8 +159,8 @@ SPUBase::SPUBase(PSX::Composite* composite)
   cores_.assign(1, SPUCore(this));
   // new(&cores_[0]) SPUCore(this);
 
-  mem8_.reset(new uint8_t[0x100000 * 2]);  // 1MB or 2MB
-  ::memset(mem8_.get(), 0, 0x100000 * 2);
+  mem8_.reset(new uint8_t[0x100000 * cores_.size()]);  // 1MB or 2MB
+  ::memset(mem8_.get(), 0, 0x100000 * cores_.size());
   p_mem16_ = (uint16_t*)mem8_.get();
 
   Init();
@@ -264,7 +284,9 @@ void SPUBase::NotifyOnRemoveTone(const SPUInstrument_New & /*tone*/) const {
 
 void SPUBase::SetupStreams()
 {
-  m_pSpuBuffer = new uint8_t[32768];
+  // m_pSpuBuffer = new uint8_t[32768];
+
+  ::memset(mem8_.get(), 0, 0x100000 * cores_.size());
 
   soundbank_.Clear();
   reverb_.Reset();
@@ -275,13 +297,16 @@ void SPUBase::SetupStreams()
     // Channels[i].iIrqDone = 0;
     ch.tone = 0;
     ch.itrTone = InstrumentDataIterator();
+    ch.Set16(0);
+    ch.hasReverb = false;
+    ch.bRVBActive = false;
   }
 }
 
 void SPUBase::RemoveStreams()
 {
-  delete [] m_pSpuBuffer;
-  m_pSpuBuffer = 0;
+  // delete [] m_pSpuBuffer;
+  // m_pSpuBuffer = 0;
 }
 
 
@@ -358,21 +383,7 @@ void SPUThread::OnExit() {
 
 void SPUBase::Init()
 {
-  // m_iXAPitch = 1;
-  // m_iUseTimer = 2;
-  // m_iDebugMode = 0;
-  // m_iRecordMode = 0;
   useInterpolation = GAUSS_INTERPOLATION;
-  // m_iDisStereo = 0;
-  // m_iUseDBufIrq = 0;
-
-/*
-  process_mutex_ = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
-  wait_start_mutex_ = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
-  process_cond_ = (pthread_cond_t)PTHREAD_COND_INITIALIZER;
-  dma_writable_mutex_ = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
-*/
-  //::memset(&Channels, 0, sizeof(Channels));
   SPUVoice::InitADSR();
 
   thread_ = 0;
@@ -382,27 +393,19 @@ void SPUBase::Init()
 
 void SPUBase::Open()
 {
-  // m_iUseXA = 1;
-  // m_iVolume = 3;
   reverb_.iReverbOff = -1;
-  // spuIrq = 0;
   core(0).addr_ = 0xffffffff;
   m_pMixIrq = 0;
-
-  // pSpuIrq = 0;
-  // m_iSPUIRQWait = 1;
 
   ns = 0;
 
   SetupStreams();
 
   poo = 0;
-  // m_pS = (short*)m_pSpuBuffer;
 
   if (thread_ == 0) {
     thread_ = new SPUThread(this);
     thread_->Create();
-    // process_state_ = STATE_NONE;
     thread_->Run();
   }
 

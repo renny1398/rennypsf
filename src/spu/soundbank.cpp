@@ -14,7 +14,7 @@ wxDEFINE_EVENT(wxEVENT_SPU_REMOVE_TONE, wxCommandEvent);
 
 namespace SPU {
 
-
+#if 0
 SPUInstrument::SPUInstrument(SoundBank *soundbank, uint8_t *pADPCM) :
   soundbank_(*soundbank), pADPCM_(pADPCM), loop_offset_(0xffffffff), forcesStop_(false),
   processedBlockNumber_(0), freq_(0.0), begin_(this), prev1_(0), prev2_(0)
@@ -473,6 +473,7 @@ void* FourierTransformer::mainLoop(void *param)
   return 0;
 }
 
+#endif
 
 SoundBank::SoundBank(SPUBase *pSPU) : pSPU_(pSPU)
 {
@@ -486,15 +487,15 @@ SoundBank::~SoundBank() {
 
 
 void SoundBank::Init() {
-  wxEvtHandler::Bind(wxEVT_MUTE_TONE, &SoundBank::OnMuteTone, this);
-  wxEvtHandler::Bind(wxEVT_UNMUTE_TONE, &SoundBank::OnUnmuteTone, this);
+  // wxEvtHandler::Bind(wxEVT_MUTE_TONE, &SoundBank::OnMuteTone, this);
+  // wxEvtHandler::Bind(wxEVT_UNMUTE_TONE, &SoundBank::OnUnmuteTone, this);
 }
 
 void SoundBank::Shutdown() {
-  tones_.clear();
+  // tones_.clear();
 }
 
-
+#if 0
 void SoundBank::NotifyOnAdd(SPUInstrument *tone) const
 {
   /*
@@ -539,8 +540,9 @@ void SoundBank::NotifyOnRemove(SPUInstrument *tone) const
 */
   // GetSPU()->NotifyOnRemoveTone(*tone);
 }
+#endif
 
-
+#if 0
 SPUInstrument* SoundBank::GetSamplingTone(uint32_t addr) const {
   SamplingToneMap::Iterator it = tones_.find(addr);
   if (it != tones_.end()) {
@@ -560,11 +562,12 @@ SPUInstrument* SoundBank::GetSamplingTone(uint32_t addr)
   NotifyOnAdd(tone);
   return tone;
 }
-
+#endif
 
 
 void SoundBank::Reset()
 {
+  /*
   while (tones_.empty() == false) {
     uint32_t offset = (tones_.begin()).m_node->m_value.first;
     SPUInstrument* tone = (tones_.begin()).m_node->m_value.second;
@@ -572,6 +575,7 @@ void SoundBank::Reset()
     tones_.erase(offset);
     delete tone;
   }
+  */
   wxMessageOutputDebug().Printf(wxT("Reset Soundbank."));
 }
 
@@ -581,7 +585,7 @@ SPUBase* SoundBank::GetSPU() const
   return pSPU_;
 }
 
-
+#if 0
 bool SoundBank::ContainsAddr(uint32_t addr) const
 {
   return (tones_.find(addr) != tones_.end());
@@ -592,7 +596,7 @@ void SoundBank::FourierTransform(SPUInstrument *tone)
 {
   fft_.PostTransform(tone, GetSPU()->GetDefaultSamplingRate());
 }
-
+#endif
 
 void SoundBank::AddListener(wxEvtHandler* listener)
 {
@@ -604,7 +608,7 @@ void SoundBank::RemoveListener(wxEvtHandler* listener)
   listeners_.erase(listener);
 }
 
-
+#if 0
 void SoundBank::OnMuteTone(wxCommandEvent& event) {
   const int id = event.GetInt();
   SPUInstrument* const tone = static_cast<const SoundBank*>(this)->GetSamplingTone(id);
@@ -618,8 +622,7 @@ void SoundBank::OnUnmuteTone(wxCommandEvent& event) {
   if (tone == NULL) return;
   tone->Unmute();
 }
-
-
+#endif
 
 ////////////////////////////////////////////////////////////////////////
 // New Soundbank and Instrument

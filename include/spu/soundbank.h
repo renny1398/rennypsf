@@ -169,34 +169,34 @@ public:
   void Shutdown();
 
   // const SamplineTone* GetSamplingTone(uint8_t* pADPCM) const;
-  SPUInstrument* GetSamplingTone(uint32_t addr) const;
-  SPUInstrument* GetSamplingTone(uint32_t addr);
+  // SPUInstrument* GetSamplingTone(uint32_t addr) const;
+  // SPUInstrument* GetSamplingTone(uint32_t addr);
 
 
   SPUBase* GetSPU() const;
   bool ContainsAddr(uint32_t addr) const;
 
-  void FourierTransform(SPUInstrument* tone);
+  // void FourierTransform(SPUInstrument* tone);
 
   void AddListener(wxEvtHandler* listener);
   void RemoveListener(wxEvtHandler* listener);
 
-  void NotifyOnAdd(SPUInstrument* tone) const;
-  void NotifyOnModify(SPUInstrument* tone) const;
-  void NotifyOnRemove(SPUInstrument* tone) const;
+  // void NotifyOnAdd(SPUInstrument* tone) const;
+  // void NotifyOnModify(SPUInstrument* tone) const;
+  // void NotifyOnRemove(SPUInstrument* tone) const;
 
 protected:
-  void OnMuteTone(wxCommandEvent& event);
-  void OnUnmuteTone(wxCommandEvent& event);
+  // void OnMuteTone(wxCommandEvent& event);
+  // void OnUnmuteTone(wxCommandEvent& event);
 
 private:
   SPUBase* pSPU_;
 
-  mutable SamplingToneMap tones_;
+  // mutable SamplingToneMap tones_;
 
   // wxThread *thread;
   // int* fftBuffer_;
-  FourierTransformer fft_;
+  // FourierTransformer fft_;
 
   std::set<wxEvtHandler*> listeners_;
 };

@@ -19,6 +19,7 @@ public:
     void InitReverb();
     void Reset();
     virtual void DoReset() {}
+    void ClearReverb();
 
     void SetReverb(unsigned short value);
     virtual void StartReverb(SPUVoice* ch) = 0;
@@ -114,20 +115,6 @@ inline void REVERBInfo::SetReverbDepthLeft(int depth) {
 inline void REVERBInfo::SetReverbDepthRight(int depth) {
     VolRight = depth;
 }
-
-inline void REVERBInfo::WorkAreaStart(uint16_t val)
-{
-    if (val >= 0xffff || val <= 0x200) {
-        iStartAddr = iCurrAddr = 0;
-        return;
-    }
-    const uint32_t lval = static_cast<uint32_t>(val) << 2;
-    if ((uint32_t)iStartAddr != lval) {
-        iStartAddr = lval;
-        iCurrAddr = lval;
-    }
-}
-
 
 
 class NullReverb : public REVERBInfo {

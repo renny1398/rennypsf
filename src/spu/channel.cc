@@ -146,6 +146,8 @@ void SPUVoice::VoiceChangeFrequency()
 
 void SPUVoice::Step()
 {
+  set_envelope(0);
+  Set16(0);
   is_ready = true;
 
   if (IsMuted()) return;
@@ -194,16 +196,6 @@ void SPUVoice::Step()
     int right = (sval * iRightVolume) / 0x4000;
     lpcm_buffer_l[p_spu_->ns] = CLIP(left);
     lpcm_buffer_r[p_spu_->ns] = CLIP(right);
-
-    /*
-      spu_.Reverb().StoreReverb(*this);
-      spu_.Reverb().Mix();
-      left = spu_.Reverb().GetLeft();
-      right = spu_.Reverb().GetRight();
-      //left /= 3;
-      // right /= 3;
-      CLIP(left);  CLIP(right);
-*/
 
     set_envelope(ADSR.envelope_volume());
     Set16(sval);
@@ -265,6 +257,7 @@ void SPUVoiceManager::VoiceOff(uint32_t flags, int start)
 void SPUVoiceManager::StepForAll() {
   const wxVector<SPUVoice>::iterator itr_end = channels_.end();
   for (wxVector<SPUVoice>::iterator itr = channels_.begin(); itr != itr_end; ++itr) {
+    if (itr->ch >= 24) break;
     itr->Step();
   }
 }

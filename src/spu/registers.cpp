@@ -521,11 +521,14 @@ void write1d96(SPUBase* spu, uint16_t flag)
 inline void channelReverbMode(SPUBase* spu, int start, int end, uint16_t flag)
 {
   for (int ch = start; ch < end; ch++, flag >>= 1) {
+    SPUVoice& chInfo = spu->Voice(ch);
     if (flag & 1) {
-      spu->Voice(ch).hasReverb = true;
+      // wxMessageOutputDebug().Printf(wxT("SPU Reverb enabled: Ch.%d"), ch);
+      chInfo.hasReverb = true;
       continue;
     }
-    spu->Voice(ch).hasReverb = false;
+    // wxMessageOutputDebug().Printf(wxT("SPU Reverb disabled: Ch.%d"), ch);
+    chInfo.hasReverb = false;
   }
 }
 
@@ -658,7 +661,8 @@ void SPUBase::WriteRegister(uint32_t reg, uint16_t val)
   // Reverb configuration
   const uint32_t ofs = (reg - 0x1f801dc0) >> 1;
   if (ofs < 0x20) {
-    Reverb().Config[ofs] = val;
+    Reverb().Config[ofs] = (int16_t)val;
+    wxMessageOutputDebug().Printf(wxT("SPU Reverb: set Config[0x%02x] = %d"), ofs, val);
   }
 }
 

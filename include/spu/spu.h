@@ -127,7 +127,7 @@ private:
 struct SPUCore {
 
   SPUCore() {}
-  SPUCore(SPUBase* spu) : voice_manager_(spu, 24) {}
+  SPUCore(SPUBase* spu) : voice_manager_(spu, 24 + 2 /* 2 for Reverb */) {}
 
   static const int kStateFlagDMACompleted = 0x80;
 
@@ -285,7 +285,7 @@ protected:
 
 public:
   unsigned char* m_pSpuIrq;
-  unsigned char* m_pSpuBuffer;
+  // unsigned char* m_pSpuBuffer;
   unsigned char* m_pMixIrq;
 
   static const int NSSIZE = 45;
@@ -406,6 +406,7 @@ protected:
 
 
 inline SPUVoice& SPUBase::Voice(int ch) {
+  // WARNING: cannot access reverb channels through this method.
   const int core_i = ch / 24;
   return cores_[core_i].Voice(ch % 24);
 }
