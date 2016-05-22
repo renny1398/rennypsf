@@ -1,5 +1,5 @@
-#include "spu/channel.h"
-#include "spu/spu.h"
+#include "psf/spu/channel.h"
+#include "psf/spu/spu.h"
 #include "SoundManager.h"
 #include <wx/debug.h>
 

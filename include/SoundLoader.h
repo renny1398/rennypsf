@@ -1,23 +1,27 @@
 #ifndef SOUNDLOADER_H
 #define SOUNDLOADER_H
 
-#include <wx/object.h>
+#include <wx/tracker.h>
 
-class SoundFormat;
+class SoundInfo;
+class SoundData;
 class wxString;
 
-class SoundLoader: public wxObject
+class SoundLoader: public wxTrackable
 {
 public:
-    virtual ~SoundLoader();
+  SoundLoader();
+  virtual ~SoundLoader() {}
 
-    virtual const wxString &GetPath() const = 0;
+  static SoundLoader* Instance(const wxString& filename);
 
-    virtual SoundFormat *LoadInfo(const wxString &path) = 0;
-    //virtual SoundFormat *Load() = 0;
+  // virtual const wxString &GetPath() const = 0;
 
+  virtual SoundInfo *LoadInfo() = 0;
+  virtual SoundData *LoadData() = 0;
 
-// private: inherited class must have PreloadedSoundFormat class
+  typedef SoundLoader *(*InstanceFunc)(int fd, const wxString& filename);
+  static bool RegisterInstanceFunc(InstanceFunc func, const char* signature);
 };
 
 #endif // SOUNDLOADER_H

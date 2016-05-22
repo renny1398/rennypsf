@@ -1,4 +1,4 @@
-#include "spu/spu.h"
+#include "psf/spu/spu.h"
 #include <cstring>
 #include <wx/debug.h>
 

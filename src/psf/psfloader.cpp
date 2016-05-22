@@ -1,3 +1,5 @@
+// Deprecated
+/*
 #include "PSFLoader.h"
 #include "PSF.h"
 #include <wx/string.h>
@@ -160,3 +162,4 @@ SoundLoader *PSF1Loader::GetInstance() {
 SoundLoader* PSF2Loader::GetInstance() {
     return new PSF2Loader();
 }
+*/

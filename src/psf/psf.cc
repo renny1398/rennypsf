@@ -1,6 +1,6 @@
-#include "PSF.h"
-#include "psx/psx.h"
-#include "spu/spu.h"
+#include "psf/psf.h"
+#include "psf/psx/psx.h"
+#include "psf/spu/spu.h"
 #include <wx/msgout.h>
 
 #include <wx/file.h>
@@ -21,11 +21,12 @@ PSF::PSF(PSX::Composite *psx)
 
 PSF::~PSF()
 {
+  /*
   while (!m_libs.empty()) {
     PSF* psf = m_libs.back();
     delete psf;
     m_libs.pop_back();
-  }
+  }*/
   if (psx_ != NULL) {
     delete psx_;
   }
@@ -39,6 +40,7 @@ Soundbank& PSF::soundbank() {
 
 WX_DECLARE_HASH_MAP(int, wxString, wxIntegerHash, wxIntegerEqual, IntStrHash);
 
+/*
 void PSF::LoadLibrary() {
   wxString directory, filename, ext;
   wxFileName::SplitPath(path_, &directory, &filename, &ext);
@@ -66,7 +68,7 @@ void PSF::LoadLibrary() {
   }
 
 }
-
+*/
 
 
 void PSF::Init()
@@ -84,7 +86,7 @@ void PSF::Reset()
 
 bool PSF::DoPlay()
 {
-  LoadBinary();
+  // LoadBinary();
   m_thread = psx_->Run();
   return true;
 }
@@ -101,13 +103,26 @@ bool PSF::DoStop()
 
 
 
-
+/*
 PSF1::PSF1(PSX::Composite *psx)
   : PSF(psx)
 {
 }
+*/
+
+PSF1::PSF1(uint32_t pc0, uint32_t gp0, uint32_t sp0) : PSF(NULL) {
+  psx_->R3000ARegs().GPR.PC = pc0;
+  psx_->R3000ARegs().GPR.GP = gp0;
+  psx_->R3000ARegs().GPR.SP = sp0;
+}
 
 
+void PSF1::PSXMemCpy(PSX::PSXAddr dest, void *src, int length) {
+  psx_->Memcpy(dest, src, length);
+}
+
+
+/*
 bool PSF1::LoadBinary()
 {
   if (file_.IsOpened() == false) {
@@ -155,9 +170,10 @@ bool PSF1::LoadBinary()
   return true;
 }
 
+*/
+// #include "PSFLoader.h"
 
-#include "PSFLoader.h"
-
+/*
 PSF *PSF1::LoadLib(const wxString &path)
 {
   PSF1Loader loader;
@@ -522,3 +538,4 @@ bool PSF2::LoadBinary() {
 
   return true;
 }
+*/

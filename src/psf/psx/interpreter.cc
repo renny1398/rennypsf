@@ -1,9 +1,9 @@
-#include "psx/interpreter.h"
-#include "psx/memory.h"
-#include "psx/rcnt.h"
-#include "psx/bios.h"
+#include "psf/psx/interpreter.h"
+#include "psf/psx/memory.h"
+#include "psf/psx/rcnt.h"
+#include "psf/psx/bios.h"
 
-#include "spu/spu.h"
+#include "psf/spu/spu.h"
 
 //using namespace PSX;
 //using namespace PSX::R3000A;

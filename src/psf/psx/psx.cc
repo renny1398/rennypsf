@@ -1,4 +1,4 @@
-#include "psx/psx.h"
+#include "psf/psx/psx.h"
 
 
 namespace PSX {

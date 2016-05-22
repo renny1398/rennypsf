@@ -3,7 +3,7 @@
 #include <wx/app.h>
 #include "SoundManager.h"
 
-class SoundFormat;
+class SoundData;
 
 class RennypsfApp: public wxApp
 {
@@ -18,17 +18,17 @@ public:
 #endif  // __APPLE__
 #endif  // USE_GUI
 
-  bool Play(SoundFormat*);
+  bool Play(SoundData*);
   bool Stop();
 
   const wxSharedPtr<SoundDeviceDriver>& GetSoundManager() const;
   void SetSoundDevice(const wxSharedPtr<SoundDeviceDriver>&);
 
-  const wxSharedPtr<SoundFormat>& GetPlayingSound() const;
+  const wxSharedPtr<SoundData>& GetPlayingSound() const;
 
 private:
   wxSharedPtr<SoundDeviceDriver> sdd_;
-  wxSharedPtr<SoundFormat> playing_sf_;
+  wxSharedPtr<SoundData> playing_sf_;
 
 };
 

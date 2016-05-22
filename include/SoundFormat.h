@@ -160,7 +160,7 @@ private:
 #include "note.h"
 
 
-class SoundFormat;
+class SoundData;
 /*
 class SoundFormatListener {
 public:
@@ -176,14 +176,76 @@ protected:
 
 class Soundbank;
 
+
+////////////////////////////////////////////////////////////////////////
+// SoundInfo classes
+////////////////////////////////////////////////////////////////////////
+
+#include <wx/tracker.h>
+#include <wx/hashmap.h>
+
+class SoundInfo : public wxTrackable {
+public:
+  WX_DECLARE_STRING_HASH_MAP(wxString, Tag);
+
+  SoundInfo();
+  ~SoundInfo();
+
+  const wxString& title() const { return title_; }
+  void set_title(const wxString& title) { title_ = title; }
+
+  const wxString& artist() const { return artist_; }
+  void set_artist(const wxString& artist) { artist_ = artist; }
+
+  const wxString& album() const { return album_; }
+  void set_album(const wxString& album) { album_ = album; }
+
+  const wxString& year() const { return year_; }
+  void set_year(const wxString& year) { year_ = year; }
+
+  const wxString& genre() const { return genre_; }
+  void set_genre(const wxString& genre) { genre_ = genre; }
+
+  const wxString& comment() const { return comment_; }
+  void set_comment(const wxString& comment) { comment_ = comment; }
+
+  const wxString& copyright() const { return copyright_; }
+  void set_copyright(const wxString& copyright) { copyright_ = copyright; }
+
+  const wxString& length() const { return length_; }
+  void set_length(const wxString& length) { length_ = length; }
+
+  const Tag& others() const { return others_; }
+  void set_tags(const Tag& tags);
+
+private:
+  wxString title_;
+  wxString artist_;
+  wxString album_;
+  wxString year_;
+  wxString genre_;
+  wxString comment_;
+  wxString copyright_;
+  // int len_minutes_;
+  // int len_seconds_;
+  wxString length_;
+
+  Tag others_;
+};
+
+
+////////////////////////////////////////////////////////////////////////
+// SoundData classes
+////////////////////////////////////////////////////////////////////////
+
 /*!
  @brief A base class for Sound Format (?sf).
 */
-class SoundFormat
+class SoundData : public wxTrackable
 {
 public:
   //! A virtual desctructor.
-  virtual ~SoundFormat();
+  virtual ~SoundData();
 
   //! Get the instance of Sample correspond to the channel number.
   Sample& Ch(int);
@@ -229,10 +291,10 @@ private:
 };
 
 
-inline bool SoundFormat::IsLoaded() const {
+inline bool SoundData::IsLoaded() const {
   return infoLoaded_;
 }
 
-inline const wxString& SoundFormat::GetFileName() const {
+inline const wxString& SoundData::GetFileName() const {
   return path_;
 }

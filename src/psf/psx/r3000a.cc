@@ -1,8 +1,8 @@
-#include "psx/r3000a.h"
-#include "psx/memory.h"
-#include "psx/bios.h"
-#include "psx/rcnt.h"
-#include "psx/disassembler.h"
+#include "psf/psx/r3000a.h"
+#include "psf/psx/memory.h"
+#include "psf/psx/bios.h"
+#include "psf/psx/rcnt.h"
+#include "psf/psx/disassembler.h"
 
 #include <wx/debug.h>
 #include <cstring>

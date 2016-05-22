@@ -1,6 +1,6 @@
-#include "spu/soundbank.h"
-#include "spu/spu.h"
-#include "psx/psx.h"
+#include "psf/spu/soundbank.h"
+#include "psf/spu/spu.h"
+#include "psf/psx/psx.h"
 #include "SoundManager.h"
 
 #include <cmath>

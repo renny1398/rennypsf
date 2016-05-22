@@ -8,7 +8,7 @@
 
 #include "SoundFormat.h"
 
-#include "spu/spu.h"
+//#include "spu/spu.h"
 
 
 ///////////////////////////////////////////////////////////////////////
@@ -137,7 +137,7 @@ void MainFrame::OnPlay(wxCommandEvent& WXUNUSED(event))
     PSFPlaylistItem *item = file_treectrl->GetSelectedItem();
     if (item == 0) return;
 
-    SoundFormat *sound = item->GetSound();
+    SoundData *sound = item->GetSound();
     wxASSERT(sound);
     //if (sound->Load() == false) return;
 

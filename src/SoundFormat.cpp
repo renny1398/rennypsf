@@ -258,35 +258,67 @@ private:
 
 
 
+SoundInfo::SoundInfo() {}
+SoundInfo::~SoundInfo() {}
 
-SoundFormat::~SoundFormat() {}
+
+void SoundInfo::set_tags(const Tag &tags) {
+  for (Tag::const_iterator it = tags.begin(); it != tags.end(); ++it) {
+    const wxString& key = it->first;
+    if (key == "title") {
+      title_ = it->second;
+    } else if (key == "artist") {
+      artist_ = it->second;
+    } else if (key == "album" || key == "game") {
+      album_ = it->second;
+    } else if (key == "year") {
+      year_ = it->second;
+    } else if (key == "genre") {
+      genre_ = it->second;
+    } else if (key == "comment") {
+      comment_ = it->second;
+    } else if (key == "copyright") {
+      copyright_ = it->second;
+    } else if (key == "length") {
+      length_ = it->second;
+    } else {
+      others_[key] = it->second;
+    }
+  }
+}
 
 
 
-Sample& SoundFormat::Ch(int ch) {
+
+
+
+SoundData::~SoundData() {}
+
+
+Sample& SoundData::Ch(int ch) {
   return sound_block().Ch(ch);
 }
 
 
-const Sample& SoundFormat::Ch(int ch) const {
-  SoundFormat* this_casted = const_cast<SoundFormat*>(this);
+const Sample& SoundData::Ch(int ch) const {
+  SoundData* this_casted = const_cast<SoundData*>(this);
   return this_casted->Ch(ch);
 }
 
 
 
-bool SoundFormat::Play(const wxSharedPtr<SoundDeviceDriver>& sdd) {
+bool SoundData::Play(const wxSharedPtr<SoundDeviceDriver>& sdd) {
   sdd->Play();
   sound_block().set_output(sdd);
   return DoPlay();
 }
 
 
-bool SoundFormat::Stop() {
+bool SoundData::Stop() {
   const wxSharedPtr<SoundDeviceDriver>& sdd = sound_block().output();
   sound_block().Reset();
   bool ret = DoStop();
-  wxMessageOutputDebug().Printf(wxT("The instance derived from SoundFormat is stopped."));
+  wxMessageOutputDebug().Printf(wxT("The instance derived from SoundData is stopped."));
   if (sdd != 0) {
     sdd->Stop();
   }
@@ -294,12 +326,12 @@ bool SoundFormat::Stop() {
 }
 
 
-void SoundFormat::GetTag(const wxString &key, wxString *value) const
+void SoundData::GetTag(const wxString &key, wxString *value) const
 {
     m_info.GetTag(key, value);
 }
 
-void SoundFormat::SetTag(const wxString &key, const wxString &value)
+void SoundData::SetTag(const wxString &key, const wxString &value)
 {
     // wxMessageOutputDebug().Printf(wxT("set tag '%s = %s'"), key, value);
     m_info.SetTag(key, value);

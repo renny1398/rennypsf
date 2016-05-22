@@ -3,7 +3,7 @@
 #include <map>
 #include <wx/string.h>
 
-class SoundFormat;
+class SoundData;
 class SoundLoader;
 
 

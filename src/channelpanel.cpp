@@ -7,7 +7,7 @@
 //#include <wx/gauge.h>
 #include "SoundManager.h"
 #include "app.h"
-#include "spu/spu.h"
+//#include "spu/spu.h"
 
 
 ////////////////////////////////////////////////////////////////////////
@@ -89,7 +89,7 @@ void MuteButton::onLeave(wxMouseEvent& WXUNUSED(event))
 
 void MuteButton::onClick(wxMouseEvent &)
 {
-  wxSharedPtr<SoundFormat> sf = wxGetApp().GetPlayingSound();
+  wxSharedPtr<SoundData> sf = wxGetApp().GetPlayingSound();
   if (sf == NULL) return;
   muted_ = !muted_;
   if (muted_) {

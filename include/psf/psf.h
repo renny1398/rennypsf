@@ -1,13 +1,13 @@
 #pragma once
 
 #include "SoundFormat.h"
-#include "psx/psx.h"
+#include "psf/psx/psx.h"
 #include <stdint.h>
 #include <wx/file.h>
 #include <wx/ptr_scpd.h>
 
 
-class PSF: public SoundFormat
+class PSF: public SoundData
 {
 public:
   explicit PSF(PSX::Composite* psx = NULL);
@@ -25,38 +25,14 @@ public:
   // bool Tell();
 
   friend class PSFLoader;
-  friend class PSF1Loader;
 
 protected:
-  void LoadLibrary();
-  virtual PSF *LoadLib(const wxString &path) = 0;
+  // void LoadLibrary();
+  // virtual PSF *LoadLib(const wxString &path) = 0;
 
 
 protected:
-  struct PSXEXEHeader {
-    char signature[8];
-    uint32_t text;
-    uint32_t data;
-    uint32_t pc0;
-    uint32_t gp0;
-    uint32_t text_addr;
-    uint32_t text_size;
-    uint32_t d_addr;
-    uint32_t d_size;
-    uint32_t b_addr;
-    uint32_t b_size;
-    // uint32_t S_addr;
-    uint32_t sp0;
-    uint32_t s_size;
-    uint32_t SP;
-    uint32_t FP;
-    uint32_t GP;
-    uint32_t RA;
-    uint32_t S0;
-    char marker[0xB4];
-  };
-
-  virtual bool LoadBinary() = 0;
+  // virtual bool LoadBinary() = 0;
 
   SoundBlock& sound_block() {
     // TODO: multicore
@@ -65,34 +41,35 @@ protected:
 
   PSX::Composite* psx_;
 
-  PSXEXEHeader m_header;
-  void *m_memory;
+  // PSXEXEHeader m_header;
+  // void *m_memory;
   PSX::R3000A::InterpreterThread *m_thread;
 
   //wxString m_path;
-  uint32_t m_version;
-  wxFileOffset m_ofsReservedArea;
-  wxFileOffset m_ofsBinary;
-  uint32_t m_lenReservedArea;
-  uint32_t m_lenBinary;
-  uint32_t m_crc32Binary;
+  // uint32_t m_version;
+  // wxFileOffset m_ofsReservedArea;
+  // wxFileOffset m_ofsBinary;
+  // uint32_t m_lenReservedArea;
+  // uint32_t m_lenBinary;
+  // uint32_t m_crc32Binary;
 
-  wxVector<PSF*> m_libs;
+  // wxVector<PSF*> m_libs;
 };
 
 
 class PSF1: public PSF
 {
 public:
-  PSF1(PSX::Composite* psx = NULL);
+  // PSF1(PSX::Composite* psx = NULL);
+  PSF1(uint32_t pc0, uint32_t gp0, uint32_t sp0);
   unsigned int GetSamplingRate() const { return 44100; }
 
   friend class PSF1Loader;
 
 protected:
-
-  bool LoadBinary();
-  PSF *LoadLib(const wxString &path);
+  void PSXMemCpy(PSX::PSXAddr dest, void* src, int length);
+  // bool LoadBinary();
+  // PSF *LoadLib(const wxString &path);
 };
 
 
@@ -182,13 +159,13 @@ public:
   // bool Stop();
   unsigned int GetSamplingRate() const { return 48000; }
 protected:
-  bool LoadBinary();
-  bool LoadBinary(PSF2RootDirectory*);
-  PSF *LoadLib(const wxString &path);
-  unsigned int LoadELF(PSF2Entry *psf2irx);
+  // bool LoadBinary();
+  // bool LoadBinary(PSF2RootDirectory*);
+  // PSF *LoadLib(const wxString &path);
+  // unsigned int LoadELF(PSF2Entry *psf2irx);
 
-  void ReadFile(wxFileInputStream* stream, PSF2Directory* parent, const char* filename, int uncompressed_size, int block_size);
-  void ReadDirectory(wxFileInputStream* stream, PSF2Directory* parent);
+  // void ReadFile(wxFileInputStream* stream, PSF2Directory* parent, const char* filename, int uncompressed_size, int block_size);
+  // void ReadDirectory(wxFileInputStream* stream, PSF2Directory* parent);
 
 private:
   unsigned int load_addr_;

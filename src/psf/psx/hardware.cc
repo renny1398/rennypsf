@@ -1,7 +1,7 @@
-#include "psx/hardware.h"
-#include "psx/rcnt.h"
-#include "psx/dma.h"
-#include "spu/spu.h"
+#include "psf/psx/hardware.h"
+#include "psf/psx/rcnt.h"
+#include "psf/psx/dma.h"
+#include "psf/spu/spu.h"
 #include <wx/msgout.h>
 
 

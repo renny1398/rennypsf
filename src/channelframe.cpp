@@ -2,7 +2,6 @@
 #include "channelpanel.h"
 #include "wavetablepanel.h"
 #include <wx/sizer.h>
-#include "spu/spu.h"
 
 ChannelFrame::ChannelFrame(wxWindow* parent): wxFrame(parent, wxID_ANY, _("Channel View"), wxDefaultPosition, wxSize(400, 720))
 {

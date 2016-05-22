@@ -2,7 +2,7 @@
 #include <wx/panel.h>
 #include <wx/listctrl.h>
 #include <wx/menu.h>
-#include "spu/soundbank.h"
+#include "psf/spu/soundbank.h"
 #include "SoundManager.h"
 
 

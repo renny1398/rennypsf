@@ -1,4 +1,4 @@
-#include "spu/spu.h"
+#include "psf/spu/spu.h"
 #include <wx/msgout.h>
 
 
@@ -75,7 +75,7 @@ uint16_t read1xx4(const SPUVoice& channelInfo)
 // Get start address of Sound
 uint16_t read1xx6(const SPUVoice& channelInfo)
 {
-  const SPUBase& Spu = channelInfo.Spu();
+  // const SPUBase& Spu = channelInfo.Spu();
   uint32_t soundBuffer = channelInfo.tone->addr();
   return soundBuffer >> 3;
 }

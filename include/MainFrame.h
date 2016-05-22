@@ -3,7 +3,7 @@
 #include "stdwx.h"
 
 class wxTreeCtrl;
-class SoundFormat;
+class SoundData;
 class PSFPlaylist;
 
 class MainFrame: public wxFrame

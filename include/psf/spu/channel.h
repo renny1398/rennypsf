@@ -5,7 +5,7 @@
 #include <wx/vector.h>
 
 #include "SoundFormat.h"
-#include "spu/soundbank.h"
+#include "psf/spu/soundbank.h"
 
 
 namespace SPU {

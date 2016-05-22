@@ -12,7 +12,7 @@
 class MainFrame;
 class PSFFileDropTarget;
 class SoundLoader;
-class SoundFormat;
+class SoundData;
 class PSFPlaylistItem;
 
 
@@ -48,14 +48,14 @@ public:
     PSFPlaylistItem(const wxString& fullpath, const wxString& name, const wxString& ext);
     ~PSFPlaylistItem();
 
-    SoundFormat* GetSound() const;
+    SoundData* GetSound() const;
 	const wxString& GetFullPath() const;
 	const wxString& GetFileName() const;
 	const wxString& GetExt() const;
 
     bool IsAvailable() const;
 
-    SoundFormat* LoadSound();
+    SoundData* LoadSound();
 
     friend class PSFPlaylist;
 
@@ -67,7 +67,7 @@ private:
     // wxString fullpath;
     wxString m_filename;
     wxString m_ext;
-    SoundFormat *m_sound;
+    SoundData *m_sound;
 };
 
 
@@ -89,6 +89,6 @@ inline wxTreeItemId PSFPlaylist::AppendItem(const wxString &text, int image, int
 }
 
 
-inline SoundFormat* PSFPlaylistItem::GetSound() const {
+inline SoundData* PSFPlaylistItem::GetSound() const {
     return m_sound;
 }

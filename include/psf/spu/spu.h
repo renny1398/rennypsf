@@ -6,8 +6,8 @@
 #include <wx/vector.h>
 #include <wx/thread.h>
 
-#include "spu/channel.h"
-#include "psx/common.h"
+#include "psf/spu/channel.h"
+#include "psf/psx/common.h"
 #include "reverb.h"
 #include "interpolation.h"
 #include "soundbank.h"

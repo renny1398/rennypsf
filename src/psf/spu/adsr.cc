@@ -1,4 +1,4 @@
-#include "spu/channel.h"
+#include "psf/spu/channel.h"
 #include <cstring>
 #include <wx/msgout.h>
 

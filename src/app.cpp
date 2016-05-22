@@ -70,7 +70,7 @@ int RennypsfApp::OnExit() {
 }
 
 
-bool RennypsfApp::Play(SoundFormat* sound)
+bool RennypsfApp::Play(SoundData* sound)
 {
   playing_sf_ = sound;
   //return sdd_->Play(sound);
@@ -79,7 +79,7 @@ bool RennypsfApp::Play(SoundFormat* sound)
 
 bool RennypsfApp::Stop()
 {
-  SoundFormat* sf = playing_sf_.get();
+  SoundData* sf = playing_sf_.get();
   bool ret = sf->Stop();
   if (sdd_ != 0) {
     sdd_->Stop();
@@ -89,7 +89,7 @@ bool RennypsfApp::Stop()
 }
 
 
-const wxSharedPtr<SoundFormat>& RennypsfApp::GetPlayingSound() const {
+const wxSharedPtr<SoundData>& RennypsfApp::GetPlayingSound() const {
   return playing_sf_;
 }
 

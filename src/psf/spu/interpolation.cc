@@ -1,4 +1,4 @@
-#include "spu/interpolation.h"
+#include "psf/spu/interpolation.h"
 
 
 namespace {

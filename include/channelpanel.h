@@ -59,7 +59,7 @@ private:
 WX_DECLARE_HASH_SET(int, wxIntegerHash, wxIntegerEqual, IntSet);
 
 
-#include "spu/spu.h"
+#include "psf/spu/spu.h"
 
 
 wxDECLARE_EVENT(wxEVENT_SPU_CHANNEL_NOTE_ON, wxCommandEvent);

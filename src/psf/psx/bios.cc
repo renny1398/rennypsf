@@ -1,8 +1,8 @@
 // #include "psx.h"
-#include "psx/bios.h"
-#include "psx/hardware.h"
-#include "psx/rcnt.h"
-#include "psx/interpreter.h"
+#include "psf/psx/bios.h"
+#include "psf/psx/hardware.h"
+#include "psf/psx/rcnt.h"
+#include "psf/psx/interpreter.h"
 #include <wx/msgout.h>
 
 #include <cstring>

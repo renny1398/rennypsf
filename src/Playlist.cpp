@@ -105,7 +105,7 @@ PSFPlaylistItem::PSFPlaylistItem(const wxString& fullpath, const wxString& name,
 
 PSFPlaylistItem::~PSFPlaylistItem()
 {
-    SoundFormat *sound = m_sound;
+    SoundData *sound = m_sound;
     if (sound) {
         if (sound->IsLoaded() == true) {
             delete sound;
@@ -114,10 +114,11 @@ PSFPlaylistItem::~PSFPlaylistItem()
     }
 }
 
-
+/*
 inline const wxString& PSFPlaylistItem::GetFullPath() const {
     return m_loader->GetPath();
 }
+*/
 
 inline const wxString& PSFPlaylistItem::GetFileName() const {
     return m_filename;
@@ -137,19 +138,25 @@ inline bool PSFPlaylistItem::IsAvailable() const {
 bool PSFPlaylistItem::LoadSound(const wxString &path, const wxString &ext)
 {
     SoundLoader *loader = m_loader;
-    SoundFormat *sound = m_sound;
+    SoundData *sound = m_sound;
 
     if (loader == 0) {
+      /*
         SoundLoaderFactory *factory = SoundLoaderFactory::GetInstance();
         loader = factory->GetLoader(ext);
         if (loader == 0) {
             return false;
         }
+        */
+      loader = SoundLoader::Instance(path);
+      if (loader == NULL) {
+        return false;
+      }
     }
     m_loader = loader;
 
     if (sound == 0) {
-        sound = loader->LoadInfo(path);
+        sound = loader->LoadData();
         if (sound == 0) {
             return false;
         }

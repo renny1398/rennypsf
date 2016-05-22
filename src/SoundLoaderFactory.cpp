@@ -1,3 +1,4 @@
+#if 0
 #include "SoundLoaderFactory.h"
 #include "stdwx.h"
 #include <wx/string.h>
@@ -22,3 +23,4 @@ SoundLoaderFactory::SoundLoaderFactory()
     table.Append(wxT("psf2"), PSF2Loader::GetInstance());
     table.Append(wxT("minipsf2"), PSF2Loader::GetInstance());
 }
+#endif

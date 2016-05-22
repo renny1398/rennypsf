@@ -47,12 +47,6 @@ public:
       ext.insert(ext.begin(), *itr);
     }
 
-    SoundLoader* loader = SoundLoaderFactory::GetInstance()->GetLoader(ext);
-    if (loader == NULL) {
-      std::cout << "Failed to generate a loader for " << ext << ".\n";
-      return false;
-    }
-
     wxString file_path(file_path_);
     for (wxString::iterator it = file_path.begin(); it != file_path.end(); ++it) {
       if (*it == '\\') {
@@ -60,7 +54,13 @@ public:
       }
     }
 
-    SoundFormat *sound = loader->LoadInfo(file_path);
+    SoundLoader* loader = SoundLoader::Instance(file_path);
+    if (loader == NULL) {
+      return false;
+    }
+
+    // SoundInfo* info = loader->LoadInfo();
+    SoundData *sound = loader->LoadData();
     if (sound == 0) {
       std::cout << "Failed to load a sound file." << std::endl;
       return false;
@@ -120,7 +120,7 @@ public:
   ShowSoundbank(const std::string& p) : Command(p) {}
 
   bool Execute() {
-    wxSharedPtr<SoundFormat> sf = wxGetApp().GetPlayingSound();
+    wxSharedPtr<SoundData> sf = wxGetApp().GetPlayingSound();
     if (sf == 0) {
       std::cout << "No playing sound." << std::endl;
       return false;
@@ -148,7 +148,7 @@ public:
   bool Execute() {
     const std::string& str_id = params().at(0);
     if (str_id.empty()) return false;
-    wxSharedPtr<SoundFormat> sf = wxGetApp().GetPlayingSound();
+    wxSharedPtr<SoundData> sf = wxGetApp().GetPlayingSound();
     if (sf == 0) {
       std::cout << "No playing sound." << std::endl;
       return false;
@@ -181,7 +181,7 @@ public:
   bool Execute() {
     const std::string& str_ch = params().at(0);
     if (str_ch.empty()) return false;
-    wxSharedPtr<SoundFormat> sf = wxGetApp().GetPlayingSound();
+    wxSharedPtr<SoundData> sf = wxGetApp().GetPlayingSound();
     if (sf == 0) {
       std::cout << "No playing sound." << std::endl;
       return false;

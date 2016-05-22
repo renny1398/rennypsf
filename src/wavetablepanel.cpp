@@ -1,6 +1,6 @@
 #include "wavetablepanel.h"
-#include "spu/soundbank.h"
-#include "spu/spu.h"
+//#include "spu/soundbank.h"
+//#include "spu/spu.h"
 #include "app.h"
 
 
