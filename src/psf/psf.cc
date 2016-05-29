@@ -18,15 +18,8 @@ PSF::PSF(PSX::Composite *psx)
 }
 
 
-
 PSF::~PSF()
 {
-  /*
-  while (!m_libs.empty()) {
-    PSF* psf = m_libs.back();
-    delete psf;
-    m_libs.pop_back();
-  }*/
   if (psx_ != NULL) {
     delete psx_;
   }
@@ -36,39 +29,6 @@ PSF::~PSF()
 Soundbank& PSF::soundbank() {
   return psx_->Spu().soundbank();
 }
-
-
-WX_DECLARE_HASH_MAP(int, wxString, wxIntegerHash, wxIntegerEqual, IntStrHash);
-
-/*
-void PSF::LoadLibrary() {
-  wxString directory, filename, ext;
-  wxFileName::SplitPath(path_, &directory, &filename, &ext);
-  IntStrHash libname_hash;
-
-  for (int i = 1; i < 10; i++) {
-    wxString _libN, libname;
-    if (i <= 1) {
-      _libN.assign("_lib");
-    } else {
-      _libN.sprintf("_lib%d", i);
-    }
-    GetTag(_libN, &libname);
-    if (libname.IsEmpty() == false) {
-      libname_hash[i] = directory + '/' + libname;
-    }
-  }
-
-  for (IntStrHash::iterator it = libname_hash.begin(), it_end = libname_hash.end(); it != it_end; ++it) {
-    PSF *psflib = LoadLib(it->second);
-    if (psflib) {
-      psflib->psx_ = NULL;
-      m_libs.push_back(psflib);
-    }
-  }
-
-}
-*/
 
 
 void PSF::Init()
@@ -122,232 +82,27 @@ void PSF1::PSXMemCpy(PSX::PSXAddr dest, void *src, int length) {
 }
 
 
-/*
-bool PSF1::LoadBinary()
-{
-  if (file_.IsOpened() == false) {
-    wxMessageOutputStderr().Printf(wxT("file '%s' can't be opened."), path_);
-    return 0;
-  }
 
-  wxFileInputStream stream(file_);
+PSF2::PSF2(PSF2Entry* psf2irx)
+  : PSF(NULL), load_addr_(0x23f00) {
 
-  stream.SeekI(m_ofsBinary);
-  // char *compressed = new char[preloaded_psf->m_lenBinary];
-  char *uncompressed = new char[0x800 + 0x200000];    // header + UserMemory
-  wxZlibInputStream zlib_stream(stream);
-  zlib_stream.Read(uncompressed, 0x800);
+  psx_->R3000ARegs().GPR.PC = LoadELF(psf2irx);
+  psx_->R3000ARegs().GPR.SP = 0x801ffff0;
+  psx_->R3000ARegs().GPR.FP = 0x801ffff0;
 
-  PSF::PSXEXEHeader& header = *(reinterpret_cast<PSF::PSXEXEHeader*>(uncompressed));
-  if (::memcmp(header.signature, "PS-X EXE", 8) != 0) {
-    const wxString str_sign(header.signature, 8);
-    wxMessageOutputStderr().Printf(wxT("Uncompressed binary is not PS-X EXE! (%s)"), str_sign);
-    return 0;
-  }
-
-  LoadLibrary();
-
-  if (m_libs.empty() == false) {
-    PSF1* psflib = dynamic_cast<PSF1*>(m_libs.at(0));
-    header.pc0 = psflib->m_header.pc0;
-    header.gp0 = psflib->m_header.gp0;
-    header.sp0 = psflib->m_header.sp0;
-  }
-
-  psx_->R3000ARegs().GPR.PC = header.pc0;
-  psx_->R3000ARegs().GPR.GP = header.gp0;
-  psx_->R3000ARegs().GPR.SP = header.sp0;
-
-  zlib_stream.Read(uncompressed + 0x800, 0x200000);
-  // psx_->InitMemory();
-  psx_->Memcpy(header.text_addr, uncompressed + 0x800, header.text_size);
-
-  m_header = header;
-
-  // wxMessageOutputDebug().Printf("PC0 = 0x%08x, GP0 = 0x%08x, SP0 = 0x%08x", psx_->R3000ARegs().GPR.PC, psx_->R3000ARegs().GPR.GP, psx_->R3000ARegs().GPR.SP);
-  wxMessageOutputDebug().Printf("PSF File '%s' is loaded.", path_);
-  delete [] uncompressed;
-  return true;
-}
-
-*/
-// #include "PSFLoader.h"
-
-/*
-PSF *PSF1::LoadLib(const wxString &path)
-{
-  PSF1Loader loader;
-  PSF1 *psflib = dynamic_cast<PSF1*>( loader.LoadInfo(path, psx_) );
-  if (psflib->LoadBinary() == false) {
-    return 0;
-  }
-
-  for (wxVector<PSF*>::const_iterator it = psflib->m_libs.begin(), it_end = psflib->m_libs.end(); it != it_end; ++it) {
-    m_libs.push_back(*it);
-  }
-
-  return psflib;
+  psx_->R3000ARegs().GPR.RA = 0x80000000;
+  psx_->R3000ARegs().GPR.A0 = 2;
+  psx_->R3000ARegs().GPR.A1 = 0x80000004;
+  psx_->U32M_ref(4) = BFLIP32(0x80000008);
+  psx_->U32M_ref(0) = BFLIP32(PSX::R3000A::OPCODE_HLECALL);
+  ::strcpy(psx_->S8M_ptr(8), "psf2:/");
 }
 
 
-
-
-PSF2Entry::PSF2Entry(PSF2Directory *parent, const char *name)
-  : parent_(*parent), name_(name) {}
-
-
-const wxString PSF2Entry::GetFullPath() const {
-  if (IsRoot()) return name_;
-  return parent_.GetFullPath() + '/' + name_;
+bool PSF2::IsOk() const {
+  return psx_->R3000ARegs().GPR.PC != 0xffffffff;
 }
 
-
-PSF2Entry* PSF2Entry::Find(const wxString &path) {
-
-  wxString next;
-  wxString curr = path.BeforeFirst('/', &next);
-
-  if (IsFile() == true) {
-    if (curr != name_) {
-      return NULL;
-    }
-    return this;
-  }
-
-  if (this->IsRoot() == false) {
-    if (curr != name_) {
-      return NULL;
-    }
-    if (next.empty() == false) {
-      return this;
-    }
-  }
-
-  PSF2Directory* dir = dynamic_cast<PSF2Directory*>(this);
-  wxVector<PSF2Entry*>::iterator itr = dir->children_.begin();
-  const wxVector<PSF2Entry*>::iterator itrEnd = dir->children_.end();
-
-  while (itr != itrEnd) {
-    PSF2Entry* ret;
-    if (IsRoot()) {
-      ret = (*itr)->Find(curr);
-    } else {
-      ret = (*itr)->Find(next);
-    }
-    if (ret != NULL) {
-      return ret;
-    }
-    ++itr;
-  }
-  return NULL;
-}
-
-
-
-PSF2File::PSF2File(PSF2Directory *parent, const char *name)
-  : PSF2Entry(parent, name), data_(NULL), size_(0) {}
-
-
-PSF2File::PSF2File(PSF2Directory *parent, const char *name, wxScopedArray<unsigned char>& data, int size)
-  : PSF2Entry(parent, name), data_(NULL) {
-  data_.swap(data);
-  size_ = size;
-}
-
-
-const unsigned char* PSF2File::GetData() const {
-  return data_.get();
-}
-
-
-
-PSF2Directory::PSF2Directory(PSF2Directory *parent, const char *name)
-  : PSF2Entry(parent, name) {}
-
-
-PSF2Directory::~PSF2Directory() {
-  while (children_.empty() == false) {
-    PSF2Entry* const entry = children_.back();
-    children_.pop_back();
-    delete entry;
-  }
-}
-
-
-void PSF2Directory::AddEntry(PSF2Entry *entry) {
-  if (entry->IsRoot()) return;
-  children_.push_back(entry);
-}
-
-
-
-PSF2RootDirectory::PSF2RootDirectory()
-  : PSF2Directory(this, "/") {}
-
-
-
-PSF2::PSF2(PSX::Composite *psx)
-  : PSF(psx), load_addr_(0x23f00) {}
-
-
-void PSF2::ReadFile(wxFileInputStream *stream, PSF2Directory *parent, const char *filename, int uncompressed_size, int block_size) {
-
-  const int X = (uncompressed_size + block_size - 1) / block_size;
-  wxScopedArray<unsigned char> uncompressed_data(new unsigned char[uncompressed_size]);
-
-  stream->SeekI(4*X, wxFromCurrent);
-
-  wxZlibInputStream zlib_stream(*stream);
-  zlib_stream.Read(&uncompressed_data[0], uncompressed_size);
-
-  PSF2File* entry = new PSF2File(parent, filename, uncompressed_data, uncompressed_size);
-  parent->AddEntry(entry);
-
-  wxMessageOutputDebug().Printf(wxT("Found psf2:%s"), entry->GetFullPath());
-}
-
-
-
-void PSF2::ReadDirectory(wxFileInputStream *stream, PSF2Directory *parent) {
-
-  int entry_num;
-  stream->Read(&entry_num, 4);
-
-  for (int i = 0; i < entry_num; i++) {
-
-    char filename[37];
-    stream->Read(filename, 36);
-    filename[36] = '\0';
-
-    int offset;
-    stream->Read(&offset, 4);
-
-    int uncompressed_size;
-    stream->Read(&uncompressed_size, 4);
-
-    int block_size;
-    stream->Read(&block_size, 4);
-
-    const int current_pointer = stream->TellI();
-
-    if (uncompressed_size == 0 && block_size == 0) {
-      if (offset == 0) {
-        PSF2File* const entry = new PSF2File(parent, filename);
-        parent->AddEntry(entry);
-        continue;
-      }
-      PSF2Directory* const entry = new PSF2Directory(parent, filename);
-      stream->SeekI(m_ofsReservedArea + offset, wxFromStart);
-      ReadDirectory(stream, entry);
-      stream->SeekI(current_pointer, wxFromStart);
-      parent->AddEntry(entry);
-      continue;
-    }
-    stream->SeekI(m_ofsReservedArea + offset, wxFromStart);
-    ReadFile(stream, parent, filename, uncompressed_size, block_size);
-    stream->SeekI(current_pointer, wxFromStart);
-  }
-}
 
 
 unsigned int PSF2::LoadELF(PSF2Entry* psf2irx) {
@@ -472,70 +227,3 @@ unsigned int PSF2::LoadELF(PSF2Entry* psf2irx) {
 
   return entry;
 }
-
-
-PSF *PSF2::LoadLib(const wxString &path)
-{
-  PSFLoader loader;
-  PSF2 *psflib = dynamic_cast<PSF2*>( loader.LoadInfo(path) );
-
-  for (wxVector<PSF*>::const_iterator it = psflib->m_libs.begin(), it_end = psflib->m_libs.end(); it != it_end; ++it) {
-    m_libs.push_back(*it);
-  }
-
-  return psflib;
-}
-
-
-bool PSF2::LoadBinary(PSF2RootDirectory* root) {
-
-  if (file_.IsOpened() == false) return false;
-
-  wxFileInputStream stream(file_);
-  stream.SeekI(m_ofsReservedArea);
-
-  ReadDirectory(&stream, root);
-
-  return true;
-}
-
-
-bool PSF2::LoadBinary() {
-  PSF2RootDirectory* root = new PSF2RootDirectory();
-  if (LoadBinary(root) == false) {
-    return false;
-  }
-
-  LoadLibrary();
-
-  wxVector<PSF*>::iterator itr = m_libs.begin();
-  const wxVector<PSF*>::iterator itrEnd = m_libs.end();
-  while (itr != itrEnd) {
-    PSF2* const child = dynamic_cast<PSF2*>(*itr);
-    child->LoadBinary(root);
-    ++itr;
-  }
-
-  PSF2Entry* irx = root->Find(wxT("psf2.irx"));
-  if (irx == NULL) {
-    wxMessageOutputStderr().Printf(wxT("psf2.irx is not found."));
-    return false;
-  }
-
-  psx_->R3000ARegs().GPR.PC = LoadELF(irx);
-  psx_->R3000ARegs().GPR.SP = 0x801ffff0;
-  psx_->R3000ARegs().GPR.FP = 0x801ffff0;
-  if (psx_->R3000ARegs().GPR.PC == 0xffffffff) {
-    return false;
-  }
-
-  psx_->R3000ARegs().GPR.RA = 0x80000000;
-  psx_->R3000ARegs().GPR.A0 = 2;
-  psx_->R3000ARegs().GPR.A1 = 0x80000004;
-  psx_->U32M_ref(4) = BFLIP32(0x80000008);
-  psx_->U32M_ref(0) = BFLIP32(PSX::R3000A::OPCODE_HLECALL);
-  ::strcpy(psx_->S8M_ptr(8), "psf2:/");
-
-  return true;
-}
-*/

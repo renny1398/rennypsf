@@ -1,48 +1,82 @@
 #pragma once
 
 #include "SoundLoader.h"
-#include "PSF.h"
-
-/*
-class PSFLoader: public SoundLoader
-{
-public:
-    PSFLoader() {}
-    ~PSFLoader();
-
-    const wxString &GetPath() const;
-
-    SoundInfo* LoadInfo();
-};
-*/
-
-
+// #include "PSF.h"
 
 #include <wx/string.h>
 #include <wx/file.h>
+#include <wx/wfstream.h>
+#include <wx/scopedptr.h>
+#include <wx/scopedarray.h>
 #include <wx/weakref.h>
 #include <wx/vector.h>
 #include <cstdint>
 
 class SoundInfo;
 class SoundData;
+
+////////////////////////////////////////////////////////////////////////
+/// PSF Loader Base Class
+////////////////////////////////////////////////////////////////////////
+
+class PSFLoader : public SoundLoader {
+
+public:
+  SoundInfo* LoadInfo();
+
+protected:
+  PSFLoader(int fd, const wxString& filename);
+
+  bool LoadLibraries();
+
+  wxFile& file();
+  const wxString& path() const;
+
+  //! Parameter Accessors
+  uint32_t reserved_area_len() const;
+  uint32_t binary_len() const;
+  uint32_t binary_crc32() const;
+  uint32_t reserved_area_ofs() const;
+  uint32_t binary_ofs() const;
+
+  //! PSF Library Loader Accessors
+  wxVector<PSFLoader*>::iterator psflib_begin();
+  wxVector<PSFLoader*>::const_iterator psflib_begin() const;
+  wxVector<PSFLoader*>::const_iterator psflib_end() const;
+
+private:
+  wxFile file_;
+  wxString path_;
+  wxWeakRef<SoundInfo> ref_info_;
+
+  //! PSF records
+  uint32_t reserved_area_len_;
+  uint32_t binary_len_;
+  uint32_t binary_crc32_;
+
+  //! Area offsets
+  uint32_t reserved_area_ofs_;
+  uint32_t binary_ofs_;
+
+  //! PSF Library Loaders
+  wxVector<PSFLoader*> psflibs_;
+};
+
+
+
+////////////////////////////////////////////////////////////////////////
+/// PSF1 Loader Classes
+////////////////////////////////////////////////////////////////////////
+
 class PSF1;
 
-class PSF1Loader: public SoundLoader
+class PSF1Loader: public PSFLoader
 {
 public:
-  ~PSF1Loader() {}
-
-  SoundInfo* LoadInfo();
   SoundData* LoadData();
   PSF1* LoadDataEx();
 
   static PSF1Loader* Instance(int fd, const wxString& filename);
-
-  // Accessors
-  // uint32_t pc0() const;
-  // uint32_t gp0() const;
-  // uint32_t sp0() const;
 
 protected:
   PSF1Loader(int fd, const wxString& filename);
@@ -50,6 +84,10 @@ protected:
   bool LoadEXE();
   bool LoadText(PSF1* p_psf);
 
+  //! Accessors
+  // uint32_t pc0() const;
+  // uint32_t gp0() const;
+  // uint32_t sp0() const;
   bool GetInitRegs(uint32_t* pc0, uint32_t* gp0, uint32_t* sp0) const;
 
   struct PSXEXEHeader {
@@ -77,34 +115,34 @@ protected:
 
   // friend class PSF1;
 private:
-  wxFile file_;
-  wxString path_;
-  wxWeakRef<SoundInfo> ref_info_;
   wxWeakRef<PSF1> ref_data_;
   wxScopedPtr<PSXEXEHeader> header_;
   wxScopedArray<char> text_;
-
-  //! PSF1 records
-  uint32_t reserved_area_len_;
-  uint32_t binary_len_;
-  uint32_t binary_crc32_;
-
-  //! Area offsets
-  uint32_t reserved_area_ofs_;
-  uint32_t binary_ofs_;
-
-  //! psflibs
-  wxVector<PSF1Loader*> psflibs_;
 };
 
 
-class PSF2;
+////////////////////////////////////////////////////////////////////////
+/// PSF2 Loader Classes
+////////////////////////////////////////////////////////////////////////
 
-/*
+class PSF2;
+class PSF2Directory;
+
 class PSF2Loader : public PSFLoader
 {
 public:
-    static PSF2Loader *Instance(int fd, const wxString& filename);
-    friend class PSF2;
+  SoundData* LoadData();
+  PSF2* LoadDataEx();
+
+  static PSF2Loader* Instance(int fd, const wxString& filename);
+
+protected:
+  PSF2Loader(int fd, const wxString& filename);
+
+  bool LoadPSF2Entries(PSF2Directory* root);
+
+private:
+  wxWeakRef<PSF2> ref_data_;
+  // wxScopedArray<char> text_;
 };
-*/
+

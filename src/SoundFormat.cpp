@@ -37,9 +37,7 @@ int WordToWord24(int word) {
   return word << 8;
 }
 
-
 }   // namespace
-
 
 
 
