@@ -1,11 +1,12 @@
 #include "common/command.h"
-#include "SoundManager.h"
+#include "common/SoundManager.h"
+#include "common/debug.h"
 #include <wx/string.h>
 #include <string>
 #include <iostream>
 #include <sstream>
 
-#include "Sound.h"
+#include "common/Sound.h"
 #include "app.h"
 #include "common/soundbank.h"
 
@@ -106,7 +107,7 @@ public:
     float vol = std::stof(param);
     wxSharedPtr<SoundDeviceDriver> sdd = wxGetApp().GetSoundManager();
     if (sdd == 0) {
-      wxMessageOutputDebug().Printf(wxT("Warning: SoundDevice is not initialized."));
+      rennyLogWarning("SetVolumeCommand", "SoundDevice is not initialized.");
       return false;
     }
     sdd->SetVolume(vol);
@@ -198,16 +199,16 @@ public:
 };
 
 
-/*
+
 class ExitCommand : public Command {
 public:
   ExitCommand(const std::string& p) : Command(p) {}
 
-  vool Execute() {
-
+  bool Execute() {
+    wxGetApp().ExitMainLoop();
   }
 };
-*/
+
 
 
 
@@ -244,7 +245,7 @@ Command* CommandFactory::CreateCommand(const std::string &line) {
       return new MuteChannel(params);
   }
   if (cmd == "exit") {
-    return NULL;
+    return new ExitCommand(params);
   }
 
   return NULL;

@@ -1,5 +1,6 @@
 #include "psf/psfloader.h"
 #include "psf/psf.h"
+#include "common/debug.h"
 #include <wx/wfstream.h>
 #include <wx/zstream.h>
 
@@ -131,7 +132,7 @@ bool PSF2Directory::LoadFile(wxFileInputStream *stream, const char *filename, in
   PSF2File* entry = new PSF2File(this, filename, uncompressed_data, uncompressed_size);
   AddEntry(entry);
 
-  wxMessageOutputDebug().Printf(wxT("Loaded psf2:%s"), entry->GetFullPath());
+  rennyLogDebug("PSF2Directory", "Loaded psf2:%s", static_cast<const char*>(entry->GetFullPath()));
 
   return true;
 }
@@ -166,12 +167,10 @@ bool PSF2Directory::LoadEntries(wxFileInputStream *stream, wxFileOffset offset) 
     if (uncompressed_size == 0 && block_size == 0) {
       if (child_offset == 0) {
         PSF2File* const entry = new PSF2File(this, filename);
-        // wxMessageOutputDebug().Printf(wxT("Create empty file: %s"), filename);
         AddEntry(entry);
         continue;
       }
       PSF2Directory* const entry = new PSF2Directory(this, filename);
-      // wxMessageOutputDebug().Printf(wxT("Create empty directory: %s"), filename);
       stream->SeekI(base_offset, wxFromStart);
       entry->LoadEntries(stream, child_offset);
       stream->SeekI(curr_offset, wxFromStart);

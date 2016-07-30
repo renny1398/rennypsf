@@ -3,7 +3,7 @@
 #include <wx/listctrl.h>
 #include <wx/menu.h>
 #include "psf/spu/soundbank.h"
-#include "SoundManager.h"
+#include "common/SoundManager.h"
 
 
 ////////////////////////////////////////////////////////////////////////

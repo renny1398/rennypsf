@@ -1,7 +1,7 @@
 #include "psf/spu/channel.h"
 #include "psf/spu/spu.h"
-#include "SoundManager.h"
-#include <wx/debug.h>
+#include "common/SoundManager.h"
+#include "common/debug.h"
 
 
 namespace {
@@ -105,8 +105,8 @@ void SPUVoice::StartSound()
     if (p_inst == 0) {
       p_inst = new SPUInstrument_New(Spu(), addr, useExternalLoop ? addrExternalLoop : 0xffffffff);
       Spu().soundbank().set_instrument(p_inst);
-      wxMessageOutputDebug().Printf(wxT("Created a new instrument. (id = %d, length = %d, loop = %d)"),
-                                    p_inst->id(), p_inst->length(), p_inst->loop());
+      rennyLogDebug("SPUInterument", "Created a new instrument. (id = 0x%08x, length = %d, loop = %d)",
+                    p_inst->id(), p_inst->length(), p_inst->loop());
     }
     tone = p_inst;
   }
@@ -277,6 +277,7 @@ void SPUVoiceManager::Notify() const {
     // wxMessageOutputDebug().Printf(wxT("Warning: no sound device."));
     return;
   }
+  // wxMessageOutputDebug().Printf(wxT("SPU: OnUpdate()"));
   sdd->OnUpdate(this);
 }
 

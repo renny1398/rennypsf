@@ -1,5 +1,5 @@
-#include "SoundFormat.h"
-#include "SoundManager.h"
+#include "common/SoundFormat.h"
+#include "common/SoundManager.h"
 #include <wx/msgout.h>
 
 /*
@@ -316,7 +316,6 @@ bool SoundData::Stop() {
   const wxSharedPtr<SoundDeviceDriver>& sdd = sound_block().output();
   sound_block().Reset();
   bool ret = DoStop();
-  wxMessageOutputDebug().Printf(wxT("The instance derived from SoundData is stopped."));
   if (sdd != 0) {
     sdd->Stop();
   }

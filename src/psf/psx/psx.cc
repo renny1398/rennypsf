@@ -4,10 +4,10 @@
 namespace PSX {
 
 
-Composite::Composite()
+Composite::Composite(u32 version)
   : r3000a_(this), interp_(this, &r3000a_), rcnt_(this), spu_(this),
     r3000a_regs_(), mem_(this), hw_regs_(this), dma_(this),
-    bios_(this) {}
+    bios_(this), version_(version) {}
 
 
 void Composite::Init(bool /*enable_spu2*/) {
@@ -18,6 +18,11 @@ void Composite::Reset() {
   // r3000a_.Init();
   rcnt_.Init();
   spu_.Open();
+}
+
+
+u32 Composite::version() const {
+  return version_;
 }
 
 
@@ -44,7 +49,7 @@ R3000A::Interpreter& Composite::Interp() {
   return interp_;
 }
 
-RootCounter& Composite::RCnt() {
+RootCounterManager& Composite::RCnt() {
   return rcnt_;
 }
 
@@ -203,7 +208,7 @@ Component::Component(Composite *composite)
 
 R3000A::Processor& Component::R3000a() { return composite_.R3000a(); }
 R3000A::Interpreter& Component::Interp() { return composite_.Interp(); }
-RootCounter& Component::RCnt() { return composite_.RCnt(); }
+RootCounterManager& Component::RCnt() { return composite_.RCnt(); }
 
 R3000A::Registers& Component::R3000ARegs() { return composite_.R3000ARegs(); }
 HardwareRegisters& Component::HwRegs() { return composite_.HwRegs(); }

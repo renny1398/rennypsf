@@ -5,8 +5,35 @@ if(APPLE)
 endif(APPLE)
 
 project(Rennypsf)
+set(serial "0.0.1")
 
 FIND_PACKAGE(wxWidgets REQUIRED core base)
+
+
+FIND_PATH(CPPUNIT_INCLUDE_DIR cppunit/Test.h)
+FIND_LIBRARY(CPPUNIT_LIBRARY NAMES cppunit)
+
+IF (CPPUNIT_INCLUDE_DIR AND CPPUNIT_LIBRARY)
+   SET(CPPUNIT_FOUND TRUE)
+   INCLUDE_DIRECTORIES(${CPPUNIT_INCLUDE_DIR})
+ENDIF (CPPUNIT_INCLUDE_DIR AND CPPUNIT_LIBRARY)
+
+IF (CPPUNIT_FOUND)
+
+   # show which CppUnit was found only if not quiet
+   IF (NOT CppUnit_FIND_QUIETLY)
+      MESSAGE(STATUS "Found CppUnit: ${CPPUNIT_LIBRARY}")
+   ENDIF (NOT CppUnit_FIND_QUIETLY)
+
+ELSE (CPPUNIT_FOUND)
+
+   # fatal error if CppUnit is required but not found
+   IF (CppUnit_FIND_REQUIRED)
+      MESSAGE(FATAL_ERROR "Could not find CppUnit")
+   ENDIF (CppUnit_FIND_REQUIRED)
+
+ENDIF (CPPUNIT_FOUND)
+
 
 SET(CMAKE_C_FLAGS_INIT                "-Wall -std=c99")
 SET(CMAKE_C_FLAGS_DEBUG_INIT          "-g")
@@ -92,10 +119,19 @@ IF(wxWidgets_FOUND)
         FILE(GLOB CUI_SRC src/cui/*.cc)
         FILE(GLOB CUI_HDR include/cui/*.h)
 #    ENDIF(USE_GUI)
-    ADD_EXECUTABLE(rennypsf ${CC_COMMON} ${HDR_COMMON} ${CPPFILES} ${CCFILES} ${GUI_SRC} ${GUI_HDR} ${CUI_SRC} ${CUI_HDR} ${HEADERS})
 
+    ADD_LIBRARY(renny ${CC_COMMON} ${HDR_COMMON})
+    ADD_DEPENDENCIES(renny ${HDR_COMMON})
+
+    ADD_EXECUTABLE(rennypsf ${CPPFILES} ${CCFILES} ${GUI_SRC} ${GUI_HDR} ${CUI_SRC} ${CUI_HDR} ${HEADERS})
     ADD_DEPENDENCIES(rennypsf ${HEADERS})
-    TARGET_LINK_LIBRARIES(rennypsf ${wxWidgets_LIBRARIES} ${OPENAL_LIBRARY} psx spu psf)
+    TARGET_LINK_LIBRARIES(rennypsf ${wxWidgets_LIBRARIES} ${OPENAL_LIBRARY} psx spu psf renny)
+
+    enable_testing()
+    add_executable(psx_test test/psx_test.cc)
+    target_link_libraries(psx_test cppunit ${wxWidgets_LIBRARIES} ${OPENAL_LIBRARY} psx spu psf renny)
+    add_test(psx_test psx_test)
+
 ENDIF(wxWidgets_FOUND)
 
 

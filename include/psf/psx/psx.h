@@ -24,10 +24,12 @@ class Composite {
   friend class Component;
 
 public:
-  Composite();
+  Composite(u32 version = 1);
 
   void Init(bool enable_spu2 = false);
   void Reset();
+
+  u32 version() const;
 
   R3000A::InterpreterThread *Run();
   void Terminate();
@@ -35,7 +37,7 @@ public:
 
   R3000A::Processor& R3000a();
   R3000A::Interpreter& Interp();
-  RootCounter& RCnt();
+  RootCounterManager& RCnt();
 
   R3000A::Registers& R3000ARegs();
   HardwareRegisters& HwRegs();
@@ -86,7 +88,7 @@ public:
 private:
   R3000A::Processor r3000a_;
   R3000A::Interpreter interp_;
-  RootCounter rcnt_;
+  RootCounterManager rcnt_;
   SPU::SPUBase spu_;
 
   R3000A::Registers r3000a_regs_;
@@ -94,6 +96,8 @@ private:
   HardwareRegisters hw_regs_;
   DMA dma_;
   BIOS bios_;
+
+  u32 version_; // 1 or 2
 };
 
 

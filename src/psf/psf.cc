@@ -1,7 +1,7 @@
 #include "psf/psf.h"
 #include "psf/psx/psx.h"
 #include "psf/spu/spu.h"
-#include <wx/msgout.h>
+#include "common/debug.h"
 
 #include <wx/file.h>
 #include <wx/filename.h>
@@ -10,11 +10,8 @@
 #include <wx/hashmap.h>
 
 
-PSF::PSF(PSX::Composite *psx)
-  : psx_(psx) {
-  if (psx == NULL) {
-    psx_ = new PSX::Composite();
-  }
+PSF::PSF(uint32_t version)
+  : psx_(new PSX::Composite(version)) {
 }
 
 
@@ -54,23 +51,14 @@ bool PSF::DoPlay()
 
 bool PSF::DoStop()
 {
-  wxMessageOutputDebug().Printf(wxT("Terminating PSX..."));
   psx_->Terminate();
   m_thread = 0;
-  wxMessageOutputDebug().Printf(wxT("PSF is stopped."));
+  rennyLogInfo("PSF", "PSF is stopped.");
   return true;
 }
 
 
-
-/*
-PSF1::PSF1(PSX::Composite *psx)
-  : PSF(psx)
-{
-}
-*/
-
-PSF1::PSF1(uint32_t pc0, uint32_t gp0, uint32_t sp0) : PSF(NULL) {
+PSF1::PSF1(uint32_t pc0, uint32_t gp0, uint32_t sp0) : PSF(1) {
   psx_->R3000ARegs().GPR.PC = pc0;
   psx_->R3000ARegs().GPR.GP = gp0;
   psx_->R3000ARegs().GPR.SP = sp0;
@@ -84,7 +72,7 @@ void PSF1::PSXMemCpy(PSX::PSXAddr dest, void *src, int length) {
 
 
 PSF2::PSF2(PSF2Entry* psf2irx)
-  : PSF(NULL), load_addr_(0x23f00) {
+  : PSF(2), load_addr_(0x23f00) {
 
   psx_->R3000ARegs().GPR.PC = LoadELF(psf2irx);
   psx_->R3000ARegs().GPR.SP = 0x801ffff0;
@@ -120,7 +108,7 @@ unsigned int PSF2::LoadELF(PSF2Entry* psf2irx) {
 
   if ((data[0] != 0x7f) || (data[1] != 'E') ||
       (data[2] != 'L') || (data[3] != 'F') ) {
-    wxMessageOutputDebug().Printf(wxT("%s is not ELF file."), irx->GetName());
+    rennyLogError("PSF2", "%s is not ELF file.", static_cast<const char*>(irx->GetName()));
     return 0xffffffff;
   }
 
@@ -222,8 +210,6 @@ unsigned int PSF2::LoadELF(PSF2Entry* psf2irx) {
   entry += load_addr_;
   entry |= 0x80000000;
   load_addr_ += totallen;
-
-  wxMessageOutputDebug().Printf(wxT("entry PC = %08x"), entry);
 
   return entry;
 }

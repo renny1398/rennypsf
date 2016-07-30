@@ -4,7 +4,7 @@
 #include "psf/psx/rcnt.h"
 #include "psf/psx/disassembler.h"
 
-#include <wx/debug.h>
+#include "common/debug.h"
 #include <cstring>
 
 
@@ -88,7 +88,7 @@ void Processor::Init()
 
   CP0.R[12] = 0x10900000; // COP0_ENABLED | BEV | TS
   CP0.R[15] = 0x00000002; // PRevId = Revision Id, same as R3000A
-  wxMessageOutputDebug().Printf(wxT("Initialized R3000A processor."));
+  rennyLogDebug("PSXProcessor", "Initialized R3000A processor.");
 
 }
 
@@ -105,7 +105,7 @@ void Processor::Reset()
   CP0.R[15] = 0x00000002; // PRevId = Revision Id, same as R3000A
   //    delayed_load_target = 0;
   //    delayed_load_value = 0;
-  wxMessageOutputDebug().Printf(wxT("R3000A processor is reset."));
+  rennyLogDebug("PSXProcessor", "R3000A processor is reset.");
 }
 
 
@@ -114,8 +114,6 @@ void Processor::Reset()
 
 void Processor::Exception(Instruction code, bool branch_delay)
 {
-  //    wxMessageOutputDebug().Printf(wxT("R3000A Exception: 0x%x"), (uint32_t)code);
-
   CP0.CAUSE = code;
 
   u32 pc = GPR.PC;
@@ -132,7 +130,7 @@ void Processor::Exception(Instruction code, bool branch_delay)
     PC = 0x80000080;
   }
 
-  // (KUo,IEo, KUp, IEp) <- (KUp, IEp, KUc, IEc)
+  // (KUo, IEo, KUp, IEp) <- (KUp, IEp, KUc, IEc)
   CP0.SR = (status & ~0x3f) | ((status & 0xf) << 2);
   Bios().Exception();
 }
@@ -148,9 +146,7 @@ void Processor::Exception(Instruction code, bool branch_delay)
 
 void Processor::BranchTest()
 {
-  if (Cycle - RCnt().nextsCounter >= RCnt().nextCounter) {
-    RCnt().Update();
-  }
+  RCnt().Update();
 
   // interrupt mask register ($1f801074)
   if (U32H_ref(0x1070) & U32H_ref(0x1074)) {

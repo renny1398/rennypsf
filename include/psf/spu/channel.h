@@ -4,7 +4,7 @@
 #include <wx/scopedptr.h>
 #include <wx/vector.h>
 
-#include "SoundFormat.h"
+#include "common/SoundFormat.h"
 #include "psf/spu/soundbank.h"
 
 
@@ -254,6 +254,27 @@ private:
 
   friend class SPUVoiceManager;
 };
+
+
+
+class SPUCoreVoiceManager : public ::SoundBlock {
+
+public:
+  SPUCoreVoiceManager();
+  SPUCoreVoiceManager(SPUBase* pSPU, int channel_count);
+
+  unsigned int block_size() const {
+    return channel_count_ * sizeof(float);
+  }
+
+  Sample& Ch(int ch);
+
+private:
+  SPUBase* const pSPU_;
+  int channel_count_;
+};
+
+
 
 
 

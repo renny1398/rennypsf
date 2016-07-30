@@ -1,7 +1,6 @@
 #include "psf/spu/channel.h"
+#include "common/debug.h"
 #include <cstring>
-#include <wx/msgout.h>
-
 
 
 namespace {
@@ -189,7 +188,7 @@ int EnvelopeAttack::Advance(SPUVoice* ch) const {
   int32_t envVol = adsr.envelope_volume();
   int32_t rate = adsr.attack_rate();
   if (envVol == 0 && rate == 0) {
-    wxMessageOutputDebug().Printf(wxT("Warning: attack rate is zero!!!"));
+    rennyLogWarning("SPUEnvelopeAttack", "Attack rate is zero!");
     SetState(ch, EnvelopeOff::Instance());
     return 0;
   }
@@ -269,7 +268,7 @@ int EnvelopeRelease::Advance(SPUVoice* ch) const {
   int32_t envVol = adsr.envelope_volume();
   uint32_t disp = (adsr.release_mode_exp()) ? TableDisp[(envVol >> 28) & 0x7] : -0x0c + 32;
   if (adsr.release_rate() + disp >= 160) {
-    wxMessageOutputDebug().Printf(wxT("WARNING: rateTable index is too large. (release_rate = %d, disp = %d)"), adsr.release_rate(), disp);
+    rennyLogWarning("SPUEnvelopeRelease", "rateTable index is too large. (release_rate = %d, disp = %d)", adsr.release_rate(), disp);
     envVol = 0;
     SetState(ch, EnvelopeOff::Instance());
     return envVol;
@@ -338,7 +337,7 @@ void EnvelopeActive::Set(const EnvelopePassive& passive) {
   attack_mode_exp_ = passive.attack_mode_exp();
   attack_rate_ = passive.attack_rate();
   if (attack_rate_ == 0) {
-    wxMessageOutputDebug().Printf(wxT("Warning: attack rate is zero!"));
+    rennyLogWarning("SPUEnvelopeActive", "Attack rate is zero!");
   }
   // Decay
   decay_rate_ = passive.decay_rate();

@@ -5,6 +5,8 @@
 
 #include "psf/spu/spu.h"
 
+#include "common/debug.h"
+
 //using namespace PSX;
 //using namespace PSX::R3000A;
 //using namespace PSX::Interpreter;
@@ -346,19 +348,19 @@ void Interpreter::doBranch(u32 branch_pc)
   Instruction code(&cpu_, U32M_ref(pc));
   pc += 4;
   R3000ARegs().PC = pc;
-  R3000ARegs().Cycle++;
+  R3000ARegs().sysclock++;
 
   const u32 op = code.Opcode();
   switch (op) {
   case 0x10:  // COP0
-  if ((code.Rs() & 0x03) == code.Rs()) {  // MFC0, CFC0
-    delayTest(code.Rt(), branch_pc);
-  return;
-  }
-  break;
+    if ((code.Rs() & 0x03) == code.Rs()) {  // MFC0, CFC0
+      delayTest(code.Rt(), branch_pc);
+      return;
+    }
+    break;
   case 0x32:  // LWC2
-  delayTest(code.Rt(), branch_pc);
-  return;
+    delayTest(code.Rt(), branch_pc);
+    return;
   default:
     if (static_cast<u32>(op - 0x20) < 8) { // Load opcode
       wxASSERT(op >= 0x20);
@@ -382,7 +384,7 @@ void Interpreter::doBranch(u32 branch_pc)
 
 
 void Interpreter::NLOP(Instruction code) {
-  wxMessageOutputDebug().Printf(wxT("WARNING: Unknown Opcode (0x%02x) is executed!"), code >> 26);
+  rennyLogWarning("PSXInterpreter", "Unknown Opcode (0x%02x) is executed!", code >> 26);
 }
 
 
@@ -829,35 +831,35 @@ void Interpreter::LWC0(Instruction) {
 
 }
 void Interpreter::LWC1(Instruction) {
-  wxMessageOutputDebug().Printf(wxT("WARNING: LWC1 is not supported."));
+  rennyLogWarning("PSXInterpreter", "LWC1 is not supported.");
 }
 void Interpreter::LWC2(Instruction) {}
 void Interpreter::LWC3(Instruction) {
-  wxMessageOutputDebug().Printf(wxT("WARNING: LWC3 is not supported."));
+  rennyLogWarning("PSXInterpreter", "LWC3 is not supported.");
 }
 
 void Interpreter::SWC0(Instruction) {}
 void Interpreter::SWC1(Instruction) {
-  wxMessageOutputDebug().Printf(wxT("WARNING: SWC1 is not supported."));
+  rennyLogWarning("PSXInterpreter", "SWC1 is not supported.");
 }
 
 void Interpreter::SWC2(Instruction) {}
 void Interpreter::SWC3(Instruction) {
   // HLE?
-  wxMessageOutputDebug().Printf(wxT("WARNING: SWC3 is not supported."));
+  rennyLogWarning("PSXInterpreter", "SWC3 is not supported.");
 }
 
 
 
 void Interpreter::COP0(Instruction) {}
 void Interpreter::COP1(Instruction code) {
-  wxMessageOutputDebug().Printf(wxT("WARNING: COP1 is not supported (PC = 0x%08x)."), (int)code);
+  rennyLogWarning("PSXInterpreter", "COP1 is not supported (PC = 0x%08x).", (int)code);
 }
 void Interpreter::COP2(Instruction) {
   // Cop2 is not supported.
 }
 void Interpreter::COP3(Instruction code) {
-  wxMessageOutputDebug().Printf(wxT("WARNING: COP3 is not supported (PC = 0x%08x)."), (int)code);
+  rennyLogWarning("PSXInterpreter", "COP3 is not supported (PC = 0x%08x).", (int)code);
 }
 
 
@@ -924,12 +926,7 @@ void (Interpreter::*const Interpreter::HLEt[])() = {
 
 
 void Interpreter::HLECALL(Instruction code) {
-  /*
-    if ((u32)((code & 0xff) -1) < 3) {
-        wxMessageOutputDebug().Printf("HLECALL %c0:%02x", 'A' + (code & 0xff)-1, R3000ARegs().GPR.T1 & 0xff);
-    }
-   */
-   (this->*HLEt[code & 0xff])();
+  (this->*HLEt[code & 0xff])();
 }
 
 
@@ -946,7 +943,7 @@ InterpreterThread::InterpreterThread(Interpreter *interp)
 
 wxThread::ExitCode InterpreterThread::Entry()
 {
-  wxMessageOutputDebug().Printf(wxT("Started PSX thread."));
+  rennyLogDebug("PSXInterpreterThread", "Started the thread.");
 
   isRunning_ = true;
   do {
@@ -963,7 +960,7 @@ void InterpreterThread::Shutdown()
 {
   if (isRunning_ == false) return;
   isRunning_ = false;
-  wxMessageOutputDebug().Printf(wxT("Requested that PSX interpreter thread stop running."));
+  rennyLogDebug("PSXInterpreterThread", "Requested that PSX interpreter thread stop running.");
   wxThread::Wait();
 }
 
@@ -971,7 +968,7 @@ void InterpreterThread::Shutdown()
 void InterpreterThread::OnExit()
 {
   // interp_.Spu().Close();
-  wxMessageOutputDebug().Printf(wxT("PSX Thread is ended. (cycle = %d)"), interp_.R3000ARegs().Cycle);
+  rennyLogDebug("PSXInterpreterThread", "PSX Thread is ended. (cycle = %d)", interp_.R3000ARegs().sysclock);
 }
 
 
@@ -1064,13 +1061,14 @@ void Interpreter::ExecuteOnce()
   u32 pc = R3000ARegs().PC;
   Instruction code(&cpu_, U32M_ref(pc));
   pc += 4;
-  ++R3000ARegs().Cycle;
+  ++R3000ARegs().sysclock;
   R3000ARegs().PC = pc;
 
   ExecuteOpcode(code);
 }
 
 
+// called from BIOS::Softcall()
 void Interpreter::ExecuteBlock() {
   R3000a().doingBranch = false;
   do {

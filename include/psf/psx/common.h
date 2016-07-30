@@ -54,7 +54,7 @@ class Recompiler;
 struct Registers;
 }
 
-class RootCounter;
+class RootCounterManager;
 class HardwareRegisters;
 class DMA;
 class BIOS;
@@ -113,7 +113,7 @@ public:
 
   R3000A::Processor& R3000a();
   R3000A::Interpreter& Interp();
-  RootCounter& RCnt();
+  RootCounterManager& RCnt();
 
   R3000A::Registers& R3000ARegs();
   HardwareRegisters& HwRegs();

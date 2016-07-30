@@ -32,7 +32,7 @@ private:
 };
 
 
-#include "SoundManager.h"
+#include "common/SoundManager.h"
 
 class VolumeBar : public wxPanel
 {

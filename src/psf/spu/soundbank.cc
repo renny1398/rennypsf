@@ -1,7 +1,8 @@
 #include "psf/spu/soundbank.h"
 #include "psf/spu/spu.h"
 #include "psf/psx/psx.h"
-#include "SoundManager.h"
+#include "common/SoundManager.h"
+#include "common/debug.h"
 
 #include <cmath>
 #include <stdexcept>
@@ -576,7 +577,7 @@ void SoundBank::Reset()
     delete tone;
   }
   */
-  wxMessageOutputDebug().Printf(wxT("Reset Soundbank."));
+ rennyLogDebug("SPUSoundbank", "Reset Soundbank.");
 }
 
 
@@ -665,7 +666,7 @@ wxThread::ExitCode PCM_Converter::Entry() {
   while (TestDestroy() == false) {
 
     if (read_size >= p_inst_->length_) {
-      wxMessageOutputDebug().Printf(wxT("Warning: memory is over. (id = %d)"), p_inst_->id());
+      rennyLogWarning("SPU_PCMConverter", "Memory is over. (id = %d)", p_inst_->id());
       break;
     }
 
@@ -849,7 +850,7 @@ void SPUInstrument_New::set_external_loop(SPUAddr addr) {
 
 
 int SPUInstrument_New::CalculateId(SPUAddr addr, SPUAddr external_loop) {
-  return ((addr >> 4) << 17) + external_loop;
+  return ((addr >> 4) << 16) + (external_loop >> 4);
 }
 
 }   // namespace SPU

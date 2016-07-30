@@ -22,8 +22,6 @@ private:
 };
 
 
-
-
 class CommandFactory {
 
 public:
@@ -36,9 +34,6 @@ protected:
   ~CommandFactory() {};
   Command& operator=(const Command&);
 };
-
-
-
 
 
 #endif  // COMMAND_H_

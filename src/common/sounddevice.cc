@@ -1,7 +1,6 @@
-#include "SoundManager.h"
-#include "SoundFormat.h"
-
-#include <iostream>
+#include "common/SoundManager.h"
+#include "common/SoundFormat.h"
+#include "common/debug.h"
 
 const int NUM_BUFFERS = 50;
 const int NSSIZE = 45;
@@ -34,7 +33,7 @@ SoundDeviceDriver::SoundDeviceDriver()
 
 
 SoundDeviceDriver::~SoundDeviceDriver() {
-  wxMessageOutputDebug().Printf(wxT("Released a sound device."));
+  rennyLogInfo("SoundDeviceDriver", "Released a sound device.");
 }
 
 
@@ -58,7 +57,7 @@ bool SoundDeviceDriver::Play()
 {
   ZeroCounter();
   is_playing_ = true;
-  wxMessageOutputDebug().Printf(wxT("Started playing SDD."));
+  rennyLogInfo("SoundDeviceDriver", "Started playing.");
   return true;
 }
 
@@ -66,7 +65,7 @@ bool SoundDeviceDriver::Play()
 bool SoundDeviceDriver::Stop()
 {
   is_playing_ = false;
-  wxMessageOutputDebug().Printf(wxT("Ended playing SDD."));
+  rennyLogInfo("SoundDeviceDriver", "Stopped playing.");
   return true;
 }
 
@@ -180,7 +179,6 @@ wxThread::ExitCode WaveOutALThread::Entry() {
   } while (true);
 
   // sound_driver_->thread_ = 0;
-  wxMessageOutputDebug().Printf(wxT("WaveOutALThread will be destroyed."));
   return 0;
 }
 
@@ -212,7 +210,6 @@ WaveOutAL::WaveOutAL()
 
 WaveOutAL::~WaveOutAL()
 {
-  wxMessageOutputDebug().Printf(wxT("WaveOutAL: started shutdown..."));
   Shutdown();
 }
 
@@ -229,7 +226,7 @@ void WaveOutAL::ThisThreadInit()
   // alGenSources(1, &source_);
   source_ = 0;
   source_number_++;
-  std::cout << "WaveOutAL: Initialized a sound device." << std::endl;
+  rennyLogDebug("WaveOutAL", "Initialized a sound device driver.");
 }
 
 
@@ -253,7 +250,7 @@ void WaveOutAL::ThisThreadShutdown()
     alcDestroyContext(context_);
     alcCloseDevice(device_);
     device_ = 0;  // WaveOutALThread will be destroyed
-    wxMessageOutputDebug().Output(wxT("WaveOutAL: Closed WaveOutAL."));
+    rennyLogDebug("WaveOutAL", "Closed the device driver.");
   }
 }
 
@@ -265,7 +262,7 @@ void WaveOutAL::Shutdown() {
     delete thread_;
     thread_ = 0;
   }
-  wxMessageOutputDebug().Output(wxT("Destroyed WaveOutAL."));
+  rennyLogDebug("WaveOutAL", "Shutdown.");
 }
 
 
@@ -279,7 +276,7 @@ float WaveOutAL::GetVolume() const {
 
 void WaveOutAL::SetVolume(float vol) {
   if (source_ == 0) {
-    wxMessageOutputDebug().Printf(wxT("Warning: no OpenAL source is generated."));
+    rennyLogWarning("WaveOutAL", "No OpenAL source is generated.");
     return;
   }
   alSourcef(source_, AL_GAIN, vol);
@@ -309,7 +306,7 @@ void WaveOutAL::ThisThreadWriteToDevice()
       alGetSourcei(source_, AL_SOURCE_STATE, &state);
       if (state != AL_PLAYING) {
         alSourcePlay(source_);
-        std::cout << "WaveOutAL: Started playing. source = " << source_ << std::endl;
+        rennyLogDebug("WaveOutAL", "Started playing.");
       }
       while (alGetSourcei(source_, AL_BUFFERS_PROCESSED, &n), n == 0) {
         usleep(1000);
@@ -320,19 +317,10 @@ void WaveOutAL::ThisThreadWriteToDevice()
     alSourceQueueBuffers(source_, 1, &buffer_);
   }
 
-  // wxMessageOutputDebug().Printf(wxT("WaveOutAL: Writing..."));
-
   mutex_.Lock();
   finished_writing_ = true;
   write_to_device_cond_.Broadcast();
   mutex_.Unlock();
-  /*
-  mutex2_.Lock();
-  while (finished_writing_ == true) {
-    write_to_device_cond2_.Wait();
-  }
-  mutex2_.Unlock();
-  */
 }
 
 
@@ -369,7 +357,7 @@ bool WaveOutAL::ThisThreadStop()
   if (state != AL_STOPPED) {
     alSourceStop(source_);
     alSourcei(source_, AL_BUFFER, 0);
-    std::cout << "WaveOutAL: Stopped playing." << std::endl;
+    rennyLogDebug("WaveOutAL", "Stopped playing.");
   }
   while (alGetSourcei(source_, AL_SOURCE_STATE, &state), state == AL_PLAYING) {
     usleep(100);
@@ -382,7 +370,7 @@ bool WaveOutAL::ThisThreadStop()
   alDeleteSources(1, &source_);
   source_ = 0;
 
-  wxMessageOutputDebug().Printf(wxT("WaveOutAL: deleted a source."));
+ rennyLogDebug("WaveOutAL",  "Deleted a source.");
 
   return true;
 }

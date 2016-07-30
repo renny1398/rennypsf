@@ -5,7 +5,7 @@
 #include <wx/sizer.h>
 #include <wx/stattext.h>
 //#include <wx/gauge.h>
-#include "SoundManager.h"
+#include "common/SoundManager.h"
 #include "app.h"
 //#include "spu/spu.h"
 

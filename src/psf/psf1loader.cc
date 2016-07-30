@@ -1,5 +1,6 @@
 #include "psf/psfloader.h"
 #include "psf/psf.h"
+#include "common/debug.h"
 #include <wx/string.h>
 #include <wx/scopedarray.h>
 #include <wx/wfstream.h>
@@ -7,7 +8,6 @@
 #include <wx/zstream.h>
 #include <wx/filename.h>
 #include <wx/regex.h>
-#include <wx/msgout.h>
 
 
 PSFLoader::PSFLoader(int fd, const wxString &filename)
@@ -93,7 +93,8 @@ SoundInfo* PSFLoader::LoadInfo() {
           wxString k(re.GetMatch(process_text, 1));
           wxString v(re.GetMatch(process_text, 2));
           tag[k] = v;
-          wxMessageOutputDebug().Printf(wxT("[TAG] %s = %s"), k, v);
+          rennyLogDebug("PSFLoader", "[TAG] %s = %s", (const char*)k, (const char*)v);
+
           process_text = process_text.Mid(start + len);
         }
       }
@@ -175,7 +176,7 @@ bool PSF1Loader::LoadEXE() {
 
   if (::memcmp(header->signature, "PS-X EXE", 8) != 0) /* header.signature <> "PS-X EXE" */ {
     const wxString str_sign(header->signature, 8);
-    wxMessageOutputStderr().Printf(wxT("Uncompressed binary is not PS-X EXE! (%s)"), str_sign);
+    rennyLogError("PSF1Loader", "Uncompressed binary is not PS-X EXE! (%s)", static_cast<const char*>(str_sign));
     return false;
   }
   header.swap(header_);
@@ -231,8 +232,7 @@ PSF1* PSF1Loader::LoadDataEx() {
   PSF1* p_psf = new PSF1(pc0, gp0, sp0);
   LoadText(p_psf);
 
-  // wxMessageOutputDebug().Printf("PC0 = 0x%08x, GP0 = 0x%08x, SP0 = 0x%08x", psx_->R3000ARegs().GPR.PC, psx_->R3000ARegs().GPR.GP, psx_->R3000ARegs().GPR.SP);
-  wxMessageOutputDebug().Printf("PSF File '%s' is loaded.", path());
+  rennyLogDebug("PSF1Loader", "PSF File '%s' is loaded.", static_cast<const char*>(path()));
 
   ref_data_ = p_psf;
   return p_psf;

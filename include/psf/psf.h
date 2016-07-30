@@ -1,6 +1,6 @@
 #pragma once
 
-#include "SoundFormat.h"
+#include "common/SoundFormat.h"
 #include "psf/psx/psx.h"
 #include <stdint.h>
 #include <wx/file.h>
@@ -10,7 +10,7 @@
 class PSF: public SoundData
 {
 public:
-  explicit PSF(PSX::Composite* psx = NULL);
+  explicit PSF(uint32_t version);
   virtual ~PSF();
 
   Soundbank& soundbank();
@@ -42,7 +42,6 @@ protected:
 class PSF1: public PSF
 {
 public:
-  // PSF1(PSX::Composite* psx = NULL);
   PSF1(uint32_t pc0, uint32_t gp0, uint32_t sp0);
   unsigned int GetSamplingRate() const { return 44100; }
 

@@ -11,7 +11,7 @@
 #include "reverb.h"
 #include "interpolation.h"
 #include "soundbank.h"
-#include "SoundFormat.h"
+#include "common/SoundFormat.h"
 
 
 class wxEvtHandler;

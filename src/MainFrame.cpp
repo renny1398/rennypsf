@@ -6,7 +6,7 @@
 
 #include "Playlist.h"
 
-#include "SoundFormat.h"
+#include "common/SoundFormat.h"
 
 //#include "spu/spu.h"
 

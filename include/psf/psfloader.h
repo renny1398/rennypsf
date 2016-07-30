@@ -1,6 +1,6 @@
 #pragma once
 
-#include "SoundLoader.h"
+#include "common/SoundLoader.h"
 // #include "PSF.h"
 
 #include <wx/string.h>

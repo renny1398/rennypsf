@@ -1,6 +1,6 @@
 #include "psf/spu/spu.h"
 #include <cstring>
-#include <wx/debug.h>
+#include "common/debug.h"
 
 
 namespace {
@@ -57,7 +57,7 @@ void REVERBInfo::Reset() {
   ::memset(Config, 0, sizeof(Config));
   DoReset();
 
-  wxMessageOutputDebug().Printf(wxT("Initialized SPU Reverb."));
+  rennyLogDebug("SPUReverb", "Initialized SPU Reverb.");
 }
 
 
@@ -70,18 +70,17 @@ void REVERBInfo::ClearReverb() {
 }
 
 
-void REVERBInfo::WorkAreaStart(uint16_t val)
-{
-    if (val >= 0xffff || val <= 0x200) {
-        iStartAddr = iCurrAddr = 0;
-        return;
-    }
-    const uint32_t lval = static_cast<uint32_t>(val) << 2;
-    if ((uint32_t)iStartAddr != lval) {
-        iStartAddr = lval;
-        iCurrAddr = lval;
-        wxMessageOutputDebug().Printf(wxT("SPU Reverb: set start address = 0x%05X"), lval);
-    }
+void REVERBInfo::WorkAreaStart(uint16_t val) {
+  if (val >= 0xffff || val <= 0x200) {
+      iStartAddr = iCurrAddr = 0;
+      return;
+  }
+  const uint32_t lval = static_cast<uint32_t>(val) << 2;
+  if ((uint32_t)iStartAddr != lval) {
+      iStartAddr = lval;
+      iCurrAddr = lval;
+      rennyLogDebug("SPUReverb", "Set start address = 0x%05X", lval);
+  }
 }
 
 
@@ -218,7 +217,6 @@ void REVERBInfo::SetBuffer(int ofs, int val)
   }
   while (ofs < iStartAddr) {
     ofs = 0x3ffff - (iStartAddr - ofs);
-    wxMessageOutputDebug().Printf(wxT("w"));
   }
   if (val < -32768) val = -32768;
   if (val >  32767) val =  32767;
@@ -236,7 +234,6 @@ void REVERBInfo::SetBufferPlus1(int ofs, int val)
   }
   while (ofs < iStartAddr) {
     ofs = 0x3ffff - (iStartAddr - ofs);
-    wxMessageOutputDebug().Printf(wxT("w"));
   }
   if (val < -32768) val = -32768;
   if (val >  32767) val =  32767;

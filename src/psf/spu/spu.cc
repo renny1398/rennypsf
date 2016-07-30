@@ -1,19 +1,20 @@
 #include "psf/spu/spu.h"
-#include <wx/msgout.h>
+#include "common/debug.h"
 #include <wx/hashmap.h>
 #include <cstring>
 
 #include "psf/psx/hardware.h"
-#include "SoundManager.h"
+#include "common/SoundManager.h"
+
 
 namespace {
-
+/*
 inline int32_t CLIP(int32_t x) {
   if (x > 32767) return 32767;
   if (x < -32768) return -32768;
   return x;
 }
-
+*/
 int32_t poo;
 
 }   // namespace
@@ -84,7 +85,7 @@ void SPUStepRequest::Execute(SPUBase* p_spu) const {
 
 const SPURequest* SPUNoteOnRequest::CreateRequest(int ch) {
   if (24 <= ch) {
-    wxMessageOutputDebug().Printf(wxT("Warning: invalid channel number %d."), ch);
+    rennyLogWarning("SPUNoteOnReguest", "Invalid channel number %d.", ch);
     return NULL;
   }
 
@@ -134,7 +135,7 @@ const SPURequest* SPUSetOffsetRequest::CreateRequest(int ch) {
 }
 
 
-void SPUSetOffsetRequest::Execute(SPUBase* p_spu) const {
+void SPUSetOffsetRequest::Execute(SPUBase*) const {
   // p_spu->Voice(ch_).tone->ConvertData();
 }
 
@@ -333,7 +334,7 @@ void SPUThread::WaitForLastStep() {
   wxMutexLocker locker(queue_mutex_);
   while (req_queue_.empty() == false) {
     if (queue_cond_.WaitTimeout(1000) == wxCOND_TIMEOUT) {
-      wxMessageOutputDebug().Printf(wxT("SPUThread::WaitForLastStep(): Warning: waiting time is out."));
+      rennyLogWarning("SPUThread", "WaitForLastStep(): waiting time is out.");
     }
   }
 }
@@ -349,7 +350,7 @@ wxThread::ExitCode SPUThread::Entry()
     p_spu->Voice(i).is_ready = false;
   }
 
-  wxMessageOutputDebug().Printf(wxT("Started SPU thread."));
+  rennyLogDebug("SPUThread", "Started SPU thread.");
 
   do {
     queue_mutex_.Lock();
@@ -377,7 +378,7 @@ wxThread::ExitCode SPUThread::Entry()
 
 
 void SPUThread::OnExit() {
-  wxMessageOutputDebug().Printf(wxT("Terminated SPU thread."));
+  rennyLogDebug("SPUThread", "Terminated SPU thread.");
 }
 
 
@@ -388,7 +389,7 @@ void SPUBase::Init()
 
   thread_ = 0;
 
-  wxMessageOutputDebug().Printf(wxT("Initialized SPU."));
+  rennyLogDebug("SPU", "Initialized SPU.");
 }
 
 void SPUBase::Open()
@@ -407,9 +408,10 @@ void SPUBase::Open()
     thread_ = new SPUThread(this);
     thread_->Create();
     thread_->Run();
+    rennyLogDebug("SPU", "Create a thread.");
   }
 
-  wxMessageOutputDebug().Printf(wxT("Reset SPU."));
+  rennyLogDebug("SPU", "Reset SPU.");
 }
 
 void SPUBase::Close()
@@ -429,8 +431,7 @@ void SPUBase::Shutdown()
 {
   Close();
   mem8_.reset();
-  wxMessageOutputDebug().Printf(wxT("Shut down SPU."));
-  wxMessageOutputDebug().Printf(wxT("thread = %p"), thread_);
+  rennyLogDebug("SPU", "Shut down SPU.");
 }
 
 

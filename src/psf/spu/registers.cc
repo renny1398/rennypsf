@@ -1,5 +1,5 @@
 #include "psf/spu/spu.h"
-#include <wx/msgout.h>
+#include "common/debug.h"
 
 
 namespace SPU {
@@ -36,7 +36,7 @@ uint16_t read1xx0(const SPUVoice& channelInfo)
   uint16_t ret = 0;
   int volume = channelInfo.iLeftVolume;
   if (channelInfo.isLeftSweep) {
-    wxMessageOutputDebug().Printf(wxT("WARNING: Sweep mode is experimental."));
+    rennyLogWarning("SPURegisters", "Sweep mode is experimental.");
     ret |= 0x8000;
     if (channelInfo.isLeftExpSlope) ret |= 0x4000;
     if (channelInfo.isLeftDecreased) ret |= 0x2000;
@@ -136,13 +136,13 @@ uint16_t readGlobalNOP(const SPUBase& /*spu*/) { return 0; }
 
 // Get main volume left
 uint16_t read1d80(const SPUBase& /*spu*/) {
-  wxMessageOutputDebug().Printf(wxT("WARNING: SPU::GetMainVolumeLeft is not implemented."));
+  rennyLogWarning("SPURegisters", "SPU::GetMainVolumeLeft() is not implemented.");
   return 0;
 }
 
 // Get main volume right
 uint16_t read1d82(const SPUBase& /*spu*/) {
-  wxMessageOutputDebug().Printf(wxT("WARNING: SPU::GetMainVolumeRight is not implemeted."));
+  rennyLogWarning("SPURegisters", "SPU::GetMainVolumeRight() is not implemeted.");
   return 0;
 }
 
@@ -358,7 +358,7 @@ void write1xx6(SPUVoice& channelInfo, uint16_t val)
 */
   SPUAddr addr = static_cast<SPUAddr>(val) << 3;
   if (channelInfo.IsOn() == true) {
-    wxMessageOutputDebug().Printf(wxT("Warning(set start address): channel %d is on."), channelInfo.ch);
+    // rennyLogWarning("SPURegisters", "Set start address: channel %d is on.", channelInfo.ch);
   }
   channelInfo.addr = addr;
 
@@ -395,7 +395,7 @@ void write1xxe(SPUVoice& channelInfo, uint16_t val)
   // channelInfo.pLoop = Spu.GetSoundBuffer() + (static_cast<uint32_t>(val) << 3);
   SPUAddr addr = static_cast<SPUAddr>(val) << 3;
   if (channelInfo.IsOn() == true) {
-    wxMessageOutputDebug().Printf(wxT("Warning(set repeat address): channel %d is on."), channelInfo.ch);
+    // rennyLogWarning("SPURegisters", "Set repeat address: channel %d is on.", channelInfo.ch);
   }
   channelInfo.addrExternalLoop = addr;
   channelInfo.useExternalLoop = true;
@@ -423,11 +423,11 @@ void writeGlobalNOP(SPUBase* /*spu*/, uint16_t) {}
 
 // Set main volume left
 void write1d80(SPUBase* /*spu*/, uint16_t) {
-  wxMessageOutputDebug().Printf(wxT("WARNING: SPU::SetMainVolumeLeft is not implemented."));
+  rennyLogWarning("SPURegisters", "SPU::SetMainVolumeLeft() is not implemented.");
 }
 // Set main volume right
 void write1d82(SPUBase* /*spu*/, uint16_t) {
-  wxMessageOutputDebug().Printf(wxT("WARNING: SPU::SetMainVolumeRight is not implemented."));
+  rennyLogWarning("SPURegisters", "SPU::SetMainVolumeRight() is not implemented.");
 }
 
 // Set reverberation depth left
@@ -601,13 +601,13 @@ void write1dae(SPUBase* spu, uint16_t val)
 // Set CD volume left
 void write1db0(SPUBase* /*spu*/, uint16_t)
 {
-  wxMessageOutputDebug().Printf(wxT("WARNING: SPU::SetCDVolumeLeft is not implemented."));
+  rennyLogWarning("SPURegisters", "SPU::SetCDVolumeLeft() is not implemented.");
 }
 
 // Set CD volume right
 void write1db2(SPUBase* /*spu*/, uint16_t)
 {
-  wxMessageOutputDebug().Printf(wxT("WARNING: SPU::SetCDVolumeRight is not implemented."));
+  rennyLogWarning("SPURegisters", "SPU::SetCDVolumeRight() is not implemented.");
 }
 
 // Set extern volumes
@@ -662,10 +662,9 @@ void SPUBase::WriteRegister(uint32_t reg, uint16_t val)
   const uint32_t ofs = (reg - 0x1f801dc0) >> 1;
   if (ofs < 0x20) {
     Reverb().Config[ofs] = (int16_t)val;
-    wxMessageOutputDebug().Printf(wxT("SPU Reverb: set Config[0x%02x] = %d"), ofs, val);
+    rennyLogDebug("SPURegisters", "SPU Reverb: set Config[0x%02x] = %d", ofs, val);
   }
 }
-
 
 }  // namespace SPU
 

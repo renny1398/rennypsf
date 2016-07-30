@@ -3,8 +3,8 @@
 #include "common/command.h"
 #include "MainFrame.h"
 #include "channelframe.h"
-#include "SoundManager.h"
-
+#include "common/SoundManager.h"
+#include "common/debug.h"
 
 #ifdef __WXMAC__
 #include <ApplicationServices/ApplicationServices.h>
@@ -40,30 +40,63 @@ bool RennypsfApp::OnInit()
 
 #include <wx/cmdline.h>
 
-bool RennypsfApp::OnInit() {
-	return true;
+wxThread::ExitCode ConsoleThread::Entry() {
+
+  std::string line;
+  is_exiting_ = false;
+
+  while (!TestDestroy() && !is_exiting_) {
+    std::cout << "> ";
+    std::getline(std::cin, line);
+    if (TestDestroy()) break;
+    Command* cmd = CommandFactory::GetInstance()->CreateCommand(line);
+    if (cmd == NULL) continue;
+    cmd->Execute();
+  }
+
+  // wxGetApp().ExitMainLoop();
+  return 0;
 }
 
 
-int RennypsfApp::OnRun() {
+bool RennypsfApp::OnInit() {
 
-  std::string line;
+  SetExitOnFrameDelete(false);
 
-  do {
-    std::cout << "> ";
-    std::getline(std::cin, line);
-    Command* cmd = CommandFactory::GetInstance()->CreateCommand(line);
-    if (cmd == NULL) break;
-    cmd->Execute();
-  } while (true);
+  console_thread_ = new ConsoleThread();
+  console_thread_->Create();
+  console_thread_->Run();
 
-  return 0;
+  rennyCreateDebugWindow(NULL);
+  rennyShowDebugWindow();
+
+  return true;
+}
+
+
+void RennypsfApp::ExitMainLoop() {
+  if (console_thread_ && console_thread_->IsRunning()) {
+    console_thread_->Exit();
+    // if (wxThread::GetCurrentId() != console_thread_->GetId()) {
+    //   console_thread_->Delete();
+    //   console_thread_->Wait();
+    // }
+  }
+  rennyDestroyDebugWindow();
+
+  return wxAppConsole::ExitMainLoop();
 }
 
 #endif
 
 int RennypsfApp::OnExit() {
+  if (console_thread_ && console_thread_->IsRunning()) {
+    console_thread_->Delete();
+  }
+  Stop();
   sdd_.reset();
+  console_thread_->Wait();
+  delete console_thread_;
 
   wxMessageOutputDebug().Printf(wxT("Quit this application."));
   return 0;
@@ -80,6 +113,7 @@ bool RennypsfApp::Play(SoundData* sound)
 bool RennypsfApp::Stop()
 {
   SoundData* sf = playing_sf_.get();
+  if (sf == NULL) return true;
   bool ret = sf->Stop();
   if (sdd_ != 0) {
     sdd_->Stop();
@@ -102,9 +136,9 @@ int main(int argc, char** argv) {
 	ProcessSerialNumber PSN = { 0, kCurrentProcess };
 	TransformProcessType(&PSN, kProcessTransformToForegroundApplication);
 #endif
-	wxTheApp->OnInit();
-	wxTheApp->OnRun();
-	wxTheApp->OnExit();
+  wxTheApp->OnInit();
+  wxTheApp->OnRun();
+  wxTheApp->OnExit();
 	wxEntryCleanup();
 
 	return 0;

@@ -141,11 +141,11 @@ struct Registers {
   u32& HI;
   u32& LO;
   u32& PC;
-  u32 Cycle;  // clock count
+  u32 sysclock;  // clock count
   u32 Interrupt;
 
   Registers() : HI(GPR.HI), LO(GPR.LO), PC(GPR.PC),
-                Cycle(0), Interrupt(0) {}
+                sysclock(0), Interrupt(0) {}
 };
 
 
@@ -166,7 +166,7 @@ public:
         CP0(Regs.CP0),
         HI(Regs.GPR.HI), LO(Regs.GPR.LO),
         PC(Regs.GPR.PC),
-        Cycle(Regs.Cycle),
+        Cycle(Regs.sysclock),
         Interrupt(Regs.Interrupt) {}
     ~Processor() {}
 

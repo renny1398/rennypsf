@@ -1,7 +1,7 @@
-#include "SoundLoader.h"
+#include "common/SoundLoader.h"
+#include "common/debug.h"
 #include <wx/string.h>
 #include <wx/file.h>
-#include <wx/msgout.h>
 #include <map>
 
 namespace {
@@ -43,7 +43,7 @@ SoundLoader* SoundLoader::Instance(const wxString &filename) {
   const wxString signature(buff, 4);
   InstanceFuncMap::iterator it = instance_funcs_.find(signature);
   if (it == instance_funcs_.end()) {
-    wxMessageOutputDebug().Printf(wxT("SoundLoader: failed to generate a loader. (signature = %s)"), signature);
+    rennyLogError("SoundLoader", "Failed to generate a loader. (signature = %s)", static_cast<const char*>(signature));
     file.Close();
     return NULL;
   }

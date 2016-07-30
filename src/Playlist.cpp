@@ -1,6 +1,6 @@
 #include "Playlist.h"
 #include "MainFrame.h"
-#include "Sound.h"
+#include "common/Sound.h"
 
 #include <wx/filename.h>
 #include <wx/imaglist.h>
