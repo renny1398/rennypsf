@@ -1,5 +1,3 @@
-#ifndef NDEBUG
-
 #include "common/debug.h"
 #include <wx/vector.h>
 #include <wx/frame.h>
@@ -145,7 +143,7 @@ void RennyDebug::OnClose(wxCloseEvent &event) {
 
 
 void RennyDebug::Log(LogLevel log_level, const wxString& instance_name, const wxString& msg) {
-  wxASSERT(log_level < LogLevel::kMax);
+  rennyAssert(log_level < kLogLevelMax);
   const wxString& str_log_level = str_log_levels[log_level];
 
   if (frame_ != NULL && list_ctrl_ != NULL) {
@@ -171,14 +169,16 @@ void RennyDebug::LogInfo(const wxString& instance_name, const wxString& msg) {
   Log(kLogLevelInfo, instance_name, msg);
 }
 
+#ifndef NDEBUG
 void RennyDebug::LogDebug(const wxString& instance_name, const wxString& msg) {
   Log(kLogLevelDebug, instance_name, msg);
 }
+#endif
 
 
 #include <wx/app.h>
 
-// extern "C" {
+extern "C" {
 
 void rennyCreateDebugWindow(wxWindow* parent) {
   RennyDebug::CreateWindow(parent);
@@ -236,6 +236,7 @@ void rennyLogInfo(const char* instance_name, const char* msg_format, ...) {
   }
 }
 
+#ifndef NDEBUG
 void rennyLogDebug(const char* instance_name, const char* msg_format, ...) {
   va_list arg;
   va_start(arg, msg_format);
@@ -249,7 +250,6 @@ void rennyLogDebug(const char* instance_name, const char* msg_format, ...) {
   }
 }
 
-// }
-
-
 #endif
+}
+

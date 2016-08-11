@@ -25,7 +25,7 @@ BIOS::BIOS(Composite* composite)
 
 
 void BIOS::SoftCall(u32 pc) {
-  wxASSERT(pc != 0x80001000);
+  rennyAssert(pc != 0x80001000);
   PC = pc;
   RA = 0x80001000;
   do {
@@ -44,7 +44,7 @@ void BIOS::SoftCall2(u32 pc) {
 }
 
 void BIOS::DeliverEventEx(u32 ev, u32 spec) {
-  wxASSERT(Event != 0);
+  rennyAssert(Event != 0);
 
   if (Event[ev][spec].status != BFLIP32(EVENT_STATUS_ACTIVE)) return;
 

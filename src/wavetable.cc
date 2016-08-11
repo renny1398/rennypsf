@@ -1,5 +1,5 @@
 #include "wavetable.h"
-
+#include "common/debug.h"
 
 
 int Tone::id() const { return id_; }
@@ -8,7 +8,7 @@ int Tone::loop_index() const { return loop_index_; }
 
 
 void Tone::set_id(int id) { id_ = id; }
-void Tone::loop_index(int i) { wxASSERT(i < length_); loop_index_ = i; }
+void Tone::loop_index(int i) { rennyAssert(i < length_); loop_index_ = i; }
 
 
 double Tone::freq() const { return freq_; }

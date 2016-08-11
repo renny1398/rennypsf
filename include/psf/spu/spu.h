@@ -14,6 +14,10 @@
 #include "common/SoundFormat.h"
 
 
+class PSF;
+class PSF1;
+class PSF2;
+
 class wxEvtHandler;
 class SoundDeviceDriver;
 
@@ -150,10 +154,6 @@ private:
 
 
 
-class PSF;
-class PSF1;
-
-
 class SPUBase : public PSX::Component
 {
 public:
@@ -171,7 +171,9 @@ public:
 
   void NotifyObservers();
 
-  uint32_t GetDefaultSamplingRate() const { return 44100; }
+  uint32_t GetDefaultSamplingRate() const;
+  uint32_t GetCurrentSamplingRate() const;
+  void ChangeOutputSamplingRate(uint32_t rate);
 
   SPUVoice& Voice(int ch);
 
@@ -259,30 +261,6 @@ protected:
   void ReadDMAMemoryEx(SPUCore* core, PSX::PSXAddr addr, uint32_t size);
   void WriteDMAMemoryEx(SPUCore* core, PSX::PSXAddr addr, uint32_t size);
 
-  /*
-  mutable pthread_mutex_t process_mutex_;
-  mutable pthread_mutex_t wait_start_mutex_;
-  mutable pthread_cond_t process_cond_;
-  mutable pthread_mutex_t dma_writable_mutex_;
-
-  enum ProcessState {
-    STATE_SHUTDOWN = -1,
-    STATE_PSX_IS_READY = 0,
-    STATE_START_PROCESS,
-    STATE_NOTE_ON,
-    STATE_NOTE_OFF,
-    STATE_SET_OFFSET,
-    STATE_NONE
-  };
-  */
-
-/*
-  mutable ProcessState process_state_;
-  mutable int processing_channel_;
-
-  void ChangeProcessState(ProcessState state, int ch = -1);
-*/
-
 public:
   unsigned char* m_pSpuIrq;
   // unsigned char* m_pSpuBuffer;
@@ -306,6 +284,9 @@ private:
 
 private:
   PSF *m_psf;
+
+  uint32_t default_sampling_rate_;
+  uint32_t output_sampling_rate_;
 
   bool isPlaying_;    // only used on multithread mode??
 

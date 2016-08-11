@@ -21,7 +21,7 @@ bool RennypsfApp::OnInit()
 #ifdef __WXDEBUG__
 	MainFrame *frame = new MainFrame("Rennypsf (Debug mode)", wxPoint(50,50), wxSize(640,480));
 #else
-	wxASSERT(0);
+	rennyAssert(0);
 	MainFrame *frame = new MainFrame("Rennypsf", wxPoint(50,50), wxSize(640,480));
 #endif
 	sdd_.reset(new WaveOutAL);
@@ -107,6 +107,8 @@ bool RennypsfApp::Play(SoundData* sound)
 {
   playing_sf_ = sound;
   //return sdd_->Play(sound);
+  sound->ChangeOutputSamplingRate(96000); // for debug
+  sdd_->SetSamplingRate(96000);
   return sound->Play(sdd_);
 }
 

@@ -135,9 +135,9 @@ void SPUVoice::StartSound()
 
 void SPUVoice::VoiceChangeFrequency()
 {
-  wxASSERT(iActFreq != iUsedFreq);
+  rennyAssert(iActFreq != iUsedFreq);
   iUsedFreq = iActFreq;
-  pInterpolation->SetSinc(iRawPitch);
+  pInterpolation->SetSinc(iRawPitch * Spu().GetDefaultSamplingRate() / Spu().GetCurrentSamplingRate());
 }
 
 // FModChangeFrequency
@@ -213,7 +213,7 @@ SPUVoiceManager::SPUVoiceManager() : pSPU_(NULL), channelNumber_(0) {}
 SPUVoiceManager::SPUVoiceManager(SPUBase *pSPU, int channelNumber)
   : pSPU_(pSPU), channels_(channelNumber, SPUVoice()), channelNumber_(channelNumber)
 {
-  wxASSERT(pSPU != NULL);
+  rennyAssert(pSPU != NULL);
   for (int i = 0; i < channelNumber; i++) {
     SPUVoice* p_voice = &channels_.at(i);
     new(p_voice) SPUVoice(pSPU, i);
@@ -228,7 +228,7 @@ bool SPUVoiceManager::ExistsNew() const {
 
 void SPUVoiceManager::SoundNew(uint32_t flags, int start)
 {
-  wxASSERT(flags < 0x01000000); // WARNING: this is for PSX.
+  rennyAssert(flags < 0x01000000); // WARNING: this is for PSX.
   flagNewChannels_ |= flags << start;
   for (int i = start; flags != 0; i++, flags >>= 1) {
     if ((flags & 1) == 0) continue;
@@ -239,7 +239,7 @@ void SPUVoiceManager::SoundNew(uint32_t flags, int start)
 
 void SPUVoiceManager::VoiceOff(uint32_t flags, int start)
 {
-  wxASSERT(flags < 0x01000000); // WARNING: this is for PSX.
+  rennyAssert(flags < 0x01000000); // WARNING: this is for PSX.
   for (int i = start; flags != 0; i++, flags >>= 1) {
     if ((flags & 1) == 0) continue;
     SPUVoice& ch = channels_.at(i);

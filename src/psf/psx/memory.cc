@@ -51,7 +51,7 @@ void Memory::Reset()
 
 void Memory::Copy(PSXAddr dest, const void* src, int length)
 {
-  wxASSERT_MSG(src != 0, "ERROR");
+  rennyAssert(src != 0);
   rennyLogDebug("PSXMemory", "Load data (length: %06x) at 0x%08p into 0x%08x", length, src, dest);
 
   const char* p_src = static_cast<const char*>(src);
@@ -68,7 +68,7 @@ void Memory::Copy(PSXAddr dest, const void* src, int length)
 
   u32 segment = dest >> 16;
   while (length > 0) {
-    wxASSERT_MSG(segment_LUT_[segment] != 0, "PSX: WARNING: invalid PSX memory address");
+    rennyAssert(segment_LUT_[segment] != 0);
     ::memcpy(segment_LUT_[segment++], p_src, length < 0x10000 ? length : 0x10000);
     p_src += 0x10000;
     length -= 0x10000;

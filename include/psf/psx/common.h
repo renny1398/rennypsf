@@ -58,6 +58,7 @@ class RootCounterManager;
 class HardwareRegisters;
 class DMA;
 class BIOS;
+class IOP;
 }
 
 
@@ -119,7 +120,7 @@ public:
   HardwareRegisters& HwRegs();
   DMA& Dma();
   BIOS& Bios();
-
+  IOP& Iop();
 
   // TODO: replace SPU with SPUCore
   SPU::SPUBase& Spu();

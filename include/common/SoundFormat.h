@@ -268,6 +268,7 @@ public:
 
   const wxString& GetFileName() const;
   virtual unsigned int GetSamplingRate() const = 0;
+  virtual bool ChangeOutputSamplingRate(uint32_t rate) = 0;
 
   Note GetNote(int ch) const;
 

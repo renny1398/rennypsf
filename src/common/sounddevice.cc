@@ -29,7 +29,7 @@ wxDEFINE_EVENT(wxEVT_UNMUTE_TONE, wxCommandEvent);
 
 SoundDeviceDriver::SoundDeviceDriver()
   : buffer_(new short[2*NSSIZE*2]), bufferSize_(NSSIZE*2), bufferIndex_(0),
-    is_playing_(false), counter_(0) {}
+    is_playing_(false), sampling_rate_(44100), counter_(0) {}
 
 
 SoundDeviceDriver::~SoundDeviceDriver() {
@@ -38,7 +38,7 @@ SoundDeviceDriver::~SoundDeviceDriver() {
 
 
 const short* SoundDeviceDriver::buffer(int* size) const {
-  wxASSERT(size != NULL);
+  rennyAssert(size != NULL);
   *size = bufferSize_;
   return buffer_.get();
 }
@@ -51,6 +51,13 @@ void SoundDeviceDriver::set_buffer_length(int size)
 }
 
 
+uint32_t SoundDeviceDriver::GetSamplingRate() const {
+  return sampling_rate_;
+}
+
+void SoundDeviceDriver::SetSamplingRate(uint32_t rate) {
+  sampling_rate_ = rate;
+}
 
 
 bool SoundDeviceDriver::Play()
@@ -313,7 +320,7 @@ void WaveOutAL::ThisThreadWriteToDevice()
       }
       alSourceUnqueueBuffers(source_, 1, &buffer_);
     }
-    alBufferData(buffer_, AL_FORMAT_STEREO16, data, size*4, 44100);
+    alBufferData(buffer_, AL_FORMAT_STEREO16, data, size*4, GetSamplingRate());
     alSourceQueueBuffers(source_, 1, &buffer_);
   }
 

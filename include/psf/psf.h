@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <wx/file.h>
 #include <wx/ptr_scpd.h>
+#include <wx/weakref.h>
 
 
 class PSF: public SoundData
@@ -23,6 +24,8 @@ public:
   virtual bool DoStop();
   // bool Seek();
   // bool Tell();
+
+  bool ChangeOutputSamplingRate(uint32_t rate);
 
   friend class PSFLoader;
 
@@ -53,6 +56,7 @@ protected:
 
 
 class wxFileInputStream;
+class PSF2File;
 class PSF2Directory;
 
 class PSF2Entry : public wxTrackable {
@@ -63,12 +67,24 @@ public:
 
   virtual bool IsFile() const = 0;
   virtual bool IsDirectory() const = 0;
+
+  const PSF2File* file() const {
+    return const_cast<PSF2Entry*>(this)->file();
+  }
+  const PSF2Directory* directory() const {
+    return const_cast<PSF2Entry*>(this)->directory();
+  }
+
   bool IsRoot() const;
+
+  virtual PSF2File* file() = 0;
+  virtual PSF2Directory* directory() = 0;
 
   PSF2Directory* Parent();
   const wxString& GetName() const;
   const wxString GetFullPath() const;
   PSF2Entry* Find(const wxString& path);
+  PSF2Directory* GetRoot();
 
 protected:
   PSF2Directory* parent_;
@@ -83,11 +99,15 @@ public:
   virtual bool IsFile() const { return true; }
   virtual bool IsDirectory() const { return false; }
 
+  PSF2File* file() { return this; }
+  PSF2Directory* directory() { return NULL; }
+
   const unsigned char* GetData() const;
+  size_t GetSize() const;
 
 private:
   wxScopedArray<unsigned char> data_;
-  int size_;
+  size_t size_;
 };
 
 
@@ -98,6 +118,9 @@ public:
 
   virtual bool IsFile() const { return false; }
   virtual bool IsDirectory() const { return true; }
+
+  PSF2File* file() { return NULL; }
+  PSF2Directory* directory() { return this; }
 
   void AddEntry(PSF2Entry* entry);
 
@@ -113,14 +136,10 @@ private:
 
 class PSF2 : public PSF {
 public:
-  PSF2(PSF2Entry* psf2irx);
+  PSF2(PSF2File* psf2irx);
+  ~PSF2();
   bool IsOk() const;
   // bool Play();
   // bool Stop();
   unsigned int GetSamplingRate() const { return 48000; }
-protected:
-  unsigned int LoadELF(PSF2Entry *psf2irx);
-
-private:
-  unsigned int load_addr_;
 };

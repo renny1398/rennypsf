@@ -132,7 +132,7 @@ void VolumeBar::paintEvent(wxPaintEvent &)
 {
   wxPaintDC dc(this);
 
-  wxASSERT(orientation_ == wxHORIZONTAL);
+  rennyAssert(orientation_ == wxHORIZONTAL);
 
   int barWidth, barHeight;
   GetSize(&barWidth, &barHeight);
@@ -413,7 +413,7 @@ void KeyboardWidget::render(wxDC &dc)
 {
   if (update_key_ == false) {
 
-    wxASSERT(keyWidth_ == 8);
+    rennyAssert(keyWidth_ == 8);
 
     const int numOctaves = octaveMax_ - octaveMin_ - 1;
 

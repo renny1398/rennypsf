@@ -82,7 +82,7 @@ SoundInfo* PSFLoader::LoadInfo() {
     if (::memcmp(strTAG, "[TAG]", 5) == 0) {  // strTAG == "[TAG]"
       wxTextInputStream ts(fs, wxT("\n"));
       wxRegEx re("^([^=\\s]+)\\s*=\\s*(.*)$");
-      wxASSERT(re.IsValid());
+      rennyAssert(re.IsValid());
       SoundInfo::Tag tag;
       while (fs.Eof() == false) {
         wxString process_text;
@@ -208,7 +208,7 @@ bool PSF1Loader::LoadText(PSF1* p_psf) {
 
   for (wxVector<PSFLoader*>::iterator it = psflib_begin(); it != psflib_end(); ++it) {
     PSF1Loader* const loader = dynamic_cast<PSF1Loader*>(*it);
-    wxASSERT(loader);
+    rennyAssert(loader != NULL);
     loader->LoadText(p_psf);
   }
   p_psf->PSXMemCpy(header_->text_addr, text_.get(), header_->text_size);

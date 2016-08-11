@@ -52,7 +52,11 @@ PSF2Entry* PSF2Entry::Find(const wxString &path) {
     }
   }
 
-  PSF2Directory* dir = dynamic_cast<PSF2Directory*>(this);
+  PSF2Directory* dir = this->directory();
+  if (dir == NULL) {
+    return NULL;
+  }
+
   wxVector<PSF2Entry*>::iterator itr = dir->children_.begin();
   const wxVector<PSF2Entry*>::iterator itrEnd = dir->children_.end();
 
@@ -71,6 +75,13 @@ PSF2Entry* PSF2Entry::Find(const wxString &path) {
   return NULL;
 }
 
+
+PSF2Directory* PSF2Entry::GetRoot() {
+  if (IsRoot()) {
+    return directory();
+  }
+  return parent_->GetRoot();
+}
 
 
 ////////////////////////////////////////////////////////////////////////
@@ -91,6 +102,11 @@ PSF2File::PSF2File(PSF2Directory *parent, const char *name, wxScopedArray<unsign
 
 const unsigned char* PSF2File::GetData() const {
   return data_.get();
+}
+
+
+size_t PSF2File::GetSize() const {
+  return size_;
 }
 
 
@@ -140,7 +156,7 @@ bool PSF2Directory::LoadFile(wxFileInputStream *stream, const char *filename, in
 
 bool PSF2Directory::LoadEntries(wxFileInputStream *stream, wxFileOffset offset) {
 
-  wxASSERT(stream);
+  rennyAssert(stream != NULL);
   const wxFileOffset base_offset = stream->TellI();
   stream->SeekI(offset, wxFromCurrent);
 
@@ -203,7 +219,7 @@ PSF2Loader* PSF2Loader::Instance(int fd, const wxString &filename) {
 
 bool PSF2Loader::LoadPSF2Entries(PSF2Directory *root) {
 
-  wxASSERT(root->IsRoot());
+  rennyAssert(root->IsRoot());
 
   wxFileInputStream stream(file());
   stream.SeekI(reserved_area_ofs(), wxFromStart);
@@ -236,13 +252,18 @@ PSF2* PSF2Loader::LoadDataEx() {
     }
   }
 
-  PSF2Entry* irx = root->Find(wxT("psf2.irx"));
-  if (irx == NULL) {
-    wxMessageOutputStderr().Printf(wxT("psf2.irx is not found."));
+  PSF2Entry* irx_entry = root->Find(wxT("psf2.irx"));
+  if (irx_entry == NULL) {
+    rennyLogError("PSF2Loader", "psf2.irx is not found.");
+    return NULL;
+  }
+  PSF2File* psf2irx = irx_entry->file();
+  if (psf2irx == NULL) {
+    rennyLogError("PSF2Loader", "psf2.irx is not a file.");
     return NULL;
   }
 
-  PSF2* p_psf = new PSF2(irx);
+  PSF2* p_psf = new PSF2(psf2irx);
   if (p_psf->IsOk() == false) {
     delete p_psf;
     return NULL;

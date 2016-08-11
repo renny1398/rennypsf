@@ -1,7 +1,7 @@
 #pragma once
 #include "common.h"
 #include <wx/thread.h>
-#include <wx/msgout.h>
+#include "common/debug.h"
 
 
 namespace PSX {

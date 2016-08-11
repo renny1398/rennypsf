@@ -75,6 +75,9 @@ public:
 
   // bool SwitchToneMuted(int id);
 
+  uint32_t GetSamplingRate() const;
+  void SetSamplingRate(uint32_t rate);
+
   void ZeroCounter();
   void IncrementCounter();
   int GetCounter() const;
@@ -104,6 +107,7 @@ private:
   bool is_playing_;
   // wxVector<bool> muted_;
 
+  uint32_t sampling_rate_;
   int counter_;
 };
 

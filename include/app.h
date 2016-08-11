@@ -54,8 +54,8 @@ private:
 DECLARE_APP(RennypsfApp)
 
 
+#include "common/debug.h"
 inline const wxSharedPtr<SoundDeviceDriver>& RennypsfApp::GetSoundManager() const {
-  wxASSERT(sdd_ != NULL);
   return sdd_;
 }
 

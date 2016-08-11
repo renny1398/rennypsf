@@ -2,6 +2,7 @@
 #include "psf/psx/memory.h"
 #include "psf/psx/rcnt.h"
 #include "psf/psx/bios.h"
+#include "psf/psx/iop.h"
 
 #include "psf/spu/spu.h"
 
@@ -25,7 +26,7 @@ namespace R3000A {
 
 void Interpreter::delayRead(Instruction code, u32 reg, u32 branch_pc)
 {
-  wxASSERT(reg < 32);
+  rennyAssert(reg < 32);
 
   u32 reg_old, reg_new;
 
@@ -45,7 +46,7 @@ void Interpreter::delayRead(Instruction code, u32 reg, u32 branch_pc)
 
 void Interpreter::delayWrite(Instruction, u32 /*reg*/, u32 branch_pc)
 {
-  // wxASSERT(reg < 32);
+  // rennyAssert(reg < 32);
   // OPCODES[code >> 26]();
   R3000a().LeaveDelaySlot();
   R3000ARegs().PC = branch_pc;
@@ -54,7 +55,7 @@ void Interpreter::delayWrite(Instruction, u32 /*reg*/, u32 branch_pc)
 
 void Interpreter::delayReadWrite(Instruction, u32 /*reg*/, u32 branch_pc)
 {
-  // wxASSERT(reg < 32);
+  // rennyAssert(reg < 32);
   R3000a().LeaveDelaySlot();
   R3000ARegs().PC = branch_pc;
   R3000a().BranchTest();
@@ -363,7 +364,7 @@ void Interpreter::doBranch(u32 branch_pc)
     return;
   default:
     if (static_cast<u32>(op - 0x20) < 8) { // Load opcode
-      wxASSERT(op >= 0x20);
+      rennyAssert(op >= 0x20);
       delayTest(code.Rt(), branch_pc);
       return;
     }
@@ -415,7 +416,7 @@ inline void Interpreter::Load(u32 rt, u32 value) {
 /*
 // for load function from memory or not GPR into GPR
 inline void DelayedLoad(u32 rt, u32 value) {
-    wxASSERT_MSG(rt != GPR_PC, "Delayed-load target must be other than R3000ARegs().PC.");
+    rennyAssert_MSG(rt != GPR_PC, "Delayed-load target must be other than R3000ARegs().PC.");
     if (delayed_load_target == GPR_PC) {
         // delay load
         R3000ARegs().PC = delayed_load_value;
@@ -524,13 +525,16 @@ void Interpreter::SWR(Instruction code) {
 // ADD Immediate
 void Interpreter::ADDI(Instruction code) {
   Load(code.Rt(), code.RsVal() + code.Imm());
-  // ? Trap on two's complement overflow.
+  // TODO: Trap on two's complement overflow.
 }
 
 // ADD Immediate Unsigned
 void Interpreter::ADDIU(Instruction code) {
-  // wxMessageOutputDebug().Printf(wxT("ADDIU: %d + %d = %d"), code.RsVal(), code.Imm(), code.RsVal() + code.Imm());
-  Load(code.Rt(), code.RsVal() + code.Imm());
+  if (code.Rt() == 0) {
+    Iop().Call(R3000ARegs().PC - 4, code.Imm());
+  } else {
+    Load(code.Rt(), code.RsVal() + code.Imm());
+  }
 }
 
 // Set on Less Than Immediate

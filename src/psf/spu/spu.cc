@@ -1,4 +1,5 @@
 #include "psf/spu/spu.h"
+#include "psf/psx/psx.h"
 #include "common/debug.h"
 #include <wx/hashmap.h>
 #include <cstring>
@@ -157,15 +158,45 @@ void SPUCore::Step() {
 
 SPUBase::SPUBase(PSX::Composite* composite)
   : Component(composite), soundbank_(), reverb_(this) {
-  cores_.assign(1, SPUCore(this));
-  // new(&cores_[0]) SPUCore(this);
 
-  mem8_.reset(new uint8_t[0x100000 * cores_.size()]);  // 1MB or 2MB
-  ::memset(mem8_.get(), 0, 0x100000 * cores_.size());
+  uint32_t core_num = composite->version();
+  rennyAssert(core_num == 1 || core_num == 2);
+  // if (core_num < 1 || 2 < core_num) {
+  //   core_num = 1;
+  // }
+  cores_.assign(core_num, SPUCore(this));
+
+  switch (core_num) {
+  case 2:
+    default_sampling_rate_ = 48000;
+    output_sampling_rate_ = 48000;
+    break;
+  default:
+    default_sampling_rate_ = 44100;
+    output_sampling_rate_ = 44100;
+  }
+
+
+  mem8_.reset(new uint8_t[0x100000 * core_num]);  // 1MB or 2MB
+  ::memset(mem8_.get(), 0, 0x100000 * core_num);
   p_mem16_ = (uint16_t*)mem8_.get();
 
   Init();
 }
+
+
+uint32_t SPUBase::GetDefaultSamplingRate() const {
+  return default_sampling_rate_;
+}
+
+uint32_t SPUBase::GetCurrentSamplingRate() const {
+  return output_sampling_rate_;
+}
+
+void SPUBase::ChangeOutputSamplingRate(uint32_t rate) {
+  output_sampling_rate_ = rate;
+}
+
 
 
 void SPUBase::NotifyOnUpdateStartAddress(int ch) const {
@@ -342,7 +373,7 @@ void SPUThread::WaitForLastStep() {
 
 wxThread::ExitCode SPUThread::Entry()
 {
-  wxASSERT(pSPU_ != 0);
+  rennyAssert(pSPU_ != 0);
   SPUBase* p_spu = pSPU_;
   // numSamples_ = 0;
 
@@ -391,6 +422,8 @@ void SPUBase::Init()
 
   rennyLogDebug("SPU", "Initialized SPU.");
 }
+
+
 
 void SPUBase::Open()
 {

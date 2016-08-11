@@ -4,8 +4,6 @@
 #include <wx/weakref.h>
 #include <stdint.h>
 
-#ifndef NDEBUG
-
 class wxFrame;
 class RennyDebugListCtrl;
 class wxCloseEvent;
@@ -45,7 +43,9 @@ public:
   void LogError(const wxString& instance_name, const wxString& msg);
   void LogWarning(const wxString& instance_name, const wxString& msg);
   void LogInfo(const wxString& instance_name, const wxString& msg);
+#ifndef NDEBUG
   void LogDebug(const wxString& instance_name, const wxString& msg);
+#endif
 
 private:
   static RennyDebug* instance_;
@@ -54,36 +54,24 @@ private:
   wxWeakRef<RennyDebugListCtrl> list_ctrl_;
 };
 
-// extern "C" {
+extern "C" {
 
 void rennyCreateDebugWindow(wxWindow* parent);
 void rennyDestroyDebugWindow();
 void rennyShowDebugWindow();
 void rennyHideDebugWindow();
 
-// void rennyEnableLogging();
-// void rennyDisableLogging();
-
 void rennyLogError(const char* instance_name, const char* msg_format, ...);
 void rennyLogWarning(const char* instance_name, const char* msg_format, ...);
 void rennyLogInfo(const char* instance_name, const char* msg_format, ...);
+
+#ifndef NDEBUG
 void rennyLogDebug(const char* instance_name, const char* msg_format, ...);
-
-// }
-
+#include <assert.h>
+#define rennyAssert(expr) assert(expr)
 #else
-
-#define rennyCreateDebugWindow()
-#define rennyDestroyDebugWindow()
-#define rennyShowDebugWindow()
-#define rennyHideDebugWindow()
-
-// #define rennyEnableLogging()
-// #define rennyDisableLogging()
-
-#define rennyLogError(instance_name, msg_format, ...)
-#define rennyLogWarning(instance_name, msg_format, ...)
-#define rennyLogInfo(instance_name, msg_format, ...)
 #define rennyLogDebug(instance_name, msg_format, ...)
-
+#define rennyAssert(expr)
 #endif
+
+}

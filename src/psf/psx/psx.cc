@@ -5,9 +5,11 @@ namespace PSX {
 
 
 Composite::Composite(u32 version)
-  : r3000a_(this), interp_(this, &r3000a_), rcnt_(this), spu_(this),
+  : version_(version),
+    r3000a_(this), interp_(this, &r3000a_), rcnt_(this), spu_(this),
     r3000a_regs_(), mem_(this), hw_regs_(this), dma_(this),
-    bios_(this), version_(version) {}
+    bios_(this), iop_(this) {
+}
 
 
 void Composite::Init(bool /*enable_spu2*/) {
@@ -67,6 +69,10 @@ DMA& Composite::Dma() {
 
 BIOS& Composite::Bios() {
   return bios_;
+}
+
+IOP& Composite::Iop() {
+  return iop_;
 }
 
 SPU::SPUBase& Composite::Spu() {
@@ -200,6 +206,24 @@ void* Composite::R_ptr(PSXAddr addr) {
 }
 
 
+uint32_t Composite::GetSamplingRate() const {
+  return spu_.GetCurrentSamplingRate();
+}
+
+void Composite::ChangeOutputSamplingRate(uint32_t rate) {
+  spu_.ChangeOutputSamplingRate(rate);
+}
+
+
+void Composite::SetRootDirectory(const PSF2Directory* root) {
+  iop_.SetRootDirectory(root);
+}
+
+
+unsigned int Composite::LoadELF(PSF2File *psf2irx) {
+  return iop_.LoadELF(psf2irx);
+}
+
 
 // Component
 
@@ -214,7 +238,7 @@ R3000A::Registers& Component::R3000ARegs() { return composite_.R3000ARegs(); }
 HardwareRegisters& Component::HwRegs() { return composite_.HwRegs(); }
 DMA& Component::Dma() { return composite_.Dma(); }
 BIOS& Component::Bios() { return composite_.Bios(); }
-
+IOP& Component::Iop() { return composite_.Iop(); }
 
 SPU::SPUBase& Component::Spu() { return composite_.Spu(); }
 
@@ -321,5 +345,6 @@ u32& Component::U32R_ref(PSXAddr addr) {
 void* Component::R_ptr(PSXAddr addr) {
   return composite_.R_ptr(addr);
 }
+
 
 }   // namespace PSX

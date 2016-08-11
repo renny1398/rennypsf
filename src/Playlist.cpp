@@ -1,6 +1,7 @@
 #include "Playlist.h"
 #include "MainFrame.h"
 #include "common/Sound.h"
+#include "common/debug.h"
 
 #include <wx/filename.h>
 #include <wx/imaglist.h>
@@ -68,7 +69,7 @@ wxEND_EVENT_TABLE()
 void PSFPlaylist::Selected(wxTreeEvent &event)
 {
     PSFPlaylistItem *item = dynamic_cast<PSFPlaylistItem*>(GetItemData(GetSelection()));
-    wxASSERT_MSG(item != 0, "failed to dynamic-cast wxTreeItemData into PSFPlaylistItem");
+    rennyAssert(item != 0);
 
     wxMessageOutputDebug().Printf("'%s' is seledted.", item->GetFileName());
 }

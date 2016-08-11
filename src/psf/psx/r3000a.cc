@@ -156,17 +156,7 @@ void Processor::BranchTest()
   }
 }
 
-  /*
-Processor& Processor::GetInstance()
-{
-  static Processor instance;
-  return instance;
-}
-*/
-}   // namespace R3000A
 
-  /*
-R3000A::Processor& R3000a = R3000A::Processor::GetInstance();
-*/
+}   // namespace R3000A
 
 }   // namespace PSX

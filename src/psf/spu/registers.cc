@@ -233,7 +233,7 @@ uint16_t (*const readGlobalRegisterLUT[])(const SPUBase& /*spu*/) = {
 
 uint16_t SPUBase::ReadRegister(uint32_t reg)
 {
-  wxASSERT((reg & 0xfffffe00) == 0x1f801c00);
+  rennyAssert((reg & 0xfffffe00) == 0x1f801c00);
   // TODO: mutex lock
 
   // wxMessageOutputDebug().Printf("SPUreadRegister at 0x%08x", reg);
@@ -290,7 +290,7 @@ void write1xx0(SPUVoice& channelInfo, uint16_t volume)
       volume = 0x3fff - (volume&0x3fff);
     }
   }
-  wxASSERT(volume < 0x4000);
+  rennyAssert(volume < 0x4000);
   channelInfo.iLeftVolume = volume;
 }
 
@@ -327,7 +327,8 @@ void write1xx4(SPUVoice& channelInfo, uint16_t val)
     channelInfo.iRawPitch = NP;
     channelInfo.NotifyOnChangePitch();
   }
-  NP = 44100*NP/0x1000;
+  const uint32_t sampling_rate = channelInfo.Spu().GetCurrentSamplingRate();
+  NP = sampling_rate * NP / 0x1000;
   if (NP < 1) NP = 1;
   channelInfo.iActFreq = NP;
   if (channelInfo.tone != NULL) {
@@ -629,7 +630,7 @@ void (*const writeGlobalRegisterLUT[])(SPUBase* spu, uint16_t) = {
 
 void SPUBase::WriteRegister(uint32_t reg, uint16_t val)
 {
-  wxASSERT((reg & 0xfffffe00) == 0x1f801c00);
+  rennyAssert((reg & 0xfffffe00) == 0x1f801c00);
 
   // wxCriticalSectionLocker csLocker(csDMAWritable_);
 

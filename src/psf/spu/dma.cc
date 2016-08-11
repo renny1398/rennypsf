@@ -1,7 +1,7 @@
 #include "psf/spu/spu.h"
 #include "psf/psx/memory.h"
+#include "common/debug.h"
 #include <cstring>
-
 
 
 namespace SPU {
@@ -15,7 +15,7 @@ using namespace PSX;
 
 
 void SPUBase::ReadDMAMemoryEx(SPUCore* core, PSXAddr psx_addr, uint32_t size) {
-  wxASSERT(core != NULL);
+  rennyAssert(core != NULL);
   SPUAddr spu_addr = core->addr_;
   uint16_t* p_psx_mem16 = U16M_ptr(psx_addr);
   unsigned int kMemorySize = memory_size();
@@ -33,7 +33,7 @@ void SPUBase::ReadDMAMemoryEx(SPUCore* core, PSXAddr psx_addr, uint32_t size) {
     spu_addr += block_size;
     size -= block_size;
     if (size == 0) break;
-    wxASSERT(spu_addr == kMemorySize);
+    rennyAssert(spu_addr == kMemorySize);
     p_psx_mem16 += block_size / sizeof(uint16_t);
     spu_addr = 0;
   } while (true);
@@ -45,7 +45,7 @@ void SPUBase::ReadDMAMemoryEx(SPUCore* core, PSXAddr psx_addr, uint32_t size) {
 
 
 void SPUBase::WriteDMAMemoryEx(SPUCore* core, PSXAddr psx_addr, uint32_t size) {
-  wxASSERT(core != NULL);
+  rennyAssert(core != NULL);
   SPUAddr spu_addr = core->addr_;
   uint16_t* p_psx_mem16 = U16M_ptr(psx_addr);
   unsigned int kMemorySize = memory_size();
@@ -63,7 +63,7 @@ void SPUBase::WriteDMAMemoryEx(SPUCore* core, PSXAddr psx_addr, uint32_t size) {
     spu_addr += block_size;
     size -= block_size;
     if (size == 0) break;
-    wxASSERT(spu_addr == kMemorySize);
+    rennyAssert(spu_addr == kMemorySize);
     p_psx_mem16 += block_size / sizeof(uint16_t);
     spu_addr = 0;
   } while (true);

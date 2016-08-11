@@ -206,6 +206,7 @@ public:
 
   bool Execute() {
     wxGetApp().ExitMainLoop();
+    return true;
   }
 };
 

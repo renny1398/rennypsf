@@ -8,9 +8,13 @@
 #include "hardware.h"
 #include "dma.h"
 #include "bios.h"
+#include "iop.h"
 
 #include "../spu/spu.h"
 
+
+class PSF2Entry;
+class PSF2Directory;
 
 namespace PSX {
 
@@ -43,6 +47,7 @@ public:
   HardwareRegisters& HwRegs();
   DMA& Dma();
   BIOS& Bios();
+  IOP& Iop();
 
   SPU::SPUBase& Spu();
 
@@ -85,7 +90,18 @@ public:
 
   void* R_ptr(PSXAddr addr);
 
+
+  uint32_t GetSamplingRate() const;
+  void ChangeOutputSamplingRate(uint32_t rate);
+
+  void SetRootDirectory(const PSF2Directory* root);
+
+  unsigned int LoadELF(PSF2File* psf2irx);
+
+
 private:
+  u32 version_; // 1 or 2
+
   R3000A::Processor r3000a_;
   R3000A::Interpreter interp_;
   RootCounterManager rcnt_;
@@ -96,8 +112,8 @@ private:
   HardwareRegisters hw_regs_;
   DMA dma_;
   BIOS bios_;
+  IOP iop_;
 
-  u32 version_; // 1 or 2
 };
 
 

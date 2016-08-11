@@ -20,7 +20,7 @@ SPUInstrument::SPUInstrument(SoundBank *soundbank, uint8_t *pADPCM) :
   soundbank_(*soundbank), pADPCM_(pADPCM), loop_offset_(0xffffffff), forcesStop_(false),
   processedBlockNumber_(0), freq_(0.0), begin_(this), prev1_(0), prev2_(0)
 {
-  wxASSERT(pADPCM_ != 0);
+  rennyAssert(pADPCM_ != 0);
   current_pointer_ = pADPCM;
   external_loop_addr_ = 0xffffffff;
   end_addr_ = 0xffffffff;
@@ -50,14 +50,14 @@ SPUAddr SPUInstrument::GetAddr() const
 uint32_t SPUInstrument::GetLength() const
 {
   const uint32_t len = LPCM_.size();
-  // wxASSERT(len % 28 == 0);
+  // rennyAssert(len % 28 == 0);
   return len;
 }
 
 
 uint32_t SPUInstrument::GetLoopOffset() const
 {
-  wxASSERT(loop_offset_ % 28 == 0 || loop_offset_ == 0xffffffff);
+  rennyAssert(loop_offset_ % 28 == 0 || loop_offset_ == 0xffffffff);
   return loop_offset_;
 }
 
@@ -109,7 +109,7 @@ int SPUInstrument::At(int index) const
     wxMessageOutputDebug().Printf(wxT("WARNING: hasFinishedConv"));
   }
 
-  wxASSERT(static_cast<uint32_t>(len) == processedBlockNumber_ * 28);
+  rennyAssert(static_cast<uint32_t>(len) == processedBlockNumber_ * 28);
   for (int i = len; i <= index; i += 28) {
     const_cast<SPUInstrument*>(this)->ADPCM2LPCM();
     if (hasFinishedConv()) break;
@@ -121,7 +121,7 @@ int SPUInstrument::At(int index) const
 
 void SPUInstrument::ADPCM2LPCM()
 {
-  wxASSERT(current_pointer_ != NULL);
+  rennyAssert(current_pointer_ != NULL);
 
   static const int xa_adpcm_table[5][2] = {
     {   0,   0 },
@@ -165,7 +165,7 @@ void SPUInstrument::ADPCM2LPCM()
     LPCM_.push_back(fa);
   }
   ++processedBlockNumber_;
-  // wxASSERT(p == pADPCM_ + processedBlockNumber_ * 16);
+  // rennyAssert(p == pADPCM_ + processedBlockNumber_ * 16);
 
   current_pointer_ = p;
 
@@ -195,7 +195,7 @@ void SPUInstrument::ADPCM2LPCM()
     } else {
       // the end of this tone
       if (external_loop_addr_ != 0xffffffff && GetAddr() <= external_loop_addr_) {
-        wxASSERT(external_loop_addr <= current_pointer_ - GetADPCM() + GetAddr());
+        rennyAssert(external_loop_addr <= current_pointer_ - GetADPCM() + GetAddr());
         loop_offset_ = (external_loop_addr_ - GetAddr()) * 28 / 16;
       }
       soundbank_.NotifyOnModify(this);

@@ -1,6 +1,6 @@
 #include "common/SoundFormat.h"
 #include "common/SoundManager.h"
-#include <wx/msgout.h>
+#include "common/debug.h"
 
 /*
  * Type Conversion Functions
@@ -96,7 +96,7 @@ void Sample::set_envelope_max(int env) {
 
 
 void Sample::GetStereo16(int* l, int* r) const {
-  wxASSERT(l != NULL && r != NULL);
+  rennyAssert(l != NULL && r != NULL);
   const int a = GetRaw16();
   *l = static_cast<long>(a) * volume_left_ / volume_max_;
   *r = static_cast<long>(a) * volume_right_ / volume_max_;
@@ -104,7 +104,7 @@ void Sample::GetStereo16(int* l, int* r) const {
 
 
 void Sample::GetStereo16(short* dest) const {
-  wxASSERT(dest != NULL);
+  rennyAssert(dest != NULL);
   int l, r;
   GetStereo16(&l, &r);
   dest[0] = CLIP16(l);

@@ -203,7 +203,7 @@ void WavetableList::ExportTone(Instrument *tone)
 
   const int channelNumber = 1;
   const int bitNumber = 16;
-  const int samplingRate = 44100;
+  const int samplingRate = 44100; // TODO: sampling rate
   const int blockSize = (bitNumber/8) * channelNumber;
   const int dataRate = samplingRate * blockSize;
 

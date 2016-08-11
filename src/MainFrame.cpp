@@ -138,7 +138,7 @@ void MainFrame::OnPlay(wxCommandEvent& WXUNUSED(event))
     if (item == 0) return;
 
     SoundData *sound = item->GetSound();
-    wxASSERT(sound);
+    rennyAssert(sound != NULL);
     //if (sound->Load() == false) return;
 
     wxGetApp().Play(sound);

@@ -38,7 +38,7 @@ void RootCounterManager::UpdateCycle(u32 index)
 
 void RootCounterManager::Reset(unsigned int index)
 {
-  wxASSERT(index < 4);
+  rennyAssert(index < 4);
 
   counters[index].count_ = 0;
   UpdateCycle(index);
@@ -215,7 +215,7 @@ unsigned int RootCounterManager::SPURun()
     cycles = R3000ARegs().sysclock - last;
   }
 
-  const uint32_t clk_p_hz = PSXCLK / 44100 / 2;
+  const uint32_t clk_p_hz = PSXCLK / Spu().GetCurrentSamplingRate() / 2;
   if (cycles >= clk_p_hz) {
     uint32_t step_count = cycles / clk_p_hz;
     uint32_t pool = cycles % clk_p_hz;
@@ -243,7 +243,7 @@ void RootCounterManager::DeadLoopSkip()
     if (counters[i].rest_of_count_clk != 0xffffffff) {
       min = counters[i].rest_of_count_clk;
       min -= cycle - counters[i].count_start_clk;
-      // wxASSERT(min >= 0);
+      // rennyAssert(min >= 0);
       if (min < lmin) {
         lmin = min;
       }

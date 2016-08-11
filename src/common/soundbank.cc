@@ -1,5 +1,5 @@
 #include "common/soundbank.h"
-#include <wx/msgout.h>
+#include "common/debug.h"
 
 
 InstrumentDataIterator::InstrumentDataIterator()
@@ -107,7 +107,7 @@ Instrument& Soundbank::instrument(int id) {
 
 
 void Soundbank::set_instrument(Instrument* p_inst) {
-  wxASSERT(p_inst != 0);
+  rennyAssert(p_inst != 0);
   insts_[p_inst->id()] = p_inst;
 }
 

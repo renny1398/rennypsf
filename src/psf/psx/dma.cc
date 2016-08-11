@@ -1,6 +1,6 @@
 #include "psf/psx/dma.h"
 #include "psf/spu/spu.h"
-#include <wx/debug.h>
+#include "common/debug.h"
 
 
 namespace PSX {
@@ -8,33 +8,33 @@ namespace PSX {
 
 u32& DMA::D_MADR(u32 n)
 {
-  // wxASSERT(n < 7);
+  // rennyAssert(n < 7);
   return U32H_ref(0x1080 + (n << 4));
 }
 
 u32& DMA::D_BCR(u32 n)
 {
-  // wxASSERT(n < 7);
+  // rennyAssert(n < 7);
   return U32H_ref(0x1084 + (n << 4));
 }
 
 u32& DMA::D_CHCR(u32 n)
 {
-  // wxASSERT(n < 7);
+  // rennyAssert(n < 7);
   return U32H_ref(0x1088 + (n << 4));
 }
 
 
 bool DMA::isDMATransferBusy(u32 n)
 {
-  // wxASSERT(n < 7);
+  // rennyAssert(n < 7);
   return ( BFLIP32(D_CHCR(n)) & 0x01000000 ) != 0;
 }
 
 
 void DMA::startDMATransfer(u32 n)
 {
-  // wxASSERT(n < 7);
+  // rennyAssert(n < 7);
   D_CHCR(n) &= BFLIP32(~0x01000000);
 }
 
@@ -85,7 +85,7 @@ DMA::DMA(Composite *composite)
 
 bool DMA::DMAEnabled(u32 n)
 {
-  wxASSERT(n < 7);
+  rennyAssert(n < 7);
   return ( BFLIP32(DPCR) & (8 << (4*n)) ) != 0;
 }
 
@@ -110,7 +110,7 @@ void DMA::Execute(u32 n)
 
 void DMA::Write(u32 n, u32 value)
 {
-  wxASSERT(n < 7);
+  rennyAssert(n < 7);
   D_CHCR(n) = BFLIP32(value);
   Execute(n);
 }
