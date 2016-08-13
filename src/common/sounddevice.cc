@@ -27,23 +27,23 @@ wxDEFINE_EVENT(wxEVT_UNMUTE_TONE, wxCommandEvent);
 
 
 
-SoundDeviceDriver::SoundDeviceDriver()
+SoundDevice::SoundDevice()
   : buffer_(new short[2*NSSIZE*2]), bufferSize_(NSSIZE*2), bufferIndex_(0),
     is_playing_(false), sampling_rate_(44100), counter_(0) {}
 
 
-SoundDeviceDriver::~SoundDeviceDriver() {
+SoundDevice::~SoundDevice() {
   rennyLogInfo("SoundDeviceDriver", "Released a sound device.");
 }
 
 
-const short* SoundDeviceDriver::buffer(int* size) const {
+const short* SoundDevice::buffer(int* size) const {
   rennyAssert(size != NULL);
   *size = bufferSize_;
   return buffer_.get();
 }
 
-void SoundDeviceDriver::set_buffer_length(int size)
+void SoundDevice::set_buffer_length(int size)
 {
   buffer_.reset(new short[2*size]);
   bufferSize_ = size;
@@ -51,16 +51,16 @@ void SoundDeviceDriver::set_buffer_length(int size)
 }
 
 
-uint32_t SoundDeviceDriver::GetSamplingRate() const {
+uint32_t SoundDevice::GetSamplingRate() const {
   return sampling_rate_;
 }
 
-void SoundDeviceDriver::SetSamplingRate(uint32_t rate) {
+void SoundDevice::SetSamplingRate(uint32_t rate) {
   sampling_rate_ = rate;
 }
 
 
-bool SoundDeviceDriver::Play()
+bool SoundDevice::Listen()
 {
   ZeroCounter();
   is_playing_ = true;
@@ -69,7 +69,7 @@ bool SoundDeviceDriver::Play()
 }
 
 
-bool SoundDeviceDriver::Stop()
+bool SoundDevice::Stop()
 {
   is_playing_ = false;
   rennyLogInfo("SoundDeviceDriver", "Stopped playing.");
@@ -77,12 +77,12 @@ bool SoundDeviceDriver::Stop()
 }
 
 
-bool SoundDeviceDriver::IsPlaying() const {
+bool SoundDevice::IsPlaying() const {
   return is_playing_;
 }
 
 
-void SoundDeviceDriver::OnUpdate(const SoundBlock* block)
+void SoundDevice::OnUpdate(const SoundBlock* block)
 {
   block->GetStereo16(&buffer_[bufferIndex_*2]);
   bufferIndex_++;
@@ -95,17 +95,17 @@ void SoundDeviceDriver::OnUpdate(const SoundBlock* block)
 
 
 
-void SoundDeviceDriver::ZeroCounter() {
+void SoundDevice::ZeroCounter() {
   counter_ = 0;
 }
 
 
-void SoundDeviceDriver::IncrementCounter() {
+void SoundDevice::IncrementCounter() {
   ++counter_;
 }
 
 
-int SoundDeviceDriver::GetCounter() const {
+int SoundDevice::GetCounter() const {
   return counter_;
 }
 
@@ -249,7 +249,7 @@ void WaveOutAL::Init() {
 void WaveOutAL::ThisThreadShutdown()
 {
   if (source_ != 0) {
-    SoundDeviceDriver::Stop();
+    SoundDevice::Stop();
     ThisThreadStop();
   }
   if (--source_number_ <= 0) {
@@ -385,7 +385,7 @@ bool WaveOutAL::ThisThreadStop()
 
 bool WaveOutAL::Stop() {
   thread_->PostMessageQueue(new StopAL(this));
-  SoundDeviceDriver::Stop();
+  SoundDevice::Stop();
   return true;
 }
 
@@ -427,9 +427,9 @@ WaveOutDisk::WaveOutDisk() {}
 
 
 
-bool WaveOutDisk::Play()
+bool WaveOutDisk::Listen()
 {
-  if (SoundDeviceDriver::Play() == false) return false;
+  if (SoundDevice::Listen() == false) return false;
 /*
   file_.Create(soundFormat->GetFileName(), true, wxFile::write);
 
@@ -448,6 +448,6 @@ bool WaveOutDisk::Play()
 
 bool WaveOutDisk::Stop()
 {
-  if (SoundDeviceDriver::Stop() == false) return false;
+  if (SoundDevice::Stop() == false) return false;
   return true;
 }

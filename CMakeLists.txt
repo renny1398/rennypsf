@@ -93,6 +93,11 @@ IF(wxWidgets_FOUND)
     FILE(GLOB CCFILES src/*.cc)
     FILE(GLOB HEADERS include/*.h)
 
+    FILE(GLOB VORBIS_SRC src/vorbis/*.cc)
+    FILE(GLOB VORBIS_HDR include/vorbis/*.h)
+    ADD_LIBRARY(rennyvorbis ${VORBIS_SRC} ${VORBIS_HDR})
+    ADD_DEPENDENCIES(rennyvorbis ${VORBIS_HDR})
+
 #    FILE(GLOB SNESAPU_SRC src/snesapu/*.cc)
 #    FILE(GLOB SNESAPU_HDR include/snesapu/*.h)
 #    ADD_LIBRARY(snesapu ${SNESAPU_SRC} ${SNESAPU_HDR})
@@ -125,11 +130,11 @@ IF(wxWidgets_FOUND)
 
     ADD_EXECUTABLE(rennypsf ${CPPFILES} ${CCFILES} ${GUI_SRC} ${GUI_HDR} ${CUI_SRC} ${CUI_HDR} ${HEADERS})
     ADD_DEPENDENCIES(rennypsf ${HEADERS})
-    TARGET_LINK_LIBRARIES(rennypsf ${wxWidgets_LIBRARIES} ${OPENAL_LIBRARY} psx spu psf renny)
+    TARGET_LINK_LIBRARIES(rennypsf ${wxWidgets_LIBRARIES} ${OPENAL_LIBRARY} vorbis vorbisfile rennyvorbis psx spu psf renny)
 
     enable_testing()
     add_executable(psx_test test/psx_test.cc)
-    target_link_libraries(psx_test cppunit ${wxWidgets_LIBRARIES} ${OPENAL_LIBRARY} psx spu psf renny)
+    target_link_libraries(psx_test cppunit ${wxWidgets_LIBRARIES} ${OPENAL_LIBRARY} vorbis vorbisfile rennyvorbis psx spu psf renny)
     add_test(psx_test psx_test)
 
 ENDIF(wxWidgets_FOUND)

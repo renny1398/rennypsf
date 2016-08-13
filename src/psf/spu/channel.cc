@@ -271,16 +271,5 @@ void SPUVoiceManager::ResetStepStatus() {
 }
 
 
-void SPUVoiceManager::Notify() const {
-  const wxSharedPtr<SoundDeviceDriver>& sdd = output();
-  if (sdd.get() == 0) {
-    // wxMessageOutputDebug().Printf(wxT("Warning: no sound device."));
-    return;
-  }
-  // wxMessageOutputDebug().Printf(wxT("SPU: OnUpdate()"));
-  sdd->OnUpdate(this);
-}
-
-
 
 } // namespace SPU

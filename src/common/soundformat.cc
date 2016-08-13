@@ -1,6 +1,7 @@
 #include "common/SoundFormat.h"
 #include "common/SoundManager.h"
 #include "common/debug.h"
+#include <wx/thread.h>
 
 /*
  * Type Conversion Functions
@@ -214,7 +215,7 @@ void SoundBlock::GetStereo16(short* dest) const {
 
 
 void SoundBlock::Reset() {
-  output_.reset();
+  output_ = NULL;
   const unsigned int ch_count = channel_count();
   for (unsigned int i = 0; i < ch_count; ++i) {
     Sample& s = Ch(i);
@@ -226,13 +227,20 @@ void SoundBlock::Reset() {
 
 
 
-const wxSharedPtr<SoundDeviceDriver>& SoundBlock::output() const {
+SoundDevice* SoundBlock::output() {
   return output_;
 }
 
 
-void SoundBlock::set_output(const wxSharedPtr<SoundDeviceDriver>& output) {
+void SoundBlock::set_output(SoundDevice* output) {
   output_ = output;
+}
+
+
+bool SoundBlock::NotifyDevice() {
+  if (output_ == NULL) return false;
+  output_->OnUpdate(this);
+  return true;
 }
 
 
@@ -246,7 +254,7 @@ public:
   }
 
   unsigned int channel_count() const { return samples_.size(); }
-  unsigned int block_size() const { return 2 * 2 * channel_count(); }
+  unsigned int block_size() const { return 2 * channel_count(); }
 
   Sample& Ch(int ch) { return samples_.at(ch); }
 
@@ -288,8 +296,6 @@ void SoundInfo::set_tags(const Tag &tags) {
 
 
 
-
-
 SoundData::~SoundData() {}
 
 
@@ -305,16 +311,17 @@ const Sample& SoundData::Ch(int ch) const {
 
 
 
-bool SoundData::Play(const wxSharedPtr<SoundDeviceDriver>& sdd) {
-  sdd->Play();
+bool SoundData::Play(SoundDevice* sdd) {
+  sdd->Listen();
   sound_block().set_output(sdd);
   return DoPlay();
 }
 
 
 bool SoundData::Stop() {
-  const wxSharedPtr<SoundDeviceDriver>& sdd = sound_block().output();
-  sound_block().Reset();
+  SoundBlock& sb = sound_block();
+  SoundDevice* sdd = sb.output();
+  sb.Reset();
   bool ret = DoStop();
   if (sdd != 0) {
     sdd->Stop();
@@ -323,13 +330,61 @@ bool SoundData::Stop() {
 }
 
 
-void SoundData::GetTag(const wxString &key, wxString *value) const
-{
-    m_info.GetTag(key, value);
+bool SoundData::NotifyDevice() {
+  return sound_block().NotifyDevice();
 }
 
-void SoundData::SetTag(const wxString &key, const wxString &value)
-{
-    // wxMessageOutputDebug().Printf(wxT("set tag '%s = %s'"), key, value);
-    m_info.SetTag(key, value);
+
+class OrdinarySoundThread : public wxThread {
+public:
+  OrdinarySoundThread(OrdinarySoundData* data);
+protected:
+  wxThread::ExitCode Entry();
+private:
+  OrdinarySoundData* const data_;
+};
+
+
+OrdinarySoundThread::OrdinarySoundThread(OrdinarySoundData* data) : wxThread(wxTHREAD_JOINABLE), data_(data) {}
+
+wxThread::ExitCode OrdinarySoundThread::Entry() {
+  if (data_ == NULL) return NULL;
+  while (!TestDestroy()) {
+    if (data_->Advance() == false) break;
+  }
+  return NULL;
+}
+
+
+OrdinarySoundData::OrdinarySoundData()
+: thread_(NULL) {}
+
+OrdinarySoundData::~OrdinarySoundData() {
+  DoStop();
+  if (thread_) {
+    delete thread_;
+  }
+}
+
+
+bool OrdinarySoundData::DoPlay() {
+  if (thread_ == NULL) {
+    thread_ = new OrdinarySoundThread(this);
+  }
+  thread_->Create();
+
+  // pos_ = 0L;
+  // buffer_pos_ = 0;
+
+  thread_->Run();
+  return true;
+}
+
+
+bool OrdinarySoundData::DoStop() {
+  if (thread_) {
+    thread_->Delete();
+    thread_->Wait();
+  }
+  return true;
 }

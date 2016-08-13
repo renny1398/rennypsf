@@ -15,6 +15,7 @@ private:
 
 
 #include <wx/app.h>
+#include <wx/scopedptr.h>
 #include "common/SoundManager.h"
 
 class SoundData;
@@ -36,13 +37,13 @@ public:
   bool Play(SoundData*);
   bool Stop();
 
-  const wxSharedPtr<SoundDeviceDriver>& GetSoundManager() const;
-  void SetSoundDevice(const wxSharedPtr<SoundDeviceDriver>&);
+  SoundDevice* GetSoundManager();
+  void SetSoundDevice(SoundDevice*);
 
   const wxSharedPtr<SoundData>& GetPlayingSound() const;
 
 private:
-  wxSharedPtr<SoundDeviceDriver> sdd_;
+  SoundDevice* sdd_;
   wxSharedPtr<SoundData> playing_sf_;
 
 #ifndef USE_GUI
@@ -52,13 +53,3 @@ private:
 
 // allow wxAppGet() to be called
 DECLARE_APP(RennypsfApp)
-
-
-#include "common/debug.h"
-inline const wxSharedPtr<SoundDeviceDriver>& RennypsfApp::GetSoundManager() const {
-  return sdd_;
-}
-
-inline void RennypsfApp::SetSoundDevice(const wxSharedPtr<SoundDeviceDriver>& device) {
-  sdd_ = device;
-}

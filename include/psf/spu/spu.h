@@ -19,7 +19,7 @@ class PSF1;
 class PSF2;
 
 class wxEvtHandler;
-class SoundDeviceDriver;
+class SoundDevice;
 
 namespace SPU
 {

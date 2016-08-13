@@ -67,10 +67,9 @@ public:
       return false;
     }
 
-    wxSharedPtr<SoundDeviceDriver> sdd = wxGetApp().GetSoundManager();
-    if (sdd == 0) {
-      sdd.reset(new WaveOutAL);
-      wxGetApp().SetSoundDevice(sdd);
+    SoundDevice* sdd = wxGetApp().GetSoundManager();
+    if (sdd == NULL) {
+      wxGetApp().SetSoundDevice(new WaveOutAL);
     }
     // sound->Play(sdd);
     wxGetApp().Play(sound);
@@ -105,8 +104,8 @@ public:
     const std::string& param = params().at(0);
     if (param.empty()) return false;
     float vol = std::stof(param);
-    wxSharedPtr<SoundDeviceDriver> sdd = wxGetApp().GetSoundManager();
-    if (sdd == 0) {
+   SoundDevice* sdd = wxGetApp().GetSoundManager();
+    if (sdd == NULL) {
       rennyLogWarning("SetVolumeCommand", "SoundDevice is not initialized.");
       return false;
     }

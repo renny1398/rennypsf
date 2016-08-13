@@ -33,6 +33,7 @@ protected:
   };
 
   wxString OnGetItemText(long item, long column) const;
+  wxListItemAttr* OnGetItemAttr(long item) const;
 
 private:
   struct Item {
@@ -45,11 +46,21 @@ private:
   };
   wxVector<Item> items_;
   wxMutex mutex_;
+
+  mutable wxListItemAttr attr_debug_;
+  mutable wxListItemAttr attr_info_;
+  mutable wxListItemAttr attr_warning_;
+  mutable  wxListItemAttr attr_error_;
 };
 
 
 RennyDebugListCtrl::RennyDebugListCtrl(wxWindow *parent)
-  : wxListCtrl(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT | wxLC_VIRTUAL) {
+  : wxListCtrl(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT | wxLC_VIRTUAL),
+    attr_debug_(wxColour(0, 0, 0), wxColour(0x80, 0x80, 0x80), wxFont()),
+    attr_info_(wxColour(0x00, 0x52, 0x9b), wxColour(0xbd, 0xe5, 0xf8), wxFont()),
+    attr_warning_(wxColour(0x9f, 0x60, 0x00), wxColour(0xfe, 0xef, 0xb3), wxFont()),
+    attr_error_(wxColour(0xb1, 0x00, 0x09), wxColour(0xfd, 0xe4, 0xe1), wxFont())
+{
   InsertColumn(0, wxT("Log Level"), wxLIST_FORMAT_LEFT, 64);
   InsertColumn(1, wxT("Instance"), wxLIST_FORMAT_LEFT, 144);
   InsertColumn(2, wxT("Message"), wxLIST_FORMAT_LEFT, 628);
@@ -76,6 +87,20 @@ wxString RennyDebugListCtrl::OnGetItemText(long item, long column) const {
   default:
     return wxString("");
   }
+}
+
+wxListItemAttr* RennyDebugListCtrl::OnGetItemAttr(long item) const {
+  const wxString& level = items_.at(item).level;
+  if (level == str_log_levels[RennyDebug::kLogLevelInfo]) {
+    return &attr_info_;
+  }
+  if (level == str_log_levels[RennyDebug::kLogLevelWarning]) {
+    return &attr_warning_;
+  }
+  if (level == str_log_levels[RennyDebug::kLogLevelError]) {
+    return &attr_error_;
+  }
+  return &attr_debug_;
 }
 
 

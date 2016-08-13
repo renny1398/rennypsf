@@ -19,6 +19,7 @@ bool SoundLoader::RegisterInstanceFunc(InstanceFunc func, const char *signature)
 
 
 #include "psf/psfloader.h"
+#include "vorbis/vorbis.h"
 
 
 SoundLoader* SoundLoader::Instance(const wxString &filename) {
@@ -26,7 +27,7 @@ SoundLoader* SoundLoader::Instance(const wxString &filename) {
   static bool is_inited(false);
   if (is_inited == false) {
 
-    // RegisterInstanceFunc(&VorbisLoader::Instance, "OggS");
+    RegisterInstanceFunc((InstanceFunc)&VorbisLoader::Instance, "OggS");
     RegisterInstanceFunc((InstanceFunc)&PSF1Loader::Instance, "PSF\x1");
     RegisterInstanceFunc((InstanceFunc)&PSF2Loader::Instance, "PSF\x2");
 

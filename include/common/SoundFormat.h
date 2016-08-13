@@ -124,7 +124,7 @@ private:
 ////////////////////////////////////////////////////////////////////////
 
 
-class SoundDeviceDriver;
+class SoundDevice;
 
 #include <wx/sharedptr.h>
 #include <wx/weakref.h>
@@ -147,11 +147,13 @@ public:
 
   void Reset();
 
-  const wxSharedPtr<SoundDeviceDriver>& output() const;
-  void set_output(const wxSharedPtr<SoundDeviceDriver>&);
+  SoundDevice* output();
+  void set_output(SoundDevice*);
+
+  bool NotifyDevice();
 
 private:
-  wxSharedPtr<SoundDeviceDriver> output_;
+  wxWeakRef<SoundDevice> output_;
 
 };
 
@@ -255,11 +257,11 @@ public:
   //! Check if the sound is loaded.
   bool IsLoaded() const;
 
-  void GetTag(const wxString &key, wxString *value) const;
-  void SetTag(const wxString &key, const wxString &value);
+  // void GetTag(const wxString &key, wxString *value) const;
+  // void SetTag(const wxString &key, const wxString &value);
 
   //! Play the sound.
-  bool Play(const wxSharedPtr<SoundDeviceDriver>&);
+  bool Play(SoundDevice*);
   //! Stop the sound if it is playing.
   bool Stop();
 
@@ -283,12 +285,12 @@ protected:
   //! Get the sound block correspond to the instance.
   virtual SoundBlock& sound_block() = 0;
 
+  //! Notify the SoundDevice instance that the SoundBlock instance has been updated.
+  bool NotifyDevice();
+
   wxFile file_;
   wxString path_;
   bool infoLoaded_;
-
-private:
-  SoundFormatInfo m_info;
 };
 
 
@@ -299,3 +301,28 @@ inline bool SoundData::IsLoaded() const {
 inline const wxString& SoundData::GetFileName() const {
   return path_;
 }
+
+
+////////////////////////////////////////////////////////////////////////
+// OrdniarySoundData classes
+////////////////////////////////////////////////////////////////////////
+
+class OrdinarySoundThread;
+
+class OrdinarySoundData : public SoundData {
+
+public:
+  OrdinarySoundData();
+  ~OrdinarySoundData();
+
+protected:
+  bool DoPlay();
+  bool DoStop();
+
+  virtual bool Advance() = 0;
+
+private:
+  OrdinarySoundThread* thread_;
+
+  friend class OrdinarySoundThread;
+};

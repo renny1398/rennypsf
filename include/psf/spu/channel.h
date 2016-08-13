@@ -302,8 +302,6 @@ public:
   void StepForAll();
   void ResetStepStatus();
 
-  void Notify() const;
-
 private:
   SPUBase* const pSPU_;
   // ChannelInfo* channels_;

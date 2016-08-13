@@ -49,21 +49,17 @@ wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_CORE, wxEVT_UNMUTE_TONE, wxCommandEvent);
 
 
 #include "SoundFormat.h"
+#include <wx/tracker.h>
 #include <wx/scopedarray.h>
 
-#if 0
-class SoundDeviceDriver;
-#include <wx/sharedptr.h>
-typedef wxSharedPtr<SoundDeviceDriver> SoundDeviceDriverPtr;
-#endif
 
-class SoundDeviceDriver
-{
+class SoundDevice : public wxTrackable {
+
 public:
-  SoundDeviceDriver();
-  virtual ~SoundDeviceDriver();
+  SoundDevice();
+  virtual ~SoundDevice();
 
-  virtual bool Play();
+  virtual bool Listen();
   virtual bool Stop();
 
   virtual float GetVolume() const = 0;
@@ -137,7 +133,7 @@ private:
 
 
 // TODO: Replace a raw pointer with shared_ptr or weak_ptr
-class WaveOutAL : public SoundDeviceDriver
+class WaveOutAL : public SoundDevice
 {
   friend class WaveOutALThread;
   friend class WaveOutALCommand;
@@ -183,12 +179,12 @@ private:
 
 #include <wx/file.h>
 
-class WaveOutDisk: public SoundDeviceDriver
+class WaveOutDisk: public SoundDevice
 {
 public:
   WaveOutDisk();
 
-  bool Play();
+  bool Listen();
   bool Stop();
 
 private:

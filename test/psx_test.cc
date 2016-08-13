@@ -37,6 +37,8 @@ protected:
     CPPUNIT_ASSERT_EQUAL((uint32_t)0, rcnt.ReadCount(0));
     rcnt.WriteCount(0, 65535);
     CPPUNIT_ASSERT_EQUAL((uint32_t)65535, rcnt.ReadCount(0));
+    rcnt.WriteCount(0, 65536);
+    CPPUNIT_ASSERT_EQUAL((uint32_t)0, rcnt.ReadCount(0));
     rcnt.WriteCount(0, 65536 + 54321);
     CPPUNIT_ASSERT_EQUAL((uint32_t)54321, rcnt.ReadCount(0));
 
@@ -51,6 +53,8 @@ protected:
     rcnt.WriteTarget(0, 12000);
     rcnt.WriteMode(0, PSX::RootCounter::kCountToTarget);
     rcnt.WriteCount(0, 0);
+    psx.R3000ARegs().sysclock = 6000;
+    CPPUNIT_ASSERT_EQUAL((uint32_t)12000, rcnt.ReadCount(0));
     psx.R3000ARegs().sysclock = 6001;
     CPPUNIT_ASSERT_EQUAL((uint32_t)12002, rcnt.ReadCount(0));
   }
@@ -66,7 +70,7 @@ CPPUNIT_TEST_SUITE_REGISTRATION(RcntTest);
 #include <cppunit/TestResultCollector.h>
 #include <cppunit/TestRunner.h>
 
-int main( int argc, char* argv[] ) {
+int main(/*int argc, char* argv[]*/) {
 
   CPPUNIT_NS::TestResult controller;
 

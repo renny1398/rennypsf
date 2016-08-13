@@ -1,4 +1,5 @@
 #include "channelpanel.h"
+#include "common/debug.h"
 #include <wx/panel.h>
 #include <wx/dc.h>
 #include <wx/dcclient.h>

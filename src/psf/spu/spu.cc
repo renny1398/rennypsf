@@ -258,7 +258,7 @@ bool SPUBase::Step(int step_count) {
 void SPUBase::NotifyObservers() {
   const wxVector<SPUCore>::iterator itr_end = cores_.end();
   for (wxVector<SPUCore>::iterator itr = cores_.begin(); itr != itr_end; ++itr) {
-    itr->Voices().Notify();
+    itr->Voices().NotifyDevice();
   }
 }
 

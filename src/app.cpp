@@ -59,6 +59,16 @@ wxThread::ExitCode ConsoleThread::Entry() {
 }
 
 
+SoundDevice* RennypsfApp::GetSoundManager() {
+  return sdd_;
+}
+
+
+void RennypsfApp::SetSoundDevice(SoundDevice* device) {
+  sdd_ = device;
+}
+
+
 bool RennypsfApp::OnInit() {
 
   SetExitOnFrameDelete(false);
@@ -94,7 +104,7 @@ int RennypsfApp::OnExit() {
     console_thread_->Delete();
   }
   Stop();
-  sdd_.reset();
+  sdd_ = NULL;
   console_thread_->Wait();
   delete console_thread_;
 
@@ -106,9 +116,7 @@ int RennypsfApp::OnExit() {
 bool RennypsfApp::Play(SoundData* sound)
 {
   playing_sf_ = sound;
-  //return sdd_->Play(sound);
-  sound->ChangeOutputSamplingRate(96000); // for debug
-  sdd_->SetSamplingRate(96000);
+  sdd_->SetSamplingRate(sound->GetSamplingRate());
   return sound->Play(sdd_);
 }
 
@@ -117,7 +125,7 @@ bool RennypsfApp::Stop()
   SoundData* sf = playing_sf_.get();
   if (sf == NULL) return true;
   bool ret = sf->Stop();
-  if (sdd_ != 0) {
+  if (sdd_ != NULL) {
     sdd_->Stop();
   }
   playing_sf_.reset();
@@ -128,6 +136,7 @@ bool RennypsfApp::Stop()
 const wxSharedPtr<SoundData>& RennypsfApp::GetPlayingSound() const {
   return playing_sf_;
 }
+
 
 int main(int argc, char** argv) {
 	wxMessageOutputDebug().Printf(wxT("Started this application."));

@@ -1,5 +1,6 @@
 #include "MainFrame.h"
 #include "app.h"
+#include "common/debug.h"
 
 #include <wx/filefn.h>
 #include <wx/filedlg.h>
