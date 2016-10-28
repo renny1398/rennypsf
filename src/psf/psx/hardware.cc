@@ -9,7 +9,7 @@ namespace PSX {
 
 uint8_t HardwareRegisters::Read8(u32 addr)
 {
-  return U8H_ref(addr);
+  return psxHu8val(addr);
 }
 
 
@@ -35,7 +35,7 @@ uint16_t HardwareRegisters::Read16(u32 addr)
   if ((addr & 0xfffff800) == 0xbf900000) {
     rennyLogWarning("PSXHardware", "SPU2read16 is not implemented.");
   }
-  return U16H_ref(addr);
+  return psxHu16val(addr);
 }
 
 
@@ -61,20 +61,20 @@ u32 HardwareRegisters::Read32(u32 addr)
     rennyLogDebug("PSXHardware", "PSX Hardware Registers: return 0x80808080.");
     return 0x80808080;
   }
-  return U32H_ref(addr);
+  return psxHu32val(addr);
 }
 
 
 void HardwareRegisters::Write8(u32 addr, uint8_t value)
 {
-  U8H_ref(addr) = value;
+  psxHu8ref(addr) = value;
 }
 
 
 void HardwareRegisters::Write16(u32 addr, uint16_t value)
 {
   if (addr == 0x1f801070) {
-    U16H_ref(0x1070) &= BFLIP16(U16H_ref(0x1074) & value);
+    psxHu16ref(0x1070) &= BFLIP16(psxHu16val(0x1074) & value);
     return;
   }
   if ((addr & 0xffffffc0) == 0x1f801100) { // root counters
@@ -102,14 +102,14 @@ void HardwareRegisters::Write16(u32 addr, uint16_t value)
   if ((addr & 0xfffff800) == 0xbf900000) {
     rennyLogWarning("PSXHardware", "SPU2write16 is not implemented.");
   }
-  U16H_ref(addr) = BFLIP16(value);
+  psxHu16ref(addr) = BFLIP16(value);
 }
 
 
 void HardwareRegisters::Write32(u32 addr, u32 value)
 {
   if (addr == 0x1f801070) {
-    U32H_ref(0x1070) &= BFLIP32(U32H_ref(0x1074) & value);
+    psxHu32ref(0x1070) &= BFLIP32(psxHu32val(0x1074) & value);
     return;
   }
   if (addr == 0x1f8010c8) {
@@ -149,7 +149,7 @@ void HardwareRegisters::Write32(u32 addr, u32 value)
     rennyLogWarning("PSXHardware", "SPU2write32 is not implemented.");
   }
 
-  U32H_ref(addr) = BFLIP32(value);
+  psxHu32ref(addr) = BFLIP32(value);
 }
 
 

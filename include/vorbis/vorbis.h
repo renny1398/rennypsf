@@ -20,17 +20,17 @@ public:
   unsigned int GetSamplingRate() const;
   bool ChangeOutputSamplingRate(uint32_t rate);
   
-  bool Advance();
-  
 protected:
   bool DoPlay();
   bool DoStop();
-  SoundBlock& sound_block();
+
+  bool Open(SoundBlock* block);
+  bool Close();
+  bool DoAdvance(SoundBlock* dest);
+  friend class VorbisThread;
   
 private:
   Soundbank* soundbank_;
-  VorbisSoundBlock* sound_block_;
-  VorbisThread* thread_;
   
   OggVorbis_File* vf_;
   long loop_start_;
@@ -56,7 +56,7 @@ private:
   wxFile file_;
   wxString path_;
   
-  OggVorbis_File vf_;
+  OggVorbis_File* vf_tmp_;
   static ov_callbacks oc_;
   
   wxWeakRef<SoundInfo> ref_info_;

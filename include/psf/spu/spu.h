@@ -169,6 +169,11 @@ public:
   bool Step(int step_count);
   void ResetStepStatus();
 
+  bool IsAsync() const;
+  bool (SPUBase::*Get)(SoundBlock* dest);
+  bool GetSync(SoundBlock* dest);
+  bool GetAsync(SoundBlock* dest);
+
   void NotifyObservers();
 
   uint32_t GetDefaultSamplingRate() const;

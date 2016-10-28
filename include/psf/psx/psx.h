@@ -18,9 +18,7 @@ class PSF2Directory;
 
 namespace PSX {
 
-
 class Component;
-
 
 // Mediator rather than Composite
 class Composite {
@@ -38,7 +36,7 @@ public:
   R3000A::InterpreterThread *Run();
   void Terminate();
 
-
+  Memory& Mem();
   R3000A::Processor& R3000a();
   R3000A::Interpreter& Interp();
   RootCounterManager& RCnt();
@@ -50,7 +48,6 @@ public:
   IOP& Iop();
 
   SPU::SPUBase& Spu();
-
 
   void InitMemory();
 
@@ -66,29 +63,39 @@ public:
   void Memcpy(void* dest, PSXAddr src, int length) const;
   void Memset(PSXAddr dest, int data, int length);
 
-  s8& S8M_ref(PSXAddr addr);
-  u8& U8M_ref(PSXAddr addr);
-  s16& S16M_ref(PSXAddr addr);
-  u16& U16M_ref(PSXAddr addr);
-  u32& U32M_ref(PSXAddr addr);
+  s8  Ms8val(PSXAddr addr) const;
+  u8  Mu8val(PSXAddr addr) const;
+  s16 Ms16val(PSXAddr addr) const;
+  u16 Mu16val(PSXAddr addr) const;
+  u32 Mu32val(PSXAddr addr) const;
 
-  void* M_ptr(PSXAddr addr);
-  s8* S8M_ptr(PSXAddr addr);
-  u8* U8M_ptr(PSXAddr addr);
-  u16* U16M_ptr(PSXAddr addr);
-  u32* U32M_ptr(PSXAddr addr);
+  s8& Ms8ref(PSXAddr addr);
+  u8& Mu8ref(PSXAddr addr);
+  s16& Ms16ref(PSXAddr addr);
+  u16& Mu16ref(PSXAddr addr);
+  u32& Mu32ref(PSXAddr addr);
 
-  u8& U8H_ref(PSXAddr addr);
-  u16& U16H_ref(PSXAddr addr);
-  u32& U32H_ref(PSXAddr addr);
+  void* Mvptr(PSXAddr addr);
+  s8* Ms8ptr(PSXAddr addr);
+  u8* Mu8ptr(PSXAddr addr);
+  u16* Mu16ptr(PSXAddr addr);
+  u32* Mu32ptr(PSXAddr addr);
 
-  u8* U8H_ptr(PSXAddr addr);
-  u16* U16H_ptr(PSXAddr addr);
-  u32* U32H_ptr(PSXAddr addr);
+  u8  Hu8val(PSXAddr addr) const;
+  u16 Hu16val(PSXAddr addr) const;
+  u32 Hu32val(PSXAddr addr) const;
 
-  u32& U32R_ref(PSXAddr addr);
+  u8& Hu8ref(PSXAddr addr);
+  u16& Hu16ref(PSXAddr addr);
+  u32& Hu32ref(PSXAddr addr);
 
-  void* R_ptr(PSXAddr addr);
+  u8* Hu8ptr(PSXAddr addr);
+  u16* Hu16ptr(PSXAddr addr);
+  u32* Hu32ptr(PSXAddr addr);
+
+  u32& Ru32ref(PSXAddr addr);
+
+  void* Rvptr(PSXAddr addr);
 
 
   uint32_t GetSamplingRate() const;
@@ -116,15 +123,46 @@ private:
 
 };
 
+// User Memory Accessor Definitions (Value)
+inline s8  Composite::Ms8val(PSXAddr addr)  const { return mem_.Mval<s8>(addr);  }
+inline u8  Composite::Mu8val(PSXAddr addr)  const { return mem_.Mval<u8>(addr);  }
+inline s16 Composite::Ms16val(PSXAddr addr) const { return mem_.Mval<s16>(addr); }
+inline u16 Composite::Mu16val(PSXAddr addr) const { return mem_.Mval<u16>(addr); }
+inline u32 Composite::Mu32val(PSXAddr addr) const { return mem_.Mval<u32>(addr); }
 
+// User Memory Accessor Definitions (Reference)
+inline s8&  Composite::Ms8ref(PSXAddr addr)  { return mem_.Mref<s8>(addr);  }
+inline u8&  Composite::Mu8ref(PSXAddr addr)  { return mem_.Mref<u8>(addr);  }
+inline s16& Composite::Ms16ref(PSXAddr addr) { return mem_.Mref<s16>(addr); }
+inline u16& Composite::Mu16ref(PSXAddr addr) { return mem_.Mref<u16>(addr); }
+inline u32& Composite::Mu32ref(PSXAddr addr) { return mem_.Mref<u32>(addr); }
 
+// User Memory Accessor Definitions (Pointer)
+inline void* Composite::Mvptr(PSXAddr addr)   { return mem_.Mvptr(addr);     }
+inline s8*   Composite::Ms8ptr(PSXAddr addr)  { return mem_.Mptr<s8>(addr);  }
+inline u8*   Composite::Mu8ptr(PSXAddr addr)  { return mem_.Mptr<u8>(addr);  }
+inline u16*  Composite::Mu16ptr(PSXAddr addr) { return mem_.Mptr<u16>(addr); }
+inline u32*  Composite::Mu32ptr(PSXAddr addr) { return mem_.Mptr<u32>(addr); }
 
-class PSX : public Composite {};
+// Hardware Register Accessor Definitions (Value)
+inline u8  Composite::Hu8val(PSXAddr addr) const  { return mem_.Hval<u8>(addr);  }
+inline u16 Composite::Hu16val(PSXAddr addr) const { return mem_.Hval<u16>(addr); }
+inline u32 Composite::Hu32val(PSXAddr addr) const { return mem_.Hval<u32>(addr); }
 
+// Hardware Register Accessor Definitions (Reference)
+inline u8&  Composite::Hu8ref(PSXAddr addr)  { return mem_.Href<u8>(addr);  }
+inline u16& Composite::Hu16ref(PSXAddr addr) { return mem_.Href<u16>(addr); }
+inline u32& Composite::Hu32ref(PSXAddr addr) { return mem_.Href<u32>(addr); }
 
-class PS2 : public Composite {
+// Hardware Register Accessor Definitions (Pointer)
+inline u8*  Composite::Hu8ptr(PSXAddr addr)  { return mem_.Hptr<u8>(addr);  }
+inline u16* Composite::Hu16ptr(PSXAddr addr) { return mem_.Hptr<u16>(addr); }
+inline u32* Composite::Hu32ptr(PSXAddr addr) { return mem_.Hptr<u32>(addr); }
 
-};
+// BIOS Accessor Definitions (Reference)
+inline u32& Composite::Ru32ref(PSXAddr addr) { return mem_.Rref<u32>(addr); }
 
+// BIOS Accessor Definitions (Pointer)
+inline void* Composite::Rvptr(PSXAddr addr) { return mem_.Rvptr(addr); }
 
 }   // namespace PSX

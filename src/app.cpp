@@ -10,6 +10,91 @@
 #include <ApplicationServices/ApplicationServices.h>
 #endif
 
+////////////////////////////////////////////////////////////////////////
+// RennyPlayer class functions
+////////////////////////////////////////////////////////////////////////
+
+RennyPlayer::RennyPlayer()
+  : wxThread(wxTHREAD_JOINABLE), p_device_(NULL), p_sound_(NULL), is_exiting_(false) {}
+
+RennyPlayer::~RennyPlayer() {
+  if (wxThread::IsRunning()) {
+    Stop();
+  }
+}
+
+bool RennyPlayer::PlayShared(wxSharedPtr<SoundData>& p_sound, SoundDevice *p_device) {
+  if (p_sound == NULL || p_device == NULL) return false;
+  switch (wxThread::Create()) {
+  case wxTHREAD_NO_ERROR:
+    break;
+  case wxTHREAD_NO_RESOURCE:
+    return false;
+  case wxTHREAD_RUNNING:
+    Stop();
+    break;
+  default:
+    break;
+  }
+
+  if (p_sound->Open(&block_) == false) return false;
+
+  p_sound_ = p_sound;
+  p_device_ = p_device;
+  wxThread::Run();
+
+  return true;
+}
+
+bool RennyPlayer::Play(SoundData *p_sound, SoundDevice *p_device) {
+  wxSharedPtr<SoundData> sh_p_sound(p_sound);
+  return PlayShared(sh_p_sound, p_device);
+}
+
+bool RennyPlayer::Stop() {
+  is_exiting_ = true;
+  ExitCode ret = wxThread::Wait();
+  is_exiting_ = false;
+  p_sound_->Close();
+  return ret == 0;
+}
+
+bool RennyPlayer::Mute(int ch) {
+  if (static_cast<int>(block_.channel_count()) <= ch) return false;
+  block_.Ch(ch).Mute();
+  return true;
+}
+
+bool RennyPlayer::Unmute(int ch) {
+  if (static_cast<int>(block_.channel_count()) <= ch) return false;
+  block_.Ch(ch).Unmute();
+  return true;
+}
+
+bool RennyPlayer::Switch(int ch) {
+  if (IsMuted(ch)) {
+    return Unmute(ch);
+  } else {
+    return Mute(ch);
+  }
+}
+
+bool RennyPlayer::IsMuted(int ch) const {
+  if (static_cast<int>(block_.channel_count()) <= ch) return true;
+  return block_.Ch(ch).IsMuted();
+}
+
+wxThread::ExitCode RennyPlayer::Entry() {
+  p_device_->SetSamplingRate(p_sound_->GetSamplingRate());
+  p_device_->Listen();
+  while (!TestDestroy() && !is_exiting_) {
+    if (p_sound_->Advance(&block_) == false) break;
+    p_device_->OnUpdate(&block_);
+  }
+  p_device_->Stop();
+  return 0;
+}
+
 wxIMPLEMENT_APP_NO_MAIN(RennypsfApp);
 
 #if USE_GUI
@@ -80,6 +165,8 @@ bool RennypsfApp::OnInit() {
   rennyCreateDebugWindow(NULL);
   rennyShowDebugWindow();
 
+  player_ = new RennyPlayer();
+
   return true;
 }
 
@@ -104,6 +191,7 @@ int RennypsfApp::OnExit() {
     console_thread_->Delete();
   }
   Stop();
+  delete player_;
   sdd_ = NULL;
   console_thread_->Wait();
   delete console_thread_;
@@ -116,12 +204,14 @@ int RennypsfApp::OnExit() {
 bool RennypsfApp::Play(SoundData* sound)
 {
   playing_sf_ = sound;
-  sdd_->SetSamplingRate(sound->GetSamplingRate());
-  return sound->Play(sdd_);
+  // sdd_->SetSamplingRate(sound->GetSamplingRate());
+  // return sound->Play(sdd_);
+  return player_->Play(sound, sdd_);
 }
 
 bool RennypsfApp::Stop()
 {
+  /*
   SoundData* sf = playing_sf_.get();
   if (sf == NULL) return true;
   bool ret = sf->Stop();
@@ -130,13 +220,31 @@ bool RennypsfApp::Stop()
   }
   playing_sf_.reset();
   return ret;
+  */
+  return player_->Stop();
 }
 
+bool RennypsfApp::Mute(int ch) {
+  if (player_->IsRunning() == false) return false;
+  return player_->Mute(ch);
+}
+
+bool RennypsfApp::Unmute(int ch) {
+  if (player_->IsRunning() == false) return false;
+  return player_->Unmute(ch);
+}
+
+bool RennypsfApp::Switch(int ch) {
+  if (player_->IsRunning() == false) return false;
+  return player_->Switch(ch);
+}
 
 const wxSharedPtr<SoundData>& RennypsfApp::GetPlayingSound() const {
-  return playing_sf_;
+  static wxSharedPtr<SoundData> dummy;
+  return dummy;
 }
 
+#include "common/SoundLoader.h"
 
 int main(int argc, char** argv) {
 	wxMessageOutputDebug().Printf(wxT("Started this application."));
@@ -148,6 +256,30 @@ int main(int argc, char** argv) {
 	TransformProcessType(&PSN, kProcessTransformToForegroundApplication);
 #endif
   wxTheApp->OnInit();
+
+  if (argc > 1) {
+    SoundLoader* loader = SoundLoader::Instance(argv[1]);
+    if (loader == NULL) {
+      return false;
+    }
+
+    // SoundInfo* info = loader->LoadInfo();
+    SoundData *sound = loader->LoadData();
+    if (sound == 0) {
+      std::cout << "Failed to load a sound file." << std::endl;
+      return false;
+    }
+
+    SoundDevice* sdd = wxGetApp().GetSoundManager();
+    if (sdd == NULL) {
+      wxGetApp().SetSoundDevice(new WaveOutAL);
+    }
+    // sound->Play(sdd);
+    wxGetApp().Play(sound);
+
+    // delete loader;
+  }
+
   wxTheApp->OnRun();
   wxTheApp->OnExit();
 	wxEntryCleanup();

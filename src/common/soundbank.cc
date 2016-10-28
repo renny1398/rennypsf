@@ -78,7 +78,7 @@ class NullInstrument : public Instrument {
 public:
   NullInstrument() {}
   int id() const { return -1; }
-  int at(int i) const { return kInvalidData; }
+  int at(int /*i*/) const { return kInvalidData; }
   unsigned int length() const { return 0; }
   int loop() const { return -1; }
 };

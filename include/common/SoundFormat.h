@@ -120,7 +120,7 @@ private:
 
 
 ////////////////////////////////////////////////////////////////////////
-// SoundBlock classes
+// SoundBlock class
 ////////////////////////////////////////////////////////////////////////
 
 
@@ -131,20 +131,45 @@ class SoundDevice;
 
 class SoundBlock {
 public:
-  SoundBlock(int WXUNUSED(channel_number) = 2);
+  SoundBlock(int channel_number = 2);
   virtual ~SoundBlock();
 
-  virtual unsigned int channel_count() const = 0;
-  virtual unsigned int block_size() const = 0;
+  unsigned int channel_count() const {
+    return samples_.size();
+  }
+  unsigned int block_size() const {
+    return samples_.size() * sizeof(short);
+  }
 
-  virtual Sample& Ch(int) = 0;
-  const Sample& Ch(int) const;
+  void ChangeChannelCount(int new_channel_count);
 
-  //virtual void GetStereo16(int* l, int* r) const = 0;
+  Sample& Ch(int ch) {
+    return samples_.at(ch);
+  }
+  const Sample& Ch(int ch) const {
+    return samples_.at(ch);
+  }
+
+  Sample& ReverbCh(int ch) {
+    return rvb_sample_[ch];
+  }
+  const Sample& ReverbCh(int ch) const {
+    return rvb_sample_[ch];
+  }
+
+  bool ReverbIsEnabled() const {
+    return rvb_is_enabled_;
+  }
+  void EnableReverb(bool enable = true) {
+    rvb_is_enabled_ = enable;
+  }
+
+  // virtual void GetStereo16(int* l, int* r) const = 0;
   // virtual void GetStereo24(int* l, int* r) const = 0;
 
   void GetStereo16(short*) const;
 
+  void Clear();
   void Reset();
 
   SoundDevice* output();
@@ -153,8 +178,10 @@ public:
   bool NotifyDevice();
 
 private:
+  wxVector<Sample16> samples_;  // TODO: support changing sample type
+  Sample16 rvb_sample_[2];
+  bool rvb_is_enabled_;
   wxWeakRef<SoundDevice> output_;
-
 };
 
 
@@ -246,13 +273,14 @@ private:
 class SoundData : public wxTrackable
 {
 public:
+  SoundData() : pos_(0) {}
   //! A virtual desctructor.
   virtual ~SoundData();
 
   //! Get the instance of Sample correspond to the channel number.
-  Sample& Ch(int);
+  // Sample& Ch(int);
   //! Get the constant instalce of Sample correspond to the channel number.
-  const Sample& Ch(int) const;
+  // const Sample& Ch(int) const;
 
   //! Check if the sound is loaded.
   bool IsLoaded() const;
@@ -261,9 +289,12 @@ public:
   // void SetTag(const wxString &key, const wxString &value);
 
   //! Play the sound.
-  bool Play(SoundDevice*);
+  // bool Play(SoundDevice*);
   //! Stop the sound if it is playing.
-  bool Stop();
+  // bool Stop();
+  virtual bool Open(SoundBlock* block) = 0;
+  virtual bool Close() = 0;
+  bool Advance(SoundBlock* dest);
 
   //! Returns the reference of Soundbank.
   virtual Soundbank& soundbank() = 0;
@@ -278,19 +309,23 @@ public:
 
 protected:
   //! A pure virtual function called from Play().
-  virtual bool DoPlay() = 0;
+  // virtual bool DoPlay() = 0;
   //! A pure virtual function called from Stop().
-  virtual bool DoStop() = 0;
+  // virtual bool DoStop() = 0;
 
   //! Get the sound block correspond to the instance.
-  virtual SoundBlock& sound_block() = 0;
+  // virtual SoundBlock& sound_block() = 0;
 
   //! Notify the SoundDevice instance that the SoundBlock instance has been updated.
-  bool NotifyDevice();
+  // bool NotifyDevice();
+
+  virtual bool DoAdvance(SoundBlock* dest) = 0;
 
   wxFile file_;
   wxString path_;
   bool infoLoaded_;
+
+  size_t pos_;
 };
 
 
@@ -307,7 +342,7 @@ inline const wxString& SoundData::GetFileName() const {
 // OrdniarySoundData classes
 ////////////////////////////////////////////////////////////////////////
 
-class OrdinarySoundThread;
+// class OrdinarySoundThread;
 
 class OrdinarySoundData : public SoundData {
 
@@ -319,10 +354,10 @@ protected:
   bool DoPlay();
   bool DoStop();
 
-  virtual bool Advance() = 0;
+  // virtual bool Advance() = 0;
 
 private:
-  OrdinarySoundThread* thread_;
+  // OrdinarySoundThread* thread_;
 
-  friend class OrdinarySoundThread;
+  // friend class OrdinarySoundThread;
 };

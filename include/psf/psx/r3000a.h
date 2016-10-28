@@ -92,6 +92,7 @@ enum BCOND_ENUM {
 
 class Processor;
 
+/*
 class Instruction
 {
 public:
@@ -127,7 +128,7 @@ inline Instruction::Instruction(Processor* cpu, u32 code)
 inline Instruction::operator u32() const {
     return code_;
 }
-
+*/
 
 
 ////////////////////////////////////////////////////////////////////////
@@ -149,9 +150,6 @@ struct Registers {
 };
 
 
-
-
-
 ////////////////////////////////////////////////////////////////////////
 // implement of R3000A processor
 ////////////////////////////////////////////////////////////////////////
@@ -159,53 +157,44 @@ struct Registers {
 class Processor : public Component
 {
 public:
-    Processor(Composite* composite)
-      : Component(composite),
-        Regs(R3000ARegs()),
-        GPR(Regs.GPR),
-        CP0(Regs.CP0),
-        HI(Regs.GPR.HI), LO(Regs.GPR.LO),
-        PC(Regs.GPR.PC),
-        Cycle(Regs.sysclock),
-        Interrupt(Regs.Interrupt) {}
-    ~Processor() {}
+  Processor(Composite* composite);
+  ~Processor() {}
 
-    void Init();
-    void Reset();
-    void Execute();
-    void ExecuteBlock();
-    // void Clear(u32 addr, u32 size);
-    void Shutdown();
+  void Reset();
+  void Execute();
+  void ExecuteBlock();
+  // void Clear(u32 addr, u32 size);
+  void Shutdown();
 
-    static Processor& GetInstance();
+  static Processor& GetInstance();
 
-    void BranchTest();
-    void Exception(Instruction code, bool branch_delay);
+  void BranchTest();
+  void Exception(uint32_t code, bool branch_delay);
 
-    bool IsInDelaySlot() const;
-    void EnterDelaySlot();
-    void LeaveDelaySlot();
+  bool IsInDelaySlot() const;
+  void EnterDelaySlot();
+  void LeaveDelaySlot();
 
-    bool isDoingBranch() const;
+  bool isDoingBranch() const;
 
 public:
-    Registers& Regs;
+  Registers& Regs;
 
 private:
-    GeneralPurposeRegisters& GPR;
-    Cop0Registers& CP0;
-    u32& HI;
-    u32& LO;
-    u32& PC;
-    u32& Cycle;
-    u32& Interrupt;
+  GeneralPurposeRegisters& GPR;
+  Cop0Registers& CP0;
+  u32& HI;
+  u32& LO;
+  u32& PC;
+  u32& Cycle;
+  u32& Interrupt;
 
-    bool inDelaySlot;    // for SYSCALL
-    bool doingBranch;    // set when doBranch is called
+  bool inDelaySlot;    // for SYSCALL
+  bool doingBranch;    // set when doBranch is called
 
-    friend class Interpreter;
-    friend class Recompiler;
-    friend class Disassembler;
+  friend class Interpreter;
+  friend class Recompiler;
+  friend class Disassembler;
 };
 
 inline bool Processor::IsInDelaySlot() const {
@@ -234,9 +223,32 @@ inline bool Processor::isDoingBranch() const {
 // Instruction Macros
 ////////////////////////////////
 
-
 namespace R3000A {
 
+inline u32 Opcode(u32 ins) { return ins >> 26; }
+inline u32 Rs(u32 ins) { return (ins >> 21) & 0x01f; }
+inline u32 Rt(u32 ins) { return (ins >> 16) & 0x001f; }
+inline u32 Rd(u32 ins) { return (ins >> 11) & 0x0001f; }
+inline s32 Imm(u32 ins) { return static_cast<s32>( static_cast<s16>(ins & 0xffff) ); }
+inline u32 ImmU(u32 ins) { return ins & 0xffff; }
+inline u32 Target(u32 ins) { return ins & 0x03ffffff; }
+inline u32 Shamt(u32 ins) { return (ins >> 6) & 0x1f; }
+inline u32 Funct(u32 ins) { return ins & 0x3f; }
+
+inline u32& RsVal(GeneralPurposeRegisters& reg, u32 ins) {
+  return reg.R[Rs(ins)];
+}
+inline u32& RtVal(GeneralPurposeRegisters& reg, u32 ins) {
+  return reg.R[Rt(ins)];
+}
+inline u32& RdVal(GeneralPurposeRegisters& reg, u32 ins) {
+  return reg.R[Rd(ins)];
+}
+inline u32 Addr(GeneralPurposeRegisters& reg, u32 ins) {
+  return RsVal(reg, ins) + Imm(ins);
+}
+
+/*
 inline u32 Instruction::Opcode() const {
     return code_ >> 26;
 }
@@ -290,7 +302,7 @@ inline u32 Instruction::Funct() const {
 inline u32 Instruction::Addr() const {
     return RsVal() + Imm();
 }
-
+*/
 
 }   // namespace R3000A
 

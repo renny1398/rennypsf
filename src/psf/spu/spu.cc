@@ -68,6 +68,7 @@ void SPUStepRequest::Execute(SPUBase* p_spu) const {
       }
       rvb.Mix();
 
+/*
       SPUVoiceManager& ch_mgr = core.Voices();
       SPUVoice& rvb_left = ch_mgr.At(24);
       SPUVoice& rvb_right = ch_mgr.At(25);
@@ -77,8 +78,9 @@ void SPUStepRequest::Execute(SPUBase* p_spu) const {
       rvb_right.Set16(rvb.GetRight());
       rvb_right.set_volume_max(0x4000);
       rvb_right.set_volume(0, 0x4000);
+*/
     }
-    p_spu->NotifyObservers();
+    // p_spu->NotifyObservers();
     p_spu->ResetStepStatus();
   }
 }
@@ -157,7 +159,7 @@ void SPUCore::Step() {
 
 
 SPUBase::SPUBase(PSX::Composite* composite)
-  : Component(composite), soundbank_(), reverb_(this) {
+  : Component(composite), Get(&SPUBase::GetSync), soundbank_(), reverb_(this) {
 
   uint32_t core_num = composite->version();
   rennyAssert(core_num == 1 || core_num == 2);
@@ -245,10 +247,7 @@ void SPUBase::ChangeProcessState(ProcessState state, int ch) {
 
 
 bool SPUBase::Step(int step_count) {
-  if (thread_ == 0 || thread_->IsRunning() == false) {
-    return false;
-  }
-  thread_->WaitForLastStep();
+
   const SPURequest* req = SPUStepRequest::CreateRequest(step_count);
   thread_->PutRequest(req);
   return true;
@@ -256,10 +255,10 @@ bool SPUBase::Step(int step_count) {
 
 
 void SPUBase::NotifyObservers() {
-  const wxVector<SPUCore>::iterator itr_end = cores_.end();
+/*  const wxVector<SPUCore>::iterator itr_end = cores_.end();
   for (wxVector<SPUCore>::iterator itr = cores_.begin(); itr != itr_end; ++itr) {
     itr->Voices().NotifyDevice();
-  }
+  }*/
 }
 
 
@@ -268,6 +267,67 @@ void SPUBase::ResetStepStatus() {
   for (wxVector<SPUCore>::iterator itr = cores_.begin(); itr != itr_end; ++itr) {
     itr->Voices().ResetStepStatus();
   }
+}
+
+
+bool SPUBase::IsAsync() const {
+  return thread_ != NULL;
+}
+
+
+bool SPUBase::GetSync(SoundBlock* dest) {
+
+  const wxVector<SPUCore>::iterator core_it_end = cores_.end();
+  for (wxVector<SPUCore>::iterator core_it = cores_.begin(); core_it != core_it_end; ++core_it) {
+
+    for (unsigned int j = 0; j < 24; j++) {
+      SPUVoice& ch = core_it->Voice(j);
+      ch.Step();
+      ch.Get(&dest->Ch(j));
+    }
+
+    for (unsigned int j = 0; j < 24; j++) {
+      SPUVoice& ch = core_it->Voice(j);
+      if (ch.bRVBActive == true) {
+        Reverb().StoreReverb(ch);
+      }
+    }
+    Reverb().Mix();
+
+    Sample& rvb_left = dest->ReverbCh(0);
+    Sample& rvb_right = dest->ReverbCh(1);
+    rvb_left.Set16(Reverb().GetLeft());
+    rvb_right.Set16(Reverb().GetRight());
+  }
+
+  return true;
+}
+
+
+bool SPUBase::GetAsync(SoundBlock* dest) {
+
+  if (thread_ == 0 || thread_->IsRunning() == false) return false;
+
+  // thread_->WaitForLastStep();
+
+  const wxVector<SPUCore>::iterator core_it_end = cores_.end();
+  for (wxVector<SPUCore>::iterator core_it = cores_.begin(); core_it != core_it_end; ++core_it) {
+
+    for (unsigned int i = 0; i < 24; i++) {
+      SPUVoice& ch = core_it->Voice(i);
+      ch.Get(&dest->Ch(i));
+    }
+
+    Sample& rvb_left = dest->ReverbCh(0);
+    Sample& rvb_right = dest->ReverbCh(1);
+    rvb_left.Set16(Reverb().GetLeft());
+    rvb_right.Set16(Reverb().GetRight());
+
+    const SPURequest* req = SPUStepRequest::CreateRequest(1);
+    thread_->PutRequest(req);
+  }
+
+  return true;
 }
 
 
@@ -329,7 +389,7 @@ void SPUBase::SetupStreams()
     // Channels[i].iIrqDone = 0;
     ch.tone = 0;
     ch.itrTone = InstrumentDataIterator();
-    ch.Set16(0);
+    ch.sval = 0;
     ch.hasReverb = false;
     ch.bRVBActive = false;
   }
@@ -377,9 +437,11 @@ wxThread::ExitCode SPUThread::Entry()
   SPUBase* p_spu = pSPU_;
   // numSamples_ = 0;
 
+  /*
   for (int i = 0; i < 24; i++) {
-    p_spu->Voice(i).is_ready = false;
+    p_spu->Voice(i).SetUnready();
   }
+  */
 
   rennyLogDebug("SPUThread", "Started SPU thread.");
 
@@ -473,21 +535,6 @@ bool SPUBase::IsRunning() const {
 }
 
 
-/*
-void SPUBase::Async(uint32_t cycles)
-{
-  int32_t do_samples;
-
-  const int SPEED = 384;
-  // 384 = PSXCLK / (44100*2)
-  poo += cycles;
-  do_samples = poo / SPEED;
-  if (do_samples == 0) return;
-  poo -= do_samples * SPEED;
-
-  ChangeProcessState(STATE_PSX_IS_READY, do_samples);
-}
-*/
 
 
 SPU2::SPU2(PSX::Composite *composite)

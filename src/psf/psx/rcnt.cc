@@ -1,8 +1,9 @@
-
 #include "psf/psx/rcnt.h"
 #include "psf/psx/r3000a.h"
 #include "psf/psx/memory.h"
 #include "psf/spu/spu.h"
+
+#include "common/SoundFormat.h"
 #include "common/debug.h"
 #include <cstring>
 
@@ -44,10 +45,11 @@ void RootCounterManager::Reset(unsigned int index)
   counters[index].count_ = 0;
   UpdateCycle(index);
 
-  U32H_ref(0x1070) |= BFLIP32(counters[index].interrupt);
+  psxHu32ref(0x1070) |= BFLIP32(counters[index].interrupt);
   if ( (counters[index].mode_ & RootCounter::kIrqRegenerate) == 0 ) {
     counters[index].rest_of_count_clk = 0xffffffff;
   }
+  // printf("RootCounter(%d): Reset: %d\n", index, counters[index].rest_of_count_clk);
 }
 
 void RootCounterManager::SetNextCounter()
@@ -113,15 +115,21 @@ void RootCounterManager::Update()
 
   if ( (sysclk - counters[3].count_start_clk) >= counters[3].rest_of_count_clk ) {
     UpdateCycle(3);
-    U32H_ref(0x1070) |= BFLIP32(1);
+    psxHu32ref(0x1070) |= BFLIP32(1);
   }
   if ( (sysclk - counters[0].count_start_clk) >= counters[0].rest_of_count_clk ) {
+    //std::printf("RootCounter(0): Target is reached. (sysclk = %d, target = %d)\n",
+    //            sysclk - counters[0].count_start_clk, counters[0].rest_of_count_clk);
     Reset(0);
   }
   if ( (sysclk - counters[1].count_start_clk) >= counters[1].rest_of_count_clk ) {
+    //std::printf("RootCounter(1): Target is reached. (sysclk = %d, target = %d)\n",
+    //            sysclk - counters[1].count_start_clk, counters[1].rest_of_count_clk);
     Reset(1);
   }
   if ( (sysclk - counters[2].count_start_clk) >= counters[2].rest_of_count_clk ) {
+    //std::printf("RootCounter(2): Target is reached. (sysclk = %d, target = %d)\n",
+    //            sysclk - counters[2].count_start_clk, counters[2].rest_of_count_clk);
     Reset(2);
   }
 
@@ -198,7 +206,7 @@ unsigned int RootCounterManager::ReadCount(unsigned int index)
 }
 
 
-unsigned int RootCounterManager::SPURun()
+int RootCounterManager::SPURun(SoundBlock* /*dest*/)
 {
   // for debug
 /*
@@ -224,11 +232,12 @@ unsigned int RootCounterManager::SPURun()
     last = R3000ARegs().sysclock - pool;
     if (ret == false) {
       // wxMessageOutputDebug().Printf(wxT("RootCounter: counter = %d"), R3000ARegs().Cycle);
-      return 0;
+      return -1;
     }
+    return 1;
   }
 
-  return 1;
+  return 0;
 }
 
 void RootCounterManager::DeadLoopSkip()

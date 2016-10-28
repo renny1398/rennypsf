@@ -13,12 +13,36 @@ private:
   bool is_exiting_;
 };
 
+#include "common/SoundManager.h"
+class SoundData;
+
+class RennyPlayer : public wxThread {
+public:
+  RennyPlayer();
+  ~RennyPlayer();
+
+  bool Play(SoundData* p_sound, SoundDevice* p_device);
+  bool PlayShared(wxSharedPtr<SoundData>& p_sound, SoundDevice* p_device);
+  bool Stop();
+
+  bool Mute(int ch);
+  bool Unmute(int ch);
+  bool IsMuted(int ch) const;
+  bool Switch(int ch);
+
+protected:
+  ExitCode Entry();
+
+private:
+  SoundDevice* p_device_;
+  wxSharedPtr<SoundData> p_sound_;
+  SoundBlock block_;
+  bool is_exiting_;
+};
+
 
 #include <wx/app.h>
 #include <wx/scopedptr.h>
-#include "common/SoundManager.h"
-
-class SoundData;
 
 class RennypsfApp: public wxApp
 {
@@ -37,12 +61,17 @@ public:
   bool Play(SoundData*);
   bool Stop();
 
+  bool Mute(int ch);
+  bool Unmute(int ch);
+  bool Switch(int ch);
+
   SoundDevice* GetSoundManager();
   void SetSoundDevice(SoundDevice*);
 
   const wxSharedPtr<SoundData>& GetPlayingSound() const;
 
 private:
+  RennyPlayer* player_;
   SoundDevice* sdd_;
   wxSharedPtr<SoundData> playing_sf_;
 

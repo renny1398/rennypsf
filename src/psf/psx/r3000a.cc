@@ -21,18 +21,9 @@ const char *strGPR[35] = {
 
 namespace R3000A {
 
-  /*
-GeneralPurposeRegisters GPR;
-Cop0Registers CP0;
-uint32_t& PC = GPR.PC;
-
-//uint32_t last_code;
-uint_fast32_t cycle;
-uint_fast32_t interrupt;
-*/
-  // for delay_load
-  //uint32_t delayed_load_target;
-  //uint32_t delayed_load_value;
+// for delay_load
+//  uint32_t delayed_load_target;
+//  uint32_t delayed_load_value;
 
 
 GeneralPurposeRegisters::GeneralPurposeRegisters() {
@@ -45,7 +36,15 @@ Cop0Registers::Cop0Registers() {
 }
 
 
-void Processor::Init()
+Processor::Processor(Composite* composite)
+  : Component(composite),
+    Regs(R3000ARegs()),
+    GPR(Regs.GPR),
+    CP0(Regs.CP0),
+    HI(Regs.GPR.HI), LO(Regs.GPR.LO),
+    PC(Regs.GPR.PC),
+    Cycle(Regs.sysclock),
+    Interrupt(Regs.Interrupt)
 {
   inDelaySlot = false;
   doingBranch = false;
@@ -86,10 +85,9 @@ void Processor::Init()
     R3000ARegs().GPR.R[i] = 0;
   }
 
-  CP0.R[12] = 0x10900000; // COP0_ENABLED | BEV | TS
+  CP0.R[12] = 0x10900000; // SR = COP0_ENABLED | BEV | TS
   CP0.R[15] = 0x00000002; // PRevId = Revision Id, same as R3000A
   rennyLogDebug("PSXProcessor", "Initialized R3000A processor.");
-
 }
 
 
@@ -100,7 +98,7 @@ void Processor::Reset()
   memset(&CP0, 0, sizeof(CP0));
   PC = 0xbfc00000;    // start in bootstrap
   /*last_code = */Cycle = Interrupt = 0;
-  CP0.R[12] = 0x10900000; // COP0_ENABLED | BEV | TS
+  CP0.R[12] = 0x10900000; // SR = COP0_ENABLED | BEV | TS
   // CP0.R[15] = 0x0000001f
   CP0.R[15] = 0x00000002; // PRevId = Revision Id, same as R3000A
   //    delayed_load_target = 0;
@@ -112,7 +110,7 @@ void Processor::Reset()
 
 
 
-void Processor::Exception(Instruction code, bool branch_delay)
+void Processor::Exception(u32 code, bool branch_delay)
 {
   CP0.CAUSE = code;
 
@@ -149,9 +147,9 @@ void Processor::BranchTest()
   RCnt().Update();
 
   // interrupt mask register ($1f801074)
-  if (U32H_ref(0x1070) & U32H_ref(0x1074)) {
+  if (psxHu32val(0x1070) & psxHu32val(0x1074)) {
     if ((CP0.SR & 0x401) == 0x401) {
-      Exception(Instruction(this, 0x400), false);
+      Exception(0x400, false);
     }
   }
 }

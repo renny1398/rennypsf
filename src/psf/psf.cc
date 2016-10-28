@@ -41,22 +41,71 @@ void PSF::Reset()
 
 #include "app.h"
 
+// deprecated
 bool PSF::DoPlay()
 {
   // LoadBinary();
-  m_thread = psx_->Run();
+  // m_thread = psx_->Run();
   return true;
 }
 
-
+// deprecated
 bool PSF::DoStop()
 {
-  psx_->Terminate();
-  m_thread = 0;
-  rennyLogInfo("PSF", "PSF is stopped.");
+  // psx_->Terminate();
+  // m_thread = 0;
+  // rennyLogInfo("PSF", "PSF is stopped.");
   return true;
 }
 
+bool PSF::Open(SoundBlock* block) {
+  psx_->Reset();
+  psx_->Bios().Init();
+  block->ChangeChannelCount(24); // TODO: 24 or 48
+  block->EnableReverb();
+  block->ReverbCh(0).set_volume_max(0x4000);
+  block->ReverbCh(0).set_volume(0x4000, 0);
+  block->ReverbCh(1).set_volume_max(0x4000);
+  block->ReverbCh(1).set_volume(0, 0x4000);
+
+  // Advance SPU
+  const uint32_t cycles = 33868800 / psx_->Spu().GetCurrentSamplingRate() / 2;
+  unprocessed_cycles_ = 0;
+  do {
+    uint32_t executed_cycles = psx_->Interp().Execute(cycles);
+    unprocessed_cycles_ += executed_cycles;
+  } while (unprocessed_cycles_ < cycles);
+  psx_->Spu().Step(1);
+  unprocessed_cycles_ -= cycles;
+  return true;
+}
+
+bool PSF::Close() {
+  psx_->Interp().Shutdown();
+  psx_->Spu().Shutdown();
+  psx_->Mem().Reset();
+  return true;
+}
+
+bool PSF::DoAdvance(SoundBlock *dest) {
+/*
+  do {
+    int ret = psx_->Interp().RCnt().SPURun(dest);
+    if (ret < 0) return false;
+    if (ret == 1) {
+      return true;
+    }
+    psx_->Interp().ExecuteOnce();
+  } while (true);
+*/
+  const uint32_t cycles = 33868800 / psx_->Spu().GetCurrentSamplingRate() / 2;
+  while (unprocessed_cycles_ < cycles) {
+    uint32_t ret = psx_->Interp().Execute(cycles - unprocessed_cycles_);
+    unprocessed_cycles_ += ret;
+  }
+  unprocessed_cycles_ -= cycles;
+  return psx_->Spu().GetAsync(dest);
+}
 
 bool PSF::ChangeOutputSamplingRate(uint32_t rate) {
   if (psx_ == NULL) {
@@ -91,9 +140,9 @@ PSF2::PSF2(PSF2File* psf2irx)
   psx_->R3000ARegs().GPR.RA = 0x80000000;
   psx_->R3000ARegs().GPR.A0 = 2;
   psx_->R3000ARegs().GPR.A1 = 0x80000004;
-  psx_->U32M_ref(4) = BFLIP32(0x80000008);
-  psx_->U32M_ref(0) = BFLIP32(PSX::R3000A::OPCODE_HLECALL);
-  ::strcpy(psx_->S8M_ptr(8), "psf2:/");
+  psx_->Mu32ref(4) = BFLIP32(0x80000008);
+  psx_->Mu32ref(0) = BFLIP32(PSX::R3000A::OPCODE_HLECALL);
+  ::strcpy(psx_->Ms8ptr(8), "psf2:/");
 
   psx_->SetRootDirectory(psf2irx->GetRoot());
 }

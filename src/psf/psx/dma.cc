@@ -9,19 +9,19 @@ namespace PSX {
 u32& DMA::D_MADR(u32 n)
 {
   // rennyAssert(n < 7);
-  return U32H_ref(0x1080 + (n << 4));
+  return psxHu32ref(0x1080 + (n << 4));
 }
 
 u32& DMA::D_BCR(u32 n)
 {
   // rennyAssert(n < 7);
-  return U32H_ref(0x1084 + (n << 4));
+  return psxHu32ref(0x1084 + (n << 4));
 }
 
 u32& DMA::D_CHCR(u32 n)
 {
   // rennyAssert(n < 7);
-  return U32H_ref(0x1088 + (n << 4));
+  return psxHu32ref(0x1088 + (n << 4));
 }
 
 
@@ -70,8 +70,8 @@ void DMA::execGPU_OTC(u32, u32, u32) {}
 
 DMA::DMA(Composite *composite)
   : Component(composite),
-    DPCR(U32H_ref(0x10f0)),
-    DICR(U32H_ref(0x10f4))
+    DPCR(psxHu32ref(0x10f0)),
+    DICR(psxHu32ref(0x10f4))
 {
   executeTable[0] = &DMA::execMDECin;
   executeTable[1] = &DMA::execMDECout;
@@ -94,7 +94,7 @@ void DMA::Interrupt(u32 n)
 {
   if ( BFLIP32(DICR) & (1 << (16 + n)) ) {
     DICR |= BFLIP32(1 << (24 + n));
-    U32H_ref(0x1070) |= BFLIP32(8);
+    psxHu32ref(0x1070) |= BFLIP32(8);
   }
 }
 

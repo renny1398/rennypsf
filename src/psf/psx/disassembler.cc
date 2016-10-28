@@ -67,134 +67,134 @@ const wxChar *regNames[] = {
 namespace PSX {
 namespace R3000A {
 
-bool Disassembler::parseNop(Instruction)
+bool Disassembler::parseNop(u32)
 {
     return true;
 }
 
-bool Disassembler::parseLoad(Instruction code)
+bool Disassembler::parseLoad(u32 code)
 {
-    wxString strRt = regNames[code.Rt()];
+    wxString strRt = regNames[Rt(code)];
     operands.push_back(strRt);
     wxString addr;
-    addr.Printf(wxT("0x%04x($%s)"), code.Imm(), regNames[code.Rs()]);
+    addr.Printf(wxT("0x%04x($%s)"), Imm(code), regNames[Rs(code)]);
     operands.push_back(addr);
     changedRegisters.push_back(strRt);
     return true;
 }
 
-bool Disassembler::parseStore(Instruction code)
+bool Disassembler::parseStore(u32 code)
 {
-    wxString strRt = regNames[code.Rt()];
+    wxString strRt = regNames[Rt(code)];
     operands.push_back(strRt);
     wxString addr;
-    addr.Printf(wxT("0x%04x($%s)"), code.Imm(), regNames[code.Rs()]);
+    addr.Printf(wxT("0x%04x($%s)"), Imm(code), regNames[Rs(code)]);
     operands.push_back(addr);
 
     wxString dest_addr;
-    dest_addr.Printf(wxT("0x%08x"), code.Imm() + code.RsVal());
+    dest_addr.Printf(wxT("0x%08x"), Imm(code) + RsVal(R3000ARegs().GPR, code));
     changedRegisters.push_back(dest_addr);
     return true;
 }
 
-bool Disassembler::parseALUI(Instruction code)
+bool Disassembler::parseALUI(u32 code)
 {
-    wxString strRt = regNames[code.Rt()];
+    wxString strRt = regNames[Rt(code)];
     operands.push_back(strRt);
-    operands.push_back(regNames[code.Rs()]);
+    operands.push_back(regNames[Rs(code)]);
     wxString imm;
-    imm.Printf(wxT("0x%04x"), code.Imm());
+    imm.Printf(wxT("0x%04x"), Imm(code));
     operands.push_back(imm);
     changedRegisters.push_back(strRt);
     return true;
 }
 
-bool Disassembler::parse3OpReg(Instruction code)
+bool Disassembler::parse3OpReg(u32 code)
 {
-    wxString strRd = regNames[code.Rd()];
+    wxString strRd = regNames[Rd(code)];
     operands.push_back(strRd);
-    operands.push_back(regNames[code.Rs()]);
-    operands.push_back(regNames[code.Rt()]);
+    operands.push_back(regNames[Rs(code)]);
+    operands.push_back(regNames[Rt(code)]);
     changedRegisters.push_back(strRd);
     return true;
 }
 
-bool Disassembler::parseShift(Instruction code)
+bool Disassembler::parseShift(u32 code)
 {
-    wxString strRd = regNames[code.Rd()];
+    wxString strRd = regNames[Rd(code)];
     operands.push_back(strRd);
-    operands.push_back(regNames[code.Rt()]);
+    operands.push_back(regNames[Rt(code)]);
     wxString strShift;
-    strShift.Printf(wxT("0x%x"), code.Shamt());
+    strShift.Printf(wxT("0x%x"), Shamt(code));
     operands.push_back(strShift);
     changedRegisters.push_back(strRd);
     return true;
 }
 
-bool Disassembler::parseShiftVar(Instruction code)
+bool Disassembler::parseShiftVar(u32 code)
 {
-    wxString strRd = regNames[code.Rd()];
+    wxString strRd = regNames[Rd(code)];
     operands.push_back(strRd);
-    operands.push_back(regNames[code.Rt()]);
-    operands.push_back(regNames[code.Rs()]);
+    operands.push_back(regNames[Rt(code)]);
+    operands.push_back(regNames[Rs(code)]);
     changedRegisters.push_back(strRd);
     return true;
 }
 
-bool Disassembler::parseMulDiv(Instruction code)
+bool Disassembler::parseMulDiv(u32 code)
 {
-    operands.push_back(regNames[code.Rs()]);
-    operands.push_back(regNames[code.Rt()]);
+    operands.push_back(regNames[Rs(code)]);
+    operands.push_back(regNames[Rt(code)]);
     changedRegisters.push_back(regNames[R3000A::GPR_HI]);
     changedRegisters.push_back(regNames[R3000A::GPR_LO]);
     return true;
 }
 
-bool Disassembler::parseHILO(Instruction code)
+bool Disassembler::parseHILO(u32 code)
 {
-    wxString strRd = regNames[code.Rd()];
+    wxString strRd = regNames[Rd(code)];
     operands.push_back(strRd);
     operands.push_back(strRd);
     return true;
 }
 
-bool Disassembler::parseJ(Instruction code)
+bool Disassembler::parseJ(u32 code)
 {
     wxString addr;
-    addr.Printf(wxT("0x%08x"), code.Target() << 2 | ((R3000ARegs().PC-4) & 0xf0000000));
+    addr.Printf(wxT("0x%08x"), Target(code) << 2 | ((R3000ARegs().PC-4) & 0xf0000000));
     operands.push_back(addr);
     changedRegisters.push_back(regNames[R3000A::GPR_PC]);
     return true;
 }
 
-bool Disassembler::parseJAL(Instruction code)
+bool Disassembler::parseJAL(u32 code)
 {
     bool ret = parseJ(code);
     changedRegisters.push_back(regNames[R3000A::GPR_RA]);
     return ret;
 }
 
-bool Disassembler::parseJR(Instruction code)
+bool Disassembler::parseJR(u32 code)
 {
-    operands.push_back(regNames[code.Rs()]);
+    operands.push_back(regNames[Rs(code)]);
     changedRegisters.push_back(regNames[R3000A::GPR_PC]);
     return true;
 }
 
-bool Disassembler::parseJALR(Instruction code)
+bool Disassembler::parseJALR(u32 code)
 {
     bool ret = parseJR(code);
-    wxString strRd = regNames[code.Rd()];
+    wxString strRd = regNames[Rd(code)];
     operands.push_back(strRd);
     changedRegisters.push_back(strRd);
     return ret;
 }
 
-bool Disassembler::parseBranch(Instruction code)
+bool Disassembler::parseBranch(u32 code)
 {
-    wxString strRs = regNames[code.Rs()];
-    wxString strRt = regNames[code.Rt()];
-    u32 addr = (R3000ARegs().PC-4) + (code.Imm() << 2);
+    wxString strRs = regNames[Rs(code)];
+    wxString strRt = regNames[Rt(code)];
+    u32 addr = (R3000ARegs().PC-4) + (Imm(code) << 2);
     wxString strAddr;
     strAddr.Printf(wxT("0x%08x"), addr);
     operands.push_back(strRs);
@@ -204,10 +204,10 @@ bool Disassembler::parseBranch(Instruction code)
     return true;
 }
 
-bool Disassembler::parseBranchZ(Instruction code)
+bool Disassembler::parseBranchZ(u32 code)
 {
-    wxString strRs = regNames[code.Rs()];
-    u32 addr = (R3000ARegs().PC-4) + (code.Imm() << 2);
+    wxString strRs = regNames[Rs(code)];
+    u32 addr = (R3000ARegs().PC-4) + (Imm(code) << 2);
     wxString strAddr;
     strAddr.Printf(wxT("0x%08x"), addr);
     operands.push_back(strRs);
@@ -216,20 +216,20 @@ bool Disassembler::parseBranchZ(Instruction code)
     return true;
 }
 
-bool Disassembler::parseBranchZAL(Instruction code)
+bool Disassembler::parseBranchZAL(u32 code)
 {
     bool ret = parseBranchZ(code);
     operands.push_back(regNames[R3000A::GPR_RA]);
     return ret;
 }
 
-bool Disassembler::parseCopz(Instruction)
+bool Disassembler::parseCopz(u32)
 {
     return true;
 }
 
 
-bool (Disassembler::*const Disassembler::SPECIALS[64])(Instruction) = {
+bool (Disassembler::*const Disassembler::SPECIALS[64])(u32) = {
     &Disassembler::parseShift, &Disassembler::parseNop, &Disassembler::parseShift, &Disassembler::parseShift, &Disassembler::parseShift, &Disassembler::parseNop, &Disassembler::parseShift, &Disassembler::parseShift,
     &Disassembler::parseJR, &Disassembler::parseJALR, &Disassembler::parseNop, &Disassembler::parseNop, &Disassembler::parseNop, &Disassembler::parseNop, &Disassembler::parseNop, &Disassembler::parseNop,
     &Disassembler::parseHILO, &Disassembler::parseHILO, &Disassembler::parseHILO, &Disassembler::parseHILO, &Disassembler::parseNop, &Disassembler::parseNop, &Disassembler::parseNop, &Disassembler::parseNop,
@@ -241,19 +241,19 @@ bool (Disassembler::*const Disassembler::SPECIALS[64])(Instruction) = {
 };
 
 
-bool Disassembler::parseSpecial(Instruction code)
+bool Disassembler::parseSpecial(u32 code)
 {
-    opcodeName = specialLowerList[code.Funct()];
-    return (this->*SPECIALS[code.Funct()])(code);
+    opcodeName = specialLowerList[Funct(code)];
+    return (this->*SPECIALS[Funct(code)])(code);
 }
 
-bool Disassembler::parseBcond(Instruction code)
+bool Disassembler::parseBcond(u32 code)
 {
-    opcodeName = bcondLowerList[code.Funct()];
+    opcodeName = bcondLowerList[Funct(code)];
     return true;
 }
 
-bool (Disassembler::*const Disassembler::OPCODES[64])(Instruction) = {
+bool (Disassembler::*const Disassembler::OPCODES[64])(u32) = {
     &Disassembler::parseSpecial, &Disassembler::parseBcond, &Disassembler::parseJ, &Disassembler::parseJAL, &Disassembler::parseBranch, &Disassembler::parseBranch, &Disassembler::parseBranchZ, &Disassembler::parseBranchZ,
     &Disassembler::parseALUI, &Disassembler::parseALUI, &Disassembler::parseALUI, &Disassembler::parseALUI, &Disassembler::parseALUI, &Disassembler::parseALUI, &Disassembler::parseALUI, &Disassembler::parseALUI,
     &Disassembler::parseCopz, &Disassembler::parseCopz, &Disassembler::parseCopz, &Disassembler::parseCopz, &Disassembler::parseNop, &Disassembler::parseNop, &Disassembler::parseNop, &Disassembler::parseNop,
@@ -274,13 +274,13 @@ Disassembler::Disassembler(Composite* composite)
 
 
 
-bool Disassembler::Parse(Instruction code)
+bool Disassembler::Parse(u32 code)
 {
     pc0 = R3000ARegs().PC - 4;
     operands.clear();
     changedRegisters.clear();
 
-    opcodeName = opcodeLowerList[code.Opcode()];
+    opcodeName = opcodeLowerList[Opcode(code)];
     if (opcodeName == strSPECIAL) {
         return parseSpecial(code);
     }
@@ -291,7 +291,7 @@ bool Disassembler::Parse(Instruction code)
         return false;
     }
 
-    return (this->*OPCODES[code.Opcode()])(code);
+    return (this->*OPCODES[Opcode(code)])(code);
 }
 
 void Disassembler::PrintCode()
@@ -322,7 +322,7 @@ void Disassembler::PrintChangedRegisters()
         if ((*it)[0] == _T('0') && (*it)[1] == _T('x')) {
             unsigned long addr;
             it->ToULong(&addr);  // warning: this code may be wrong
-            strAddr.Printf(wxT("0x%08x"), U32M_ref(addr));
+            strAddr.Printf(wxT("0x%08x"), psxMu32val(addr));
             ss.Write(strAddr, strAddr.size());
         } else {
             for (int i = 0; i < 35; i++) {

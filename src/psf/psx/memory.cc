@@ -83,7 +83,7 @@ T Memory::Read(PSXAddr addr)
   if (segment == 0x1f80) {
     if (addr < 0x1f801000) {
       // read Scratch Pad
-      return H_ref<T>(addr);
+      return Href<T>(addr);
     }
     // read Hardware Registers
     return HwRegs().Read<T>(addr);
@@ -124,7 +124,7 @@ void Memory::Write(PSXAddr addr, T value)
   u32 segment = addr >> 16;
   if (segment == 0x1f80) {
     if (addr < 0x1f801000) {
-      H_ref<T>(addr) = BFLIP(value);
+      Href<T>(addr) = BFLIP(value);
       return;
     }
     HwRegs().Write(addr, value);

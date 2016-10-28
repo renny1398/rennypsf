@@ -1,6 +1,7 @@
 #pragma once
 #include "common.h"
 
+class SoundBlock;
 
 namespace PSX {
 
@@ -47,7 +48,7 @@ class RootCounterManager : public Component {
   void WriteTarget(unsigned int index, unsigned int value);
   unsigned int ReadCount(unsigned int index);
 
-  unsigned int SPURun();
+  int SPURun(SoundBlock*);
   void DeadLoopSkip();
 
  protected:

@@ -57,40 +57,15 @@ Sample& VorbisSoundBlock::Ch(int ch) {
 }
 
 
-class VorbisThread : public wxThread {
-public:
-  VorbisThread(Vorbis* vorbis);
-protected:
-  wxThread::ExitCode Entry();
-private:
-  Vorbis* const vorbis_;
-};
-
-
-VorbisThread::VorbisThread(Vorbis* vorbis) : wxThread(wxTHREAD_JOINABLE), vorbis_(vorbis) {}
-
-wxThread::ExitCode VorbisThread::Entry() {
-  while (!TestDestroy()) {
-    if (vorbis_->Advance() == false) break;
-  }
-  return NULL;
-}
-
-
 Vorbis::Vorbis(OggVorbis_File* vf, long loop_start, long loop_length)
-: soundbank_(new Soundbank()), sound_block_(new VorbisSoundBlock(ov_info(vf, -1))), thread_(NULL),
-vf_(vf), loop_start_(loop_start), loop_length_(loop_length), pos_(0L), buffer_pos_(0), buffer_size_(0) {
+: soundbank_(new Soundbank()), vf_(vf),
+  loop_start_(loop_start), loop_length_(loop_length), pos_(0L), buffer_pos_(0), buffer_size_(0) {
 }
 
 Vorbis::~Vorbis() {
   DoStop();
-  if (thread_) {
-    delete thread_;
-    thread_ = NULL;
-  }
   ov_clear(vf_);
-  
-  delete sound_block_;
+  delete vf_;
   delete soundbank_;
 }
 
@@ -108,34 +83,45 @@ bool Vorbis::ChangeOutputSamplingRate(uint32_t WXUNUSED(rate)) {
 
 
 bool Vorbis::DoPlay() {
-  if (thread_ == NULL) {
-    thread_ = new VorbisThread(this);
-  }
-  thread_->Create();
-
-  pos_ = 0L;
-  buffer_pos_ = 0;
-  
-  thread_->Run();
   return true;
 }
 
 
 bool Vorbis::DoStop() {
-  if (thread_) {
-    thread_->Delete();
-    thread_->Wait();
-  }
   return true;
 }
 
 
-SoundBlock& Vorbis::sound_block() {
-  return *sound_block_;
+bool Vorbis::Open(SoundBlock* block) {
+
+  vorbis_info* vi = ov_info(vf_, -1);
+
+  block->ChangeChannelCount(vi->channels);
+
+  if (vi->channels == 1) {
+    Sample& sample = block->Ch(0);
+    sample.set_volume_max(32767);
+    sample.set_volume(32767, 32767);
+    return true;
+  }
+
+  for (int i = 0; i < vi->channels; i++) {
+    Sample& sample = block->Ch(i);
+    sample.set_volume_max(32767);
+    if (i & 1) {
+      sample.set_volume(0, 32767);
+    } else {
+      sample.set_volume(32767, 0);
+    }
+  }
+  return true;
 }
 
+bool Vorbis::Close() {
+  return true;
+}
 
-bool Vorbis::Advance() {
+bool Vorbis::DoAdvance(SoundBlock* dest) {
   if (buffer_pos_ == 0 || buffer_size_ <= buffer_pos_) {
     buffer_pos_ = 0;
     buffer_size_ = 0;
@@ -152,10 +138,12 @@ bool Vorbis::Advance() {
   buffer_pos_ += 4;
   pos_++;
   
-  sound_block_->Ch(0).Set16(l);
-  sound_block_->Ch(1).Set16(r);
+  // sound_block_->Ch(0).Set16(l);
+  // sound_block_->Ch(1).Set16(r);
+  dest->Ch(0).Set16(l);
+  dest->Ch(1).Set16(r);
 
-  NotifyDevice();
+  // NotifyDevice();
   
   if (0 <= loop_start_ && 0 < loop_length_) {
     if (loop_start_ + loop_length_ <= pos_) {

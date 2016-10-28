@@ -50,10 +50,12 @@ Sample::Sample()
 
 
 int Sample::volume_left() const {
+  if (IsMuted()) return 0;
   return volume_left_;
 }
 
 int Sample::volume_right() const {
+  if (IsMuted()) return 0;
   return volume_right_;
 }
 
@@ -189,14 +191,19 @@ private:
 */
 
 
+////////////////////////////////////////////////////////////////////////
+// SoundBlock class functions
+////////////////////////////////////////////////////////////////////////
 
-SoundBlock::SoundBlock(int) {}
+
+SoundBlock::SoundBlock(int channel_number) : samples_(channel_number), rvb_is_enabled_(false) {}
 SoundBlock::~SoundBlock() {}
 
 
-const Sample& SoundBlock::Ch(int ch) const {
-  SoundBlock* const this_casted = const_cast<SoundBlock*>(this);
-  return this_casted->Ch(ch);
+void SoundBlock::ChangeChannelCount(int new_channel_count) {
+  if (new_channel_count != static_cast<int>(samples_.size())) {
+    samples_.assign(new_channel_count, Sample16());
+  }
 }
 
 
@@ -209,10 +216,27 @@ void SoundBlock::GetStereo16(short* dest) const {
     l += tmp_l;
     r += tmp_r;
   }
+
+  if (ReverbIsEnabled()) {
+    ReverbCh(0).GetStereo16(&tmp_l, &tmp_r);
+    l += tmp_l;
+    r += tmp_r;
+    ReverbCh(1).GetStereo16(&tmp_l, &tmp_r);
+    l += tmp_l;
+    r += tmp_r;
+  }
+
   dest[0] = CLIP16(l);
   dest[1] = CLIP16(r);
 }
 
+
+void SoundBlock::Clear() {
+  const unsigned int ch_count = channel_count();
+  for (unsigned int i = 0; i < ch_count; ++i) {
+    Ch(i).Set16(0);
+  }
+}
 
 void SoundBlock::Reset() {
   output_ = NULL;
@@ -298,26 +322,26 @@ void SoundInfo::set_tags(const Tag &tags) {
 
 SoundData::~SoundData() {}
 
-
+/*
 Sample& SoundData::Ch(int ch) {
   return sound_block().Ch(ch);
 }
-
 
 const Sample& SoundData::Ch(int ch) const {
   SoundData* this_casted = const_cast<SoundData*>(this);
   return this_casted->Ch(ch);
 }
+*/
 
-
-
+/*
+// deprecated
 bool SoundData::Play(SoundDevice* sdd) {
   sdd->Listen();
   sound_block().set_output(sdd);
   return DoPlay();
 }
 
-
+// deprecated
 bool SoundData::Stop() {
   SoundBlock& sb = sound_block();
   SoundDevice* sdd = sb.output();
@@ -328,13 +352,28 @@ bool SoundData::Stop() {
   }
   return ret;
 }
+*/
 
+bool SoundData::Advance(SoundBlock *dest) {
+  if (dest == NULL) return false;
+  // dest->Clear();
+  bool ret = DoAdvance(dest);
+  if (ret) {
+    pos_++;
+    if (pos_ % GetSamplingRate() == 0) {
+      rennyLogDebug("SoundData", "%d seconds...", pos_ / GetSamplingRate());
+    }
+  }
+  return ret;
+}
 
+/*
 bool SoundData::NotifyDevice() {
   return sound_block().NotifyDevice();
 }
+*/
 
-
+/*
 class OrdinarySoundThread : public wxThread {
 public:
   OrdinarySoundThread(OrdinarySoundData* data);
@@ -354,37 +393,20 @@ wxThread::ExitCode OrdinarySoundThread::Entry() {
   }
   return NULL;
 }
+*/
 
-
-OrdinarySoundData::OrdinarySoundData()
-: thread_(NULL) {}
+OrdinarySoundData::OrdinarySoundData() {}
 
 OrdinarySoundData::~OrdinarySoundData() {
-  DoStop();
-  if (thread_) {
-    delete thread_;
-  }
+  // DoStop();
 }
 
 
 bool OrdinarySoundData::DoPlay() {
-  if (thread_ == NULL) {
-    thread_ = new OrdinarySoundThread(this);
-  }
-  thread_->Create();
-
-  // pos_ = 0L;
-  // buffer_pos_ = 0;
-
-  thread_->Run();
-  return true;
+  return false;
 }
 
 
 bool OrdinarySoundData::DoStop() {
-  if (thread_) {
-    thread_->Delete();
-    thread_->Wait();
-  }
-  return true;
+  return false;
 }

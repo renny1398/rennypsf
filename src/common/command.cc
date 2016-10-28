@@ -187,12 +187,7 @@ public:
       return false;
     }
     int ch = std::stoi(str_ch);
-    Sample& sample = sf->Ch(ch);
-    if (sample.IsMuted()) {
-      sample.Unmute();
-    } else {
-      sample.Mute();
-    }
+    wxGetApp().Switch(ch);
     return true;
   }
 };
