@@ -43,8 +43,8 @@ SET(CMAKE_CXX_FLAGS_MINSIZEREL_INIT     "-Os -DNDEBUG")
 SET(CMAKE_CXX_FLAGS_RELEASE_INIT        "-O4 -DNDEBUG")
 SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO_INIT "-O2 -g")
 
-SET(CMAKE_C_FLAGS_DEBUG "-g -W -Wall -Wno-potentially-evaluated-expression")
-SET(CMAKE_CXX_FLAGS_DEBUG "-g -W -Wall -Wno-potentially-evaluated-expression")
+SET(CMAKE_C_FLAGS_DEBUG "-g -W -Wall -Wshadow -Wno-potentially-evaluated-expression")
+SET(CMAKE_CXX_FLAGS_DEBUG "-g -W -Wall -Wshadow -Wno-potentially-evaluated-expression")
 SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3 -W -Wall -finline-functions -ffast-math -DwxDEBUG_LEVEL=0")
 
 #SET(CMAKE_BUILD_TYPE "Release")

@@ -26,18 +26,65 @@ namespace R3000A {
 //  uint32_t delayed_load_value;
 
 
-GeneralPurposeRegisters::GeneralPurposeRegisters() {
-  ::memset(this, 0, sizeof(GeneralPurposeRegisters));
+GeneralPurposeRegisters::GeneralPurposeRegisters()
+  : ZR(R[GPR_ZR]), AT(R[GPR_AT]), V0(R[GPR_V0]), V1(R[GPR_V1]),
+    A0(R[GPR_A0]), A1(R[GPR_A1]), A2(R[GPR_A2]), A3(R[GPR_A3]),
+    T0(R[GPR_T0]), T1(R[GPR_T1]), T2(R[GPR_T2]), T3(R[GPR_T3]),
+    T4(R[GPR_T4]), T5(R[GPR_T5]), T6(R[GPR_T6]), T7(R[GPR_T7]),
+    S0(R[GPR_S0]), S1(R[GPR_S1]), S2(R[GPR_S2]), S3(R[GPR_S3]),
+    S4(R[GPR_S4]), S5(R[GPR_S5]), S6(R[GPR_S6]), S7(R[GPR_S7]),
+    T8(R[GPR_T8]), T9(R[GPR_T9]), K0(R[GPR_K0]), K1(R[GPR_K1]),
+    GP(R[GPR_GP]), SP(R[GPR_SP]), FP(R[GPR_FP]), RA(R[GPR_RA]),
+    HI(R[GPR_HI]), LO(R[GPR_LO]), PC(R[GPR_PC]) {
+  Reset();
+}
+
+GeneralPurposeRegisters::GeneralPurposeRegisters(const GeneralPurposeRegisters &src)
+  : ZR(R[GPR_ZR]), AT(R[GPR_AT]), V0(R[GPR_V0]), V1(R[GPR_V1]),
+    A0(R[GPR_A0]), A1(R[GPR_A1]), A2(R[GPR_A2]), A3(R[GPR_A3]),
+    T0(R[GPR_T0]), T1(R[GPR_T1]), T2(R[GPR_T2]), T3(R[GPR_T3]),
+    T4(R[GPR_T4]), T5(R[GPR_T5]), T6(R[GPR_T6]), T7(R[GPR_T7]),
+    S0(R[GPR_S0]), S1(R[GPR_S1]), S2(R[GPR_S2]), S3(R[GPR_S3]),
+    S4(R[GPR_S4]), S5(R[GPR_S5]), S6(R[GPR_S6]), S7(R[GPR_S7]),
+    T8(R[GPR_T8]), T9(R[GPR_T9]), K0(R[GPR_K0]), K1(R[GPR_K1]),
+    GP(R[GPR_GP]), SP(R[GPR_SP]), FP(R[GPR_FP]), RA(R[GPR_RA]),
+    HI(R[GPR_HI]), LO(R[GPR_LO]), PC(R[GPR_PC]) {
+  Set(src);
+}
+
+void GeneralPurposeRegisters::Set(const GeneralPurposeRegisters &src) {
+  ::memcpy(R, src.R, sizeof(R));
+}
+
+void GeneralPurposeRegisters::Reset() {
+  ::memset(this, 0, sizeof(R));
+  PC = 0xbfc00000;    // start in bootstrap
+}
+
+u32& GeneralPurposeRegisters::operator()(u32 i) {
+  return R[i];
 }
 
 
-Cop0Registers::Cop0Registers() {
-  ::memset(this, 0, sizeof(Cop0Registers));
+Cop0Registers::Cop0Registers()
+  : INDX(R[COP0_INDX]), RAND(R[COP0_RAND]), TLBL(R[COP0_TLBL]), BPC(R[COP0_BPC]),
+    CTXT(R[COP0_CTXT]), BDA(R[COP0_BDA]), PIDMASK(R[COP0_PIDMASK]), DCIC(R[COP0_DCIC]),
+    BADV(R[COP0_BADV]), BDAM(R[COP0_BDAM]), TLBH(R[COP0_TLBH]), BPCM(R[COP0_BPCM]),
+    SR(R[COP0_SR]), CAUSE(R[COP0_CAUSE]), EPC(R[COP0_EPC]), PRID(R[COP0_PRID]),
+    ERREG(R[COP0_ERREG]) {
+  Reset();
+}
+
+void Cop0Registers::Reset() {
+  ::memset(this, 0, sizeof(R));
+  SR   = 0x10900000; // COP0_ENABLED | BEV | TS
+  PRID = 0x00000002; // Revision Id, same as R3000A
 }
 
 
 Processor::Processor(Composite* composite)
   : Component(composite),
+    IRQAccessor(composite),
     Regs(R3000ARegs()),
     GPR(Regs.GPR),
     CP0(Regs.CP0),
@@ -81,12 +128,6 @@ Processor::Processor(Composite* composite)
   GPR.RA = 0xbfc52350;
   */
 
-  for (int i = 0; i < 32; i++) {
-    R3000ARegs().GPR.R[i] = 0;
-  }
-
-  CP0.R[12] = 0x10900000; // SR = COP0_ENABLED | BEV | TS
-  CP0.R[15] = 0x00000002; // PRevId = Revision Id, same as R3000A
   rennyLogDebug("PSXProcessor", "Initialized R3000A processor.");
 }
 
@@ -94,20 +135,18 @@ Processor::Processor(Composite* composite)
 void Processor::Reset()
 {
   inDelaySlot = doingBranch = false;
-  memset(&GPR, 0, sizeof(GPR));
-  memset(&CP0, 0, sizeof(CP0));
-  PC = 0xbfc00000;    // start in bootstrap
-  /*last_code = */Cycle = Interrupt = 0;
-  CP0.R[12] = 0x10900000; // SR = COP0_ENABLED | BEV | TS
-  // CP0.R[15] = 0x0000001f
-  CP0.R[15] = 0x00000002; // PRevId = Revision Id, same as R3000A
+
+  /*last_code = */
+  Cycle = Interrupt = 0;
+
   //    delayed_load_target = 0;
   //    delayed_load_value = 0;
+
+  GPR.Reset();
+  CP0.Reset();
+
   rennyLogDebug("PSXProcessor", "R3000A processor is reset.");
 }
-
-
-
 
 
 void Processor::Exception(u32 code, bool branch_delay)
@@ -134,20 +173,12 @@ void Processor::Exception(u32 code, bool branch_delay)
 }
 
 
-
-
-
-////////////////////////////////////////////////////////////////
-// OPCODES
-////////////////////////////////////////////////////////////////
-
-
 void Processor::BranchTest()
 {
   RCnt().Update();
 
   // interrupt mask register ($1f801074)
-  if (psxHu32val(0x1070) & psxHu32val(0x1074)) {
+  if (irq()) {
     if ((CP0.SR & 0x401) == 0x401) {
       Exception(0x400, false);
     }

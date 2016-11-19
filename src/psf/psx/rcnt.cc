@@ -45,7 +45,7 @@ void RootCounterManager::Reset(unsigned int index)
   counters[index].count_ = 0;
   UpdateCycle(index);
 
-  psxHu32ref(0x1070) |= BFLIP32(counters[index].interrupt);
+  set_irq_data(counters[index].interrupt);
   if ( (counters[index].mode_ & RootCounter::kIrqRegenerate) == 0 ) {
     counters[index].rest_of_count_clk = 0xffffffff;
   }
@@ -115,7 +115,7 @@ void RootCounterManager::Update()
 
   if ( (sysclk - counters[3].count_start_clk) >= counters[3].rest_of_count_clk ) {
     UpdateCycle(3);
-    psxHu32ref(0x1070) |= BFLIP32(1);
+    set_irq_data(1);
   }
   if ( (sysclk - counters[0].count_start_clk) >= counters[0].rest_of_count_clk ) {
     //std::printf("RootCounter(0): Target is reached. (sysclk = %d, target = %d)\n",

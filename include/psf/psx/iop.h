@@ -1,6 +1,6 @@
 #pragma once
-
-#include "psf/psx/common.h"
+#include "common.h"
+#include "memory.h"
 #include <wx/string.h>
 #include <wx/vector.h>
 #include <cstdint>
@@ -10,7 +10,7 @@ class PSF2Directory;
 
 namespace PSX {
 
-class IOP : Component {
+class IOP : Component, private UserMemoryAccessor {
 
 public:
   IOP(Composite* psx);

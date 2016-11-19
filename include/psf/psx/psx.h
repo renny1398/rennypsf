@@ -41,6 +41,8 @@ public:
   R3000A::Interpreter& Interp();
   RootCounterManager& RCnt();
 
+  R3000A::Disassembler& Disasm();
+
   R3000A::Registers& R3000ARegs();
   HardwareRegisters& HwRegs();
   DMA& Dma();
@@ -63,6 +65,7 @@ public:
   void Memcpy(void* dest, PSXAddr src, int length) const;
   void Memset(PSXAddr dest, int data, int length);
 
+  /*
   s8  Ms8val(PSXAddr addr) const;
   u8  Mu8val(PSXAddr addr) const;
   s16 Ms16val(PSXAddr addr) const;
@@ -92,6 +95,7 @@ public:
   u8* Hu8ptr(PSXAddr addr);
   u16* Hu16ptr(PSXAddr addr);
   u32* Hu32ptr(PSXAddr addr);
+*/
 
   u32& Ru32ref(PSXAddr addr);
 
@@ -109,21 +113,23 @@ public:
 private:
   u32 version_; // 1 or 2
 
-  R3000A::Processor r3000a_;
-  R3000A::Interpreter interp_;
-  RootCounterManager rcnt_;
-  SPU::SPUBase spu_;
-
-  R3000A::Registers r3000a_regs_;
-  Memory mem_;
   HardwareRegisters hw_regs_;
+  Memory mem_;
   DMA dma_;
+  R3000A::Registers r3000a_regs_;
   BIOS bios_;
   IOP iop_;
 
+  R3000A::Processor r3000a_;
+  R3000A::Interpreter interp_;
+  RootCounterManager rcnt_;
+  R3000A::Disassembler disasm_;
+
+  SPU::SPUBase spu_;
 };
 
 // User Memory Accessor Definitions (Value)
+/*
 inline s8  Composite::Ms8val(PSXAddr addr)  const { return mem_.Mval<s8>(addr);  }
 inline u8  Composite::Mu8val(PSXAddr addr)  const { return mem_.Mval<u8>(addr);  }
 inline s16 Composite::Ms16val(PSXAddr addr) const { return mem_.Mval<s16>(addr); }
@@ -143,7 +149,9 @@ inline s8*   Composite::Ms8ptr(PSXAddr addr)  { return mem_.Mptr<s8>(addr);  }
 inline u8*   Composite::Mu8ptr(PSXAddr addr)  { return mem_.Mptr<u8>(addr);  }
 inline u16*  Composite::Mu16ptr(PSXAddr addr) { return mem_.Mptr<u16>(addr); }
 inline u32*  Composite::Mu32ptr(PSXAddr addr) { return mem_.Mptr<u32>(addr); }
+*/
 
+/*
 // Hardware Register Accessor Definitions (Value)
 inline u8  Composite::Hu8val(PSXAddr addr) const  { return mem_.Hval<u8>(addr);  }
 inline u16 Composite::Hu16val(PSXAddr addr) const { return mem_.Hval<u16>(addr); }
@@ -158,6 +166,7 @@ inline u32& Composite::Hu32ref(PSXAddr addr) { return mem_.Href<u32>(addr); }
 inline u8*  Composite::Hu8ptr(PSXAddr addr)  { return mem_.Hptr<u8>(addr);  }
 inline u16* Composite::Hu16ptr(PSXAddr addr) { return mem_.Hptr<u16>(addr); }
 inline u32* Composite::Hu32ptr(PSXAddr addr) { return mem_.Hptr<u32>(addr); }
+*/
 
 // BIOS Accessor Definitions (Reference)
 inline u32& Composite::Ru32ref(PSXAddr addr) { return mem_.Rref<u32>(addr); }

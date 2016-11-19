@@ -27,11 +27,11 @@ class InterpreterThread: public wxThread
   friend class Interpreter;
 };
 
-class Interpreter : public Component
+class Interpreter : public Component, private UserMemoryAccessor
 {
 public:
   Interpreter(Composite* composite, Processor* cpu)
-    : Component(composite), cpu_(*cpu) {}
+    : Component(composite), UserMemoryAccessor(composite), cpu_(*cpu) {}
   ~Interpreter() {}
 
   void Init();
@@ -46,9 +46,6 @@ public:
   void Shutdown();
 private:
   void ExecuteOpcode(u32 code);
-
-public:
-  // static Interpreter& GetInstance();
 
 private:
   void delayRead(u32 code, u32 reg, u32 branch_pc);
@@ -208,6 +205,7 @@ private:
 };
 
 inline void Interpreter::ExecuteOpcode(u32 code) {
+  Disasm().OutputToFile();
   (this->*OPCODES[Opcode(code)])(code);
 }
 

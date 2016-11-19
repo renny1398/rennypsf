@@ -6,10 +6,8 @@ namespace PSX {
 
 Composite::Composite(u32 version)
   : version_(version),
-    r3000a_(this), interp_(this, &r3000a_), rcnt_(this), spu_(this),
-    r3000a_regs_(), mem_(this), hw_regs_(this), dma_(this),
-    bios_(this), iop_(this) {
-}
+    hw_regs_(this), mem_(this), dma_(this), r3000a_regs_(), bios_(this), iop_(this),
+    r3000a_(this), interp_(this, &r3000a_), rcnt_(this), disasm_(this), spu_(this) {}
 
 
 void Composite::Init(bool /*enable_spu2*/) {
@@ -56,6 +54,10 @@ R3000A::Interpreter& Composite::Interp() {
 
 RootCounterManager& Composite::RCnt() {
   return rcnt_;
+}
+
+R3000A::Disassembler& Composite::Disasm() {
+  return disasm_;
 }
 
 R3000A::Registers& Composite::R3000ARegs() {
@@ -126,7 +128,7 @@ void Composite::Memcpy(PSXAddr dest, const void *src, int length) {
 */
 
 void Composite::Memset(PSXAddr dest, int data, int length) {
-  ::memset(mem_.Mvptr(dest), data, length);
+  Mem().Set(dest, data, length);
 }
 
 
@@ -157,6 +159,8 @@ Component::Component(Composite *composite)
 R3000A::Processor& Component::R3000a() { return psx_.R3000a(); }
 R3000A::Interpreter& Component::Interp() { return psx_.Interp(); }
 RootCounterManager& Component::RCnt() { return psx_.RCnt(); }
+
+R3000A::Disassembler& Component::Disasm() { return psx_.Disasm(); }
 
 R3000A::Registers& Component::R3000ARegs() { return psx_.R3000ARegs(); }
 HardwareRegisters& Component::HwRegs() { return psx_.HwRegs(); }
@@ -192,7 +196,7 @@ void Component::WriteMemory32(PSXAddr addr, u32 value) {
   psx_.WriteMemory32(addr, value);
 }
 
-
+/*
 // User Memory Accessor Definitions (Value)
 s8  Component::psxMs8val(PSXAddr addr)  const { return psx_.Ms8val(addr);  }
 u8  Component::psxMu8val(PSXAddr addr)  const { return psx_.Mu8val(addr);  }
@@ -226,6 +230,7 @@ u32& Component::psxHu32ref(PSXAddr addr) { return psx_.Hu32ref(addr); }
 
 // Hardware Register Accessor Definitions (Pointer)
 u32* Component::psxHu32ptr(PSXAddr addr) { return psx_.Hu32ptr(addr); }
+*/
 
 // BIOS Accessor Definitions (Reference)
 u32& Component::psxRu32ref(PSXAddr addr) { return psx_.Ru32ref(addr); }

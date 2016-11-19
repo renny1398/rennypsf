@@ -4,16 +4,18 @@
 #include <memory.h>
 #include "common/debug.h"
 
-
 namespace PSX {
+
+UserMemoryAccessor::UserMemoryAccessor(Composite* psx)
+  : mem_(psx->Mem().mem_user_)
+{}
 
 
 Memory::Memory(Composite* composite)
-  : Component(composite) {
+  : Component(composite), HardwareRegisterAccessor(composite) {
   ::memset(segment_LUT_, 0, 0x10000);
   ::memset(mem_user_, 0, 0x200000);
   ::memset(mem_parallel_port_, 0, 0x10000);
-  ::memset(mem_hardware_registers_, 0, 0x3000);
   ::memset(mem_bios_, 0, 0x80000);
   Init();
 }
@@ -34,7 +36,7 @@ void Memory::Init()
   ::memcpy(segment_LUT_ + 0xa000, segment_LUT_, 0x20 * sizeof (char*));
 
   segment_LUT_[0x1f00] = mem_parallel_port_;
-  segment_LUT_[0x1f80] = mem_hardware_registers_;
+  segment_LUT_[0x1f80] = psxHu8ptr(0);
   segment_LUT_[0xbfc0] = mem_bios_;
 
   rennyLogDebug("PSXMemory", "Initialized memory.");
@@ -83,7 +85,7 @@ T Memory::Read(PSXAddr addr)
   if (segment == 0x1f80) {
     if (addr < 0x1f801000) {
       // read Scratch Pad
-      return Href<T>(addr);
+      return psxHval<T>(addr);
     }
     // read Hardware Registers
     return HwRegs().Read<T>(addr);
@@ -124,7 +126,7 @@ void Memory::Write(PSXAddr addr, T value)
   u32 segment = addr >> 16;
   if (segment == 0x1f80) {
     if (addr < 0x1f801000) {
-      Href<T>(addr) = BFLIP(value);
+      psxHref<T>(addr) = BFLIP(value);
       return;
     }
     HwRegs().Write(addr, value);
@@ -155,6 +157,11 @@ void Memory::Write16(PSXAddr addr, u16 value) {
 
 void Memory::Write32(PSXAddr addr, u32 value) {
   Write<u32>(addr, value);
+}
+
+
+void Memory::Set(PSXAddr addr, int data, int length) {
+  ::memset(reinterpret_cast<s8*>(&mem_user_[addr & 0x7fffff]), data, length);
 }
 
 }   // namespace PSX

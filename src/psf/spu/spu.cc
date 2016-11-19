@@ -159,7 +159,8 @@ void SPUCore::Step() {
 
 
 SPUBase::SPUBase(PSX::Composite* composite)
-  : Component(composite), Get(&SPUBase::GetSync), soundbank_(), reverb_(this) {
+  : Component(composite), UserMemoryAccessor(composite),
+    Get(&SPUBase::GetSync), soundbank_(), reverb_(this) {
 
   uint32_t core_num = composite->version();
   rennyAssert(core_num == 1 || core_num == 2);

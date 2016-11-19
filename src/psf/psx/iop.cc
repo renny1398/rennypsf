@@ -5,11 +5,14 @@
 #include <wx/vector.h>
 #include <wx/regex.h>
 
+// for debug
+#include "psf/psx/disassembler.h"
+
 namespace PSX {
 
 
 IOP::IOP(Composite* psx) :
-  Component(psx), root_(NULL), load_addr_(0x23f00) {}
+  Component(psx), UserMemoryAccessor(psx), root_(NULL), load_addr_(0x23f00) {}
 
 IOP::~IOP() {
   if (root_) {
@@ -138,6 +141,7 @@ unsigned int IOP::LoadELF(PSF2File* psf2irx) {
 
     case 0x70000000:
       // do_iopmod
+      rennyLogWarning("IOP::LoadELF", "Not implemented do_iopmod().");
       break;
 
     default:
@@ -150,6 +154,7 @@ unsigned int IOP::LoadELF(PSF2File* psf2irx) {
   entry |= 0x80000000;
   load_addr_ += totallen;
 
+  rennyLogDebug("IOP::LoadELF", "%s Load Entry = 0x%08x", psf2irx->GetName().c_str().AsChar(), entry);
   return entry;
 }
 
@@ -227,7 +232,17 @@ bool IOP::stdio(uint32_t call_num) {
 
   switch (call_num) {
   case 4: // printf
-    rennyLogInfo("IOP::stdio(printf)", static_cast<const char*>(sprintf(psxMs8ptr(a0), a1, a2, a3)));
+    do {
+      wxString out = sprintf(psxMs8ptr(a0), a1, a2, a3);
+      if (out.Find("start") != wxNOT_FOUND) {
+        rennyLogInfo("IOP::stdio(printf)", "Start Dumping.");
+        Disasm().StartOutputToFile();
+      } else if (out.Find("end") != wxNOT_FOUND) {
+        rennyLogInfo("IOP::stdio(printf)", "End Dumping.");
+        Disasm().StopOutputToFile();
+      }
+      rennyLogInfo("IOP::stdio(printf)", static_cast<const char*>(out));
+    } while (false);
     return true;
   default:
     rennyLogError("IOP::stdio", "Unhandled service %d.", call_num);

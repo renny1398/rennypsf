@@ -1,20 +1,28 @@
 #pragma once
 #include "common.h"
+#include "memory.h"
+
 #include <wx/string.h>
 #include <wx/vector.h>
+#include <wx/file.h>
 
+class wxOutputStream;
 
 namespace PSX {
 namespace R3000A {
 
-class Disassembler : public Component
+class Disassembler : private UserMemoryAccessor
 {
 public:
   Disassembler(Composite *composite);
 
   bool Parse(u32 code);
-  void PrintCode();
+  void PrintCode(wxOutputStream* out = NULL);
   void PrintChangedRegisters();
+
+  void StartOutputToFile();
+  bool OutputToFile();
+  void StopOutputToFile();
 
   void DumpRegisters();
 
@@ -45,10 +53,13 @@ private:
   // void HLECALL(u32);
 
 private:
+  Registers* const regs_;
   u32 pc0;
+  u32 code_;
   wxString opcodeName;
   wxVector<wxString> operands;
   wxVector<wxString> changedRegisters;
+  wxFile output_to_;
 
 protected:
   static bool (Disassembler::*const OPCODES[64])(u32);

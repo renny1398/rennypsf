@@ -1,4 +1,4 @@
-// #include "psx.h"
+#include "psf/psx/psx.h"
 #include "psf/psx/bios.h"
 #include "psf/psx/hardware.h"
 #include "psf/psx/rcnt.h"
@@ -15,9 +15,12 @@ using namespace PSX::R3000A;
 namespace PSX {
 
 
-BIOS::BIOS(Composite* composite)
-  : Component(composite),
-    GPR(R3000ARegs().GPR), CP0(R3000ARegs().CP0),
+BIOS::BIOS(Composite* psx)
+  : Component(psx),
+    UserMemoryAccessor(psx),
+    IRQAccessor(psx),
+    // psx_(psx),
+    GPR(psx->R3000ARegs().GPR), CP0(psx->R3000ARegs().CP0),
     PC(GPR.PC),
     A0(GPR.A0), A1(GPR.A1), A2(GPR.A2), A3(GPR.A3),
     V0(GPR.V0),
@@ -67,6 +70,7 @@ void BIOS::DeliverEventEx(u32 ev, u32 spec) {
 
 void BIOS::nop()
 {
+  rennyLogDebug("PSXBIOS", "NOP (PC = 0x%08x)", PC);
   PC = RA;
 }
 
@@ -106,7 +110,7 @@ void BIOS::setjmp()    // A0:13
   jmp_buf[1] = BFLIP32(SP);
   jmp_buf[2] = BFLIP32(FP);
   for (int i = 0; i < 8; i++) {
-    jmp_buf[3+i] = BFLIP32(GPR.S[i]);
+    jmp_buf[3+i] = BFLIP32(GPR(R3000A::GPR_S0+i));
   }
   jmp_buf[11] = BFLIP32(GP);
   V0 = 0;
@@ -121,7 +125,7 @@ void BIOS::longjmp()   // A0:14
   SP = BFLIP32(jmp_buf[1]);
   FP = BFLIP32(jmp_buf[2]);
   for (int i = 0; i < 8; i++) {
-    GPR.S[i] = BFLIP32(jmp_buf[3+i]);
+    GPR(R3000A::GPR_S0+i) = BFLIP32(jmp_buf[3+i]);
   }
   V0 = A1;
   PC = RA;
@@ -475,9 +479,9 @@ void BIOS::StartRCnt() // B0:04
   u32 a0 = A0;
   a0 &= 0x3;
   if (a0 != 3) {
-    psxHu32ref(0x1074) |= BFLIP32(1<<(a0+4));
+    set_irq_mask( irq_mask() | BFLIP32(1<<(a0+4)) );
   } else {
-    psxHu32ref(0x1074) |= BFLIP32(1);
+    set_irq_mask( irq_mask() | BFLIP32(1) );
   }
   // A0 = a0;
   V0 = 1;
@@ -489,9 +493,9 @@ void BIOS::StopRCnt()  // B0:05
   u32 a0 = A0;
   a0 &= 0x3;
   if (a0 != 3) {
-    psxHu32ref(0x1074) &= BFLIP32( ~(1<<(a0+4)) );
+    set_irq_mask( irq_mask() & BFLIP32( ~(1<<(a0+4)) ) );
   } else {
-    psxHu32ref(0x1074) &= BFLIP32(~1);
+    set_irq_mask( irq_mask() & BFLIP32(~1) );
   }
   // A0 = a0;
   V0 = 1;
@@ -665,7 +669,7 @@ void BIOS::ReturnFromException()   // B0:17
   //    ::memcpy(GPR.R, regs, 32*sizeof(u32));
   //    GPR.LO = regs[32];
   //    GPR.HI = regs[33];
-  GPR = savedGPR;
+  GPR.Set(savedGPR);
   u32 pc = CP0.EPC;
   if (CP0.CAUSE & 0x80000000) {
     pc += 4;
@@ -863,6 +867,12 @@ void BIOS::Init()
   psxMu32ref(0x07a0) = BFLIP32((OPCODE_HLECALL << 26) | 0);
   psxMu32ref(0x0884) = BFLIP32((OPCODE_HLECALL << 26) | 0);
   psxMu32ref(0x0894) = BFLIP32((OPCODE_HLECALL << 26) | 0);
+
+  if (Psx().version() == 2) {
+    psxMu32ref(4) = BFLIP32(0x80000008);
+    // psx_->Mu32ref(0) = BFLIP32(PSX::R3000A::OPCODE_HLECALL);
+    ::strcpy(psxMs8ptr(8), "psf2:/");
+  }
 }
 
 
@@ -872,16 +882,16 @@ void BIOS::Shutdown() {}
 void BIOS::Interrupt()
 {
   // for Root Counter 3 (interrupt = 1)
-  if ( BFLIP32(psxHu32ref(0x1070)) & 1 ) {
+  if ( BFLIP32(irq_data()) & 1 ) {
     if (RcEV[3][1].status == BFLIP32(EVENT_STATUS_ACTIVE)) {
       SoftCall(BFLIP32(RcEV[3][1].fhandler));
     }
   }
 
   // for Root Counter 0, 1, 2 (interrupt = 0x10, 0x20, 0x40)
-  if ( BFLIP32(psxHu32ref(0x1070)) & 0x70 ) {
+  if ( BFLIP32(irq_data()) & 0x70 ) {
     for (int i = 0; i < 3; i++) {
-      if (BFLIP32(psxHu32ref(0x1070)) & (1 << (i+4))) {
+      if (BFLIP32(irq_data()) & (1 << (i+4))) {
         if (RcEV[i][1].status == BFLIP32(EVENT_STATUS_ACTIVE)) {
           SoftCall(BFLIP32(RcEV[i][1].fhandler));
           HwRegs().Write32(0x1f801070, ~(1 << (i+4)));
@@ -898,7 +908,7 @@ void BIOS::Exception()
 
   switch (CP0.CAUSE & 0x3c) {
   case 0x00:  // Interrupt
-    savedGPR = GPR;
+    savedGPR.Set(GPR);
     Interrupt();
     for (int i = 0; i < 8; i++) {
       if (SysIntRP[i]) {

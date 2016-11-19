@@ -10,15 +10,6 @@
 #include "common/SoundFormat.h"
 #include "common/debug.h"
 
-//using namespace PSX;
-//using namespace PSX::R3000A;
-//using namespace PSX::Interpreter;
-
-namespace {
-
-}   // namespace
-
-
 namespace PSX {
 namespace R3000A {
 
@@ -46,10 +37,10 @@ void Interpreter::delayRead(u32 code, u32 reg, u32 branch_pc)
   R3000a().LeaveDelaySlot();
 }
 
-void Interpreter::delayWrite(u32, u32 /*reg*/, u32 branch_pc)
+void Interpreter::delayWrite(u32 code, u32 /*reg*/, u32 branch_pc)
 {
   // rennyAssert(reg < 32);
-  // OPCODES[code >> 26]();
+  ExecuteOpcode(code);
   R3000a().LeaveDelaySlot();
   R3000ARegs().PC = branch_pc;
   R3000a().BranchTest();
@@ -262,17 +253,17 @@ bool Interpreter::delayCOP0(u32 code, u32 reg, u32 branch_pc)
 {
   switch (Funct(code) & ~0x03) {
   case 0x00:  // MFC0, CFC0
-  if (Rt(code) == reg) {
-    delayWrite(code, reg, branch_pc);
-    return true;
-  }
-  return false;
+    if (Rt(code) == reg) {
+      delayWrite(code, reg, branch_pc);
+      return true;
+    }
+    return false;
   case 0x04:  // MTC0, CTC0
-  if (Rt(code) == reg) {
-    delayRead(code, reg, branch_pc);
-    return true;
-  }
-  return false;
+    if (Rt(code) == reg) {
+      delayRead(code, reg, branch_pc);
+      return true;
+    }
+    return false;
   }
   return false;
 }
@@ -566,7 +557,7 @@ void Interpreter::XORI(u32 code) {
 
 // Load Upper Immediate
 void Interpreter::LUI(u32 code) {
-  Load(Rt(code), code << 16);
+  Load(Rt(code), ImmU(code) << 16);
 }
 
 
@@ -857,7 +848,9 @@ void Interpreter::SWC3(u32) {
 
 
 
-void Interpreter::COP0(u32) {}
+void Interpreter::COP0(u32 code) {
+  rennyLogWarning("PSXInterpreter", "COP0 is not implemented (PC = 0x%08x).", (int)code);
+}
 void Interpreter::COP1(u32 code) {
   rennyLogWarning("PSXInterpreter", "COP1 is not supported (PC = 0x%08x).", (int)code);
 }
@@ -875,24 +868,28 @@ void Interpreter::COP3(u32 code) {
 
 void Interpreter::hleDummy()
 {
+  // std::printf("HLE Dummy: PC = 0x%08x\n", R3000ARegs().PC - 4);
   R3000ARegs().PC = R3000ARegs().GPR.RA;
   R3000a().BranchTest();
 }
 
 void Interpreter::hleA0()
 {
+  rennyAssert(R3000ARegs().PC == 0x00a0 + 4);
   (Bios().*BIOS::biosA0[R3000ARegs().GPR.T1 & 0xff])();
   R3000a().BranchTest();
 }
 
 void Interpreter::hleB0()
 {
+  rennyAssert(R3000ARegs().PC == 0x00b0 + 4);
   (Bios().*BIOS::biosB0[R3000ARegs().GPR.T1 & 0xff])();
   R3000a().BranchTest();
 }
 
 void Interpreter::hleC0()
 {
+  rennyAssert(R3000ARegs().PC == 0x00c0 + 4);
   (Bios().*BIOS::biosC0[R3000ARegs().GPR.T1 & 0xff])();
   R3000a().BranchTest();
 }
@@ -938,7 +935,7 @@ void Interpreter::HLECALL(u32 code) {
 
 
 ////////////////////////////////////////////////////////////////
-// Thread
+// Thread (deprecated)
 ////////////////////////////////////////////////////////////////
 
 InterpreterThread::InterpreterThread(Interpreter *interp)
@@ -1071,7 +1068,7 @@ void Interpreter::Init()
 void Interpreter::ExecuteOnce()
 {
   u32 pc = R3000ARegs().PC;
-  u32 code(Psx().Mu32val(pc));
+  u32 code(psxMu32val(pc));
   pc += 4;
   ++R3000ARegs().sysclock;
   R3000ARegs().PC = pc;

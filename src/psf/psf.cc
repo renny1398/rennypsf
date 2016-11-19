@@ -140,9 +140,6 @@ PSF2::PSF2(PSF2File* psf2irx)
   psx_->R3000ARegs().GPR.RA = 0x80000000;
   psx_->R3000ARegs().GPR.A0 = 2;
   psx_->R3000ARegs().GPR.A1 = 0x80000004;
-  psx_->Mu32ref(4) = BFLIP32(0x80000008);
-  psx_->Mu32ref(0) = BFLIP32(PSX::R3000A::OPCODE_HLECALL);
-  ::strcpy(psx_->Ms8ptr(8), "psf2:/");
 
   psx_->SetRootDirectory(psf2irx->GetRoot());
 }

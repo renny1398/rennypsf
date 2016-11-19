@@ -1,5 +1,6 @@
 #pragma once
 #include "common.h"
+#include "hardware.h"
 
 class SoundBlock;
 
@@ -34,11 +35,11 @@ protected:
   friend class RootCounterManager;
 };
 
-class RootCounterManager : public Component {
+class RootCounterManager : public Component, private IRQAccessor {
 
  public:
   RootCounterManager(Composite* composite)
-    : Component(composite) {}
+    : Component(composite), IRQAccessor(composite) {}
 
   void Init();
   void Update();

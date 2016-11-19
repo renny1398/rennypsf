@@ -57,6 +57,7 @@ class Processor;
 class Interpreter;
 class Recompiler;
 struct Registers;
+class Disassembler;
 }
 
 class RootCounterManager;
@@ -123,6 +124,8 @@ public:
   R3000A::Interpreter& Interp();
   RootCounterManager& RCnt();
 
+  R3000A::Disassembler& Disasm();
+
   R3000A::Registers& R3000ARegs();
   HardwareRegisters& HwRegs();
   DMA& Dma();
@@ -134,6 +137,7 @@ public:
   SPU::SPU2& Spu2();
 
 protected:
+/*
   // User Memory Accessors (Value)
   s8   psxMs8val(PSXAddr addr) const;
   u8   psxMu8val(PSXAddr addr) const;
@@ -169,6 +173,7 @@ protected:
   u8*  psxHu8ptr(PSXAddr addr);
   u16* psxHu16ptr(PSXAddr addr);
   u32* psxHu32ptr(PSXAddr addr);
+*/
 
   // BIOS Accessors (Reference)
   u32& psxRu32ref(PSXAddr addr);

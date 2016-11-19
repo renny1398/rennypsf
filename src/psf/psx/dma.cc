@@ -70,6 +70,8 @@ void DMA::execGPU_OTC(u32, u32, u32) {}
 
 DMA::DMA(Composite *composite)
   : Component(composite),
+    IRQAccessor(composite),
+    HardwareRegisterAccessor(composite),
     DPCR(psxHu32ref(0x10f0)),
     DICR(psxHu32ref(0x10f4))
 {
@@ -94,7 +96,7 @@ void DMA::Interrupt(u32 n)
 {
   if ( BFLIP32(DICR) & (1 << (16 + n)) ) {
     DICR |= BFLIP32(1 << (24 + n));
-    psxHu32ref(0x1070) |= BFLIP32(8);
+    set_irq_data(8);
   }
 }
 

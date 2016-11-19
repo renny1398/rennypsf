@@ -6,8 +6,9 @@
 #include <wx/vector.h>
 #include <wx/thread.h>
 
-#include "psf/spu/channel.h"
-#include "psf/psx/common.h"
+#include "channel.h"
+#include "../psx/common.h"
+#include "../psx/memory.h"
 #include "reverb.h"
 #include "interpolation.h"
 #include "soundbank.h"
@@ -154,7 +155,7 @@ private:
 
 
 
-class SPUBase : public PSX::Component
+class SPUBase : public PSX::Component, private PSX::UserMemoryAccessor
 {
 public:
   SPUBase(PSX::Composite* composite);
