@@ -22,7 +22,7 @@ public:
   ~RennyPlayer();
 
   bool Play(SoundData* p_sound, SoundDevice* p_device);
-  bool PlayShared(wxSharedPtr<SoundData>& p_sound, SoundDevice* p_device);
+  bool PlayShared(SoundData* p_sound, SoundDevice* p_device);
   bool Stop();
 
   bool Mute(int ch);
@@ -35,7 +35,7 @@ protected:
 
 private:
   SoundDevice* p_device_;
-  wxSharedPtr<SoundData> p_sound_;
+  SoundData* p_sound_;
   SoundBlock block_;
   bool is_exiting_;
 };
@@ -73,7 +73,6 @@ public:
 private:
   RennyPlayer* player_;
   SoundDevice* sdd_;
-  wxSharedPtr<SoundData> playing_sf_;
 
 #ifndef USE_GUI
   ConsoleThread* console_thread_;

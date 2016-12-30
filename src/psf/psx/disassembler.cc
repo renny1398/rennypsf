@@ -146,8 +146,8 @@ bool Disassembler::parseMulDiv(u32 code)
 {
     operands.push_back(regNames[Rs(code)]);
     operands.push_back(regNames[Rt(code)]);
-    changedRegisters.push_back(regNames[R3000A::GPR_HI]);
-    changedRegisters.push_back(regNames[R3000A::GPR_LO]);
+    changedRegisters.push_back(regNames[GPR_HI]);
+    changedRegisters.push_back(regNames[GPR_LO]);
     return true;
 }
 
@@ -164,21 +164,21 @@ bool Disassembler::parseJ(u32 code)
     wxString addr;
     addr.Printf(wxT("0x%08x"), Target(code) << 2 | ((regs_->PC-4) & 0xf0000000));
     operands.push_back(addr);
-    changedRegisters.push_back(regNames[R3000A::GPR_PC]);
+    changedRegisters.push_back(regNames[GPR_PC]);
     return true;
 }
 
 bool Disassembler::parseJAL(u32 code)
 {
     bool ret = parseJ(code);
-    changedRegisters.push_back(regNames[R3000A::GPR_RA]);
+    changedRegisters.push_back(regNames[GPR_RA]);
     return ret;
 }
 
 bool Disassembler::parseJR(u32 code)
 {
     operands.push_back(regNames[Rs(code)]);
-    changedRegisters.push_back(regNames[R3000A::GPR_PC]);
+    changedRegisters.push_back(regNames[GPR_PC]);
     return true;
 }
 
@@ -201,7 +201,7 @@ bool Disassembler::parseBranch(u32 code)
     operands.push_back(strRs);
     operands.push_back(strRt);
     operands.push_back(strAddr);
-    changedRegisters.push_back(regNames[R3000A::GPR_PC]);
+    changedRegisters.push_back(regNames[GPR_PC]);
     return true;
 }
 
@@ -213,14 +213,14 @@ bool Disassembler::parseBranchZ(u32 code)
     strAddr.Printf(wxT("0x%08x"), addr);
     operands.push_back(strRs);
     operands.push_back(strAddr);
-    changedRegisters.push_back(regNames[R3000A::GPR_PC]);
+    changedRegisters.push_back(regNames[GPR_PC]);
     return true;
 }
 
 bool Disassembler::parseBranchZAL(u32 code)
 {
     bool ret = parseBranchZ(code);
-    operands.push_back(regNames[R3000A::GPR_RA]);
+    operands.push_back(regNames[GPR_RA]);
     return ret;
 }
 
@@ -340,7 +340,7 @@ void Disassembler::PrintChangedRegisters()
     } else {
       for (int i = 0; i < 35; i++) {
         if (it->Cmp(regNames[i]) == 0) {
-          strAddr.Printf(wxT("0x%08x"), regs_->GPR.R[i]);
+          strAddr.Printf(wxT("0x%08x"), regs_->GPR(i));
           ss.Write(strAddr, strAddr.size());
           break;
         }
@@ -371,9 +371,9 @@ void Disassembler::StopOutputToFile() {
 void Disassembler::DumpRegisters()
 {
     wxString line;
-  line.Printf(wxT("%s=0x%08x "), regNames[R3000A::GPR_PC], regs_->PC);
+  line.Printf(wxT("%s=0x%08x "), regNames[GPR_PC], regs_->PC);
   for (int i = 1; i < 34; i++) {
-    line.Printf(wxT("%s%s=0x%08x "), line.c_str(), regNames[i], regs_->GPR.R[i]);
+    line.Printf(wxT("%s%s=0x%08x "), line.c_str(), regNames[i], regs_->GPR(i));
     if (i % 4 == 3) {
       wxMessageOutputDebug().Printf(line);
       line.Clear();

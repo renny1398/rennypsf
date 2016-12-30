@@ -2,14 +2,10 @@
 #include "common.h"
 #include <wx/thread.h>
 #include "common/debug.h"
+#include "memory.h"
 #include "hardware.h"
 
 namespace PSX {
-namespace R3000A {
-
-////////////////////////////////////////////////////////////////////////
-// R3000A Registers
-////////////////////////////////////////////////////////////////////////
 
 enum GPR_ENUM {
     GPR_ZR, GPR_AT, GPR_V0, GPR_V1, GPR_A0, GPR_A1, GPR_A2, GPR_A3,
@@ -19,9 +15,33 @@ enum GPR_ENUM {
     GPR_HI, GPR_LO, GPR_PC
 };
 
-struct GeneralPurposeRegisters {
+enum COP0_ENUM {
+  COP0_INDX, COP0_RAND, COP0_TLBL, COP0_BPC,  COP0_CTXT, COP0_BDA,   COP0_PIDMASK, COP0_DCIC,
+  COP0_BADV, COP0_BDAM, COP0_TLBH, COP0_BPCM, COP0_SR,   COP0_CAUSE, COP0_EPC,     COP0_PRID,
+  COP0_ERREG
+};
+
+namespace R3000A {
+
+////////////////////////////////////////////////////////////////////////
+// R3000A Registers
+////////////////////////////////////////////////////////////////////////
+
+class GeneralPurposeRegisters {
+public:
+  GeneralPurposeRegisters();
+  GeneralPurposeRegisters(const GeneralPurposeRegisters& src);
+  void Set(const GeneralPurposeRegisters& src);
+  void Reset();
+  u32& operator()(u32 i);
+  const u32& operator()(u32 i) const;
+protected:
+  GeneralPurposeRegisters& operator=(const GeneralPurposeRegisters&);
+private:
   u32 R[35];
-  u32 &ZR, &AT;
+public:
+  volatile const u32 &ZR;
+  u32 &AT;
   u32 &V0, &V1;
   u32 &A0, &A1, &A2, &A3;
   u32 &T0, &T1, &T2, &T3, &T4, &T5, &T6, &T7;
@@ -30,24 +50,20 @@ struct GeneralPurposeRegisters {
   u32 &K0, &K1;
   u32 &GP, &SP, &FP, &RA;
   u32 &HI, &LO, &PC;
-  GeneralPurposeRegisters();
-  GeneralPurposeRegisters(const GeneralPurposeRegisters& src);
-  void Set(const GeneralPurposeRegisters& src);
-  void Reset();
-  u32& operator()(u32 i);
-private:
-  GeneralPurposeRegisters& operator=(const GeneralPurposeRegisters& src);
 };
 
 extern const char *strGPR[35];
 
-enum COP0_ENUM {
-  COP0_INDX, COP0_RAND, COP0_TLBL, COP0_BPC,  COP0_CTXT, COP0_BDA,   COP0_PIDMASK, COP0_DCIC,
-  COP0_BADV, COP0_BDAM, COP0_TLBH, COP0_BPCM, COP0_SR,   COP0_CAUSE, COP0_EPC,     COP0_PRID,
-  COP0_ERREG
-};
-struct Cop0Registers {
+class Cop0Registers {
+public:
+  Cop0Registers();
+  void Reset();
+  u32& operator()(u32 i);
+protected:
+  Cop0Registers& operator=(const Cop0Registers&);
+private:
   u32 R[17];
+public:
   u32& INDX;
   u32& RAND;
   u32& TLBL;
@@ -65,8 +81,6 @@ struct Cop0Registers {
   u32& EPC;
   u32& PRID;
   u32& ERREG;
-  Cop0Registers();
-  void Reset();
 };
 
 ////////////////////////////////////////////////////////////////////////
@@ -88,18 +102,25 @@ enum SPECIAL_ENUM {
   SPECIAL_JR, SPECIAL_JALR, SPECIAL_SYSCALL = 0x0c, SPECIAL_BREAK,
   SPECIAL_MFHI = 0x10, SPECIAL_MTHI, SPECIAL_MFLO, SPECIAL_MTLO,
   SPECIAL_MULT = 0x18, SPECIAL_MULTU, SPECIAL_DIV, SPECIAL_DIVU,
-  SPECIAL_ADD = 0x20, SPECIAL_ADDU, SPECIAL_SUB, SPECIAL_SUBU, SPECIAL_AND, SPECIAL_OR, SPECIAL_XOR, SPECIAL_NOR
+  SPECIAL_ADD = 0x20, SPECIAL_ADDU, SPECIAL_SUB, SPECIAL_SUBU, SPECIAL_AND, SPECIAL_OR, SPECIAL_XOR, SPECIAL_NOR,
+  SPECIAL_SLT = 0x2a, SPECIAL_SLTU
 };
 
 enum BCOND_ENUM {
-    BCOND_BLTZ, BCOND_BGEZ, BCOND_BLTZAL = 0x10, BCOND_BGEZAL
+  BCOND_BLTZ, BCOND_BGEZ, BCOND_BLTZAL = 0x10, BCOND_BGEZAL
 };
 
 ////////////////////////////////////////////////////////////////////////
 // R3000A Registers Composite
 ////////////////////////////////////////////////////////////////////////
 
-struct Registers {
+class Registers {
+public:
+  Registers() : HI(GPR.HI), LO(GPR.LO), PC(GPR.PC),
+                sysclock(0), Interrupt(0) {}
+
+  void Reset();
+
   GeneralPurposeRegisters GPR;
   Cop0Registers CP0;
   u32& HI;
@@ -108,18 +129,51 @@ struct Registers {
   u32 sysclock;  // clock count
   u32 Interrupt;
 
-  Registers() : HI(GPR.HI), LO(GPR.LO), PC(GPR.PC),
-                sysclock(0), Interrupt(0) {}
+  friend class RegisterAccessor;
 };
 
 ////////////////////////////////////////////////////////////////////////
-// implement of R3000A processor
+// R3000A Registers Accessor
 ////////////////////////////////////////////////////////////////////////
 
-class Processor : public Component, private IRQAccessor
-{
+class RegisterAccessor {
 public:
-  Processor(Composite* composite);
+  RegisterAccessor(Registers& regs);
+  RegisterAccessor(Composite* psx);
+
+  u32 GPR(u32 i) const { return regs_.GPR(i); }
+  const GeneralPurposeRegisters& GPR() const { return regs_.GPR; }
+  void SetGPR(u32 i, u32 value) { regs_.GPR(i) = value; }
+  void SetGPR(const GeneralPurposeRegisters& src) { regs_.GPR.Set(src); }
+  void MoveGPR(u32 dest, u32 src) { regs_.GPR(dest) = regs_.GPR(src); }
+  void ResetGPR() { regs_.GPR.Reset(); }
+
+  u32 CP0(u32 i) const { return regs_.CP0(i); }
+  void SetCP0(u32 i, u32 value) { regs_.CP0(i) = value; }
+  void ResetCP0() { regs_.CP0.Reset(); }
+
+  void ResetRegisters();
+
+private:
+  Registers& regs_;
+
+protected:
+  u32& HI;
+  u32& LO;
+  u32& PC;
+  u32& Cycle;
+  u32& Interrupt;
+};
+
+////////////////////////////////////////////////////////////////////////
+// R3000A Processor Class Definition
+////////////////////////////////////////////////////////////////////////
+
+class Processor // TODO: implement RootCounterAccessor, remove Component
+    : public Component, public RegisterAccessor, private MemoryAccessor,
+      private IRQAccessor/*, private RootCounterAccessor*/ {
+public:
+  Processor(Composite* psx);
   ~Processor() {}
 
   void Reset();
@@ -128,7 +182,32 @@ public:
   // void Clear(u32 addr, u32 size);
   void Shutdown();
 
-  static Processor& GetInstance();
+  // static Processor& GetInstance();
+
+  // Load Functions (TODO: Delay Load)
+  void Load8s(u32 reg_enum, PSXAddr addr);
+  void Load8u(u32 reg_enum, PSXAddr addr);
+  void Load16s(u32 reg_enum, PSXAddr addr);
+  void Load16u(u32 reg_enum, PSXAddr addr);
+  void Load32(u32 reg_enum, PSXAddr addr);
+  void Load32Left(u32 reg_enum, PSXAddr addr);
+  void Load32Right(u32 reg_enum, PSXAddr addr);
+
+  // Store Functions
+  void Store8(u32 reg_enum, PSXAddr addr);
+  void Store16(u32 reg_enum, PSXAddr addr);
+  void Store32(u32 reg_enum, PSXAddr addr);
+  void Store32Left(u32 reg_enum, PSXAddr addr);
+  void Store32Right(u32 reg_enum, PSXAddr addr);
+
+  // Arithmetic Functions
+  void Add(u32 rd_enum, u32 rs_enum, u32 rt_enum, bool trap_on_ovf);
+  void AddImmediate(u32 rt_enum, u32 rs_enum, s32 imm, bool trap_on_ovf);
+  void Sub(u32 rd_enum, u32 rs_enum, u32 rt_enum, bool trap_on_ovf);
+  void Mul(u32 rs_enum, u32 rt_enum);
+  void MulUnsigned(u32 rs_enum, u32 rt_enum);
+  void Div(u32 rs_enum, u32 rt_enum);
+  void DivUnsigned(u32 rs_enum, u32 rt_enum);
 
   void BranchTest();
   void Exception(uint32_t code, bool branch_delay);
@@ -139,10 +218,11 @@ public:
 
   bool isDoingBranch() const;
 
-public:
-  Registers& Regs;
+  Registers Regs; // TODO: into private variable
+  GeneralPurposeRegisters& GPR;
 
 private:
+/*
   GeneralPurposeRegisters& GPR;
   Cop0Registers& CP0;
   u32& HI;
@@ -150,6 +230,7 @@ private:
   u32& PC;
   u32& Cycle;
   u32& Interrupt;
+*/
 
   bool inDelaySlot;    // for SYSCALL
   bool doingBranch;    // set when doBranch is called
@@ -160,19 +241,19 @@ private:
 };
 
 inline bool Processor::IsInDelaySlot() const {
-    return inDelaySlot;
+  return inDelaySlot;
 }
 
 inline void Processor::EnterDelaySlot() {
-    inDelaySlot = true;
+  inDelaySlot = true;
 }
 
 inline void Processor::LeaveDelaySlot() {
-    inDelaySlot = false;
+  inDelaySlot = false;
 }
 
 inline bool Processor::isDoingBranch() const {
-    return doingBranch;
+  return doingBranch;
 }
 
 } // namespace R3000A
@@ -193,17 +274,30 @@ inline u32 Target(u32 ins) { return ins & 0x03ffffff; }
 inline u32 Shamt(u32 ins) { return (ins >> 6) & 0x1f; }
 inline u32 Funct(u32 ins) { return ins & 0x3f; }
 
-inline u32& RsVal(GeneralPurposeRegisters& reg, u32 ins) {
-  return reg.R[Rs(ins)];
+inline u32 RsVal(const GeneralPurposeRegisters& reg, u32 ins) {
+  return reg(Rs(ins));
 }
-inline u32& RtVal(GeneralPurposeRegisters& reg, u32 ins) {
-  return reg.R[Rt(ins)];
+inline u32 RtVal(const GeneralPurposeRegisters& reg, u32 ins) {
+  return reg(Rt(ins));
 }
-inline u32& RdVal(GeneralPurposeRegisters& reg, u32 ins) {
-  return reg.R[Rd(ins)];
+inline u32 RdVal(const GeneralPurposeRegisters& reg, u32 ins) {
+  return reg(Rd(ins));
 }
-inline u32 Addr(GeneralPurposeRegisters& reg, u32 ins) {
+inline u32 Addr(const GeneralPurposeRegisters& reg, u32 ins) {
   return RsVal(reg, ins) + Imm(ins);
+}
+
+inline u32 EncodeI(u32 opcode, u32 rs_enum, u32 rt_enum, s32 imm) {
+  return (opcode << 26) | (rs_enum << 21) | (rt_enum << 16) | (imm & 0xffff);
+}
+
+inline u32 EncodeJ(u32 opcode, u32 target) {
+  return (opcode << 26) | (target & 0x03ffffff);
+}
+
+inline u32 EncodeR(u32 opcode, u32 rs_enum, u32 rt_enum, u32 rd_enum, u32 shamt, u32 funct) {
+  return (opcode << 26) | (rs_enum << 21) | (rt_enum << 16) | (rd_enum << 11) |
+      (shamt << 6) | funct;
 }
 
 }   // namespace R3000A

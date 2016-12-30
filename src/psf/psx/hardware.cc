@@ -11,17 +11,27 @@ namespace PSX {
 
 IRQAccessor::IRQAccessor(HardwareRegisters* p_regs)
   : irq_data_(*reinterpret_cast<u32*>(&p_regs->hw_regs_[0x1070])),
-    irq_mask_(*reinterpret_cast<u32*>(&p_regs->hw_regs_[0x1074]))
-{}
+    irq_mask_(*reinterpret_cast<u32*>(&p_regs->hw_regs_[0x1074])) {
+  rennyAssert(&irq_data_ != NULL);
+  rennyAssert(&irq_mask_ != NULL);
+}
 
 IRQAccessor::IRQAccessor(Composite* psx)
   : irq_data_(*reinterpret_cast<u32*>(&psx->HwRegs().hw_regs_[0x1070])),
-    irq_mask_(*reinterpret_cast<u32*>(&psx->HwRegs().hw_regs_[0x1074]))
-{}
+    irq_mask_(*reinterpret_cast<u32*>(&psx->HwRegs().hw_regs_[0x1074])) {
+  rennyAssert(&irq_data_ != NULL);
+  rennyAssert(&irq_mask_ != NULL);
+}
+
+HardwareRegisterAccessor::HardwareRegisterAccessor(HardwareRegisters* hw_regs)
+  : regs_(hw_regs->hw_regs_) {
+  rennyAssert(regs_ != NULL);
+}
 
 HardwareRegisterAccessor::HardwareRegisterAccessor(Composite* psx)
-  :regs_(psx->HwRegs().hw_regs_)
-{}
+  : regs_(psx->HwRegs().hw_regs_) {
+  rennyAssert(regs_ != NULL);
+}
 
 
 HardwareRegisters::HardwareRegisters(Composite* composite)
@@ -30,13 +40,13 @@ HardwareRegisters::HardwareRegisters(Composite* composite)
 }
 
 
-uint8_t HardwareRegisters::Read8(u32 addr) {
+uint8_t HardwareRegisters::Read8(u32 addr) const {
   rennyAssert((addr & 0x3fff) < 0x3000);
   return hw_regs_[addr & 0x3fff];
 }
 
 
-uint16_t HardwareRegisters::Read16(u32 addr) {
+uint16_t HardwareRegisters::Read16(u32 addr) const {
   if ((addr & 0xffffffc0) == 0x1f801100) { // root counters
     int index = (addr & 0x00000030) >> 4;
     int ofs = (addr & 0xf) >> 2;
@@ -58,11 +68,11 @@ uint16_t HardwareRegisters::Read16(u32 addr) {
     rennyLogWarning("PSXHardware", "SPU2read16 is not implemented.");
   }
   rennyAssert((addr & 0x3fff) < 0x3000);
-  return *reinterpret_cast<u16*>(hw_regs_ + (addr & 0x3fff));
+  return *reinterpret_cast<const u16*>(hw_regs_ + (addr & 0x3fff));
 }
 
 
-u32 HardwareRegisters::Read32(u32 addr) {
+u32 HardwareRegisters::Read32(u32 addr) const {
   if ((addr & 0xffffffc0) == 0x1f801100) { // root counters
     int index = (addr & 0x00000030) >> 4;
     int ofs = (addr & 0xf) >> 2;
@@ -84,7 +94,7 @@ u32 HardwareRegisters::Read32(u32 addr) {
     return 0x80808080;
   }
   rennyAssert((addr & 0x3fff) < 0x3000);
-  return *reinterpret_cast<u32*>(hw_regs_ + (addr & 0x3fff));
+  return *reinterpret_cast<const u32*>(hw_regs_ + (addr & 0x3fff));
 }
 
 

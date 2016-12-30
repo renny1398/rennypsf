@@ -58,7 +58,7 @@ Sample& VorbisSoundBlock::Ch(int ch) {
 
 
 Vorbis::Vorbis(OggVorbis_File* vf, long loop_start, long loop_length)
-: soundbank_(new Soundbank()), vf_(vf),
+: soundbank_(new Soundbank()), vf_(vf), length_(ov_pcm_total(vf, -1)),
   loop_start_(loop_start), loop_length_(loop_length), pos_(0L), buffer_pos_(0), buffer_size_(0) {
 }
 
@@ -138,8 +138,6 @@ bool Vorbis::DoAdvance(SoundBlock* dest) {
   buffer_pos_ += 4;
   pos_++;
   
-  // sound_block_->Ch(0).Set16(l);
-  // sound_block_->Ch(1).Set16(r);
   dest->Ch(0).Set16(l);
   dest->Ch(1).Set16(r);
 
@@ -147,11 +145,18 @@ bool Vorbis::DoAdvance(SoundBlock* dest) {
   
   if (0 <= loop_start_ && 0 < loop_length_) {
     if (loop_start_ + loop_length_ <= pos_) {
+      rennyLogDebug("Vorbis", "Playing position reached the loop-end point.");
       pos_ = loop_start_;
       buffer_pos_ = 0;
       buffer_size_ = 0;
       ov_pcm_seek(vf_, pos_);
     }
+  } else if (IsRepeated() && static_cast<decltype(pos_)>(length_) <= pos_) {
+    rennyLogDebug("Vorbis", "Playing position reached the end.");
+    pos_ = 0;
+    buffer_pos_ = 0;
+    buffer_size_ = 0;
+    ov_pcm_seek(vf_, 0);
   }
   
   return true;

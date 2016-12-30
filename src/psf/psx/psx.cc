@@ -6,8 +6,11 @@ namespace PSX {
 
 Composite::Composite(u32 version)
   : version_(version),
-    hw_regs_(this), mem_(this), dma_(this), r3000a_regs_(), bios_(this), iop_(this),
-    r3000a_(this), interp_(this, &r3000a_), rcnt_(this), disasm_(this), spu_(this) {}
+    hw_regs_(this), mem_(version, &hw_regs_), dma_(this),
+    r3000a_(this), rcnt_(this, &r3000a_.Regs), bios_(this), iop_(this),
+    interp_(this, &r3000a_, &bios_, &iop_), disasm_(this), spu_(this) {
+  interp_.Init(&rcnt_);
+}
 
 
 void Composite::Init(bool /*enable_spu2*/) {
@@ -25,20 +28,19 @@ u32 Composite::version() const {
   return version_;
 }
 
-
+/*
 R3000A::InterpreterThread* Composite::Run() {
   Reset();
   bios_.Init();
   return interp_.Execute();
 }
 
-
 void Composite::Terminate() {
   interp_.Shutdown();
   spu_.Shutdown();
   mem_.Reset();
 }
-
+*/
 
 Memory& Composite::Mem() {
   return mem_;
@@ -56,12 +58,16 @@ RootCounterManager& Composite::RCnt() {
   return rcnt_;
 }
 
+const RootCounterManager& Composite::RCnt() const {
+  return rcnt_;
+}
+
 R3000A::Disassembler& Composite::Disasm() {
   return disasm_;
 }
 
 R3000A::Registers& Composite::R3000ARegs() {
-  return r3000a_regs_;
+  return r3000a_.Regs;
 }
 
 HardwareRegisters& Composite::HwRegs() {
@@ -81,6 +87,10 @@ IOP& Composite::Iop() {
 }
 
 SPU::SPUBase& Composite::Spu() {
+  return spu_;
+}
+
+const SPU::SPUBase& Composite::Spu() const {
   return spu_;
 }
 
@@ -159,6 +169,7 @@ Component::Component(Composite *composite)
 R3000A::Processor& Component::R3000a() { return psx_.R3000a(); }
 R3000A::Interpreter& Component::Interp() { return psx_.Interp(); }
 RootCounterManager& Component::RCnt() { return psx_.RCnt(); }
+const RootCounterManager& Component::RCnt() const { return psx_.RCnt(); }
 
 R3000A::Disassembler& Component::Disasm() { return psx_.Disasm(); }
 
@@ -169,6 +180,7 @@ BIOS& Component::Bios() { return psx_.Bios(); }
 IOP& Component::Iop() { return psx_.Iop(); }
 
 SPU::SPUBase& Component::Spu() { return psx_.Spu(); }
+const SPU::SPUBase& Component::Spu() const { return psx_.Spu(); }
 
 
 u8 Component::ReadMemory8(PSXAddr addr) {

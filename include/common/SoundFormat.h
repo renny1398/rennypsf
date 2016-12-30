@@ -273,7 +273,7 @@ private:
 class SoundData : public wxTrackable
 {
 public:
-  SoundData() : pos_(0) {}
+  SoundData() : infoLoaded_(false), repeated_(true), pos_(0) {}
   //! A virtual desctructor.
   virtual ~SoundData();
 
@@ -294,7 +294,10 @@ public:
   // bool Stop();
   virtual bool Open(SoundBlock* block) = 0;
   virtual bool Close() = 0;
+
   bool Advance(SoundBlock* dest);
+  bool IsRepeated() const { return repeated_; }
+  void Repeat(bool b = true) { repeated_ = b; }
 
   //! Returns the reference of Soundbank.
   virtual Soundbank& soundbank() = 0;
@@ -324,6 +327,7 @@ protected:
   wxFile file_;
   wxString path_;
   bool infoLoaded_;
+  bool repeated_;
 
   size_t pos_;
 };
@@ -343,7 +347,7 @@ inline const wxString& SoundData::GetFileName() const {
 ////////////////////////////////////////////////////////////////////////
 
 // class OrdinarySoundThread;
-
+/*
 class OrdinarySoundData : public SoundData {
 
 public:
@@ -361,3 +365,4 @@ private:
 
   // friend class OrdinarySoundThread;
 };
+*/

@@ -1,5 +1,4 @@
 #include "psf/psx/interpreter.h"
-#include "psf/psx/psx.h"
 #include "psf/psx/memory.h"
 #include "psf/psx/rcnt.h"
 #include "psf/psx/bios.h"
@@ -13,6 +12,14 @@
 namespace PSX {
 namespace R3000A {
 
+Interpreter::Interpreter(Composite* psx, Processor* cpu, BIOS* bios, IOP* iop)
+  : RegisterAccessor(psx), UserMemoryAccessor(psx),
+    cpu_(*cpu), bios_(*bios), iop_(*iop) {
+  rennyAssert(&cpu_ != NULL);
+  rennyAssert(&bios_ != NULL);
+  rennyAssert(&iop_ != NULL);
+}
+
 ////////////////////////////////////////////////////////////////
 // Delay Functions
 ////////////////////////////////////////////////////////////////
@@ -23,35 +30,35 @@ void Interpreter::delayRead(u32 code, u32 reg, u32 branch_pc)
 
   u32 reg_old, reg_new;
 
-  reg_old = R3000ARegs().GPR.R[reg];
+  reg_old = GPR(reg);
   ExecuteOpcode(code);  // branch delay load
-  reg_new = R3000ARegs().GPR.R[reg];
+  reg_new = GPR(reg);
 
-  R3000ARegs().PC = branch_pc;
-  R3000a().BranchTest();
+  SetGPR(GPR_PC, branch_pc);
+  cpu_.BranchTest();
 
-  R3000ARegs().GPR.R[reg] = reg_old;
+  SetGPR(reg, reg_old);
   ExecuteOnce();
-  R3000ARegs().GPR.R[reg] = reg_new;
+  SetGPR(reg, reg_new);
 
-  R3000a().LeaveDelaySlot();
+  cpu_.LeaveDelaySlot();
 }
 
 void Interpreter::delayWrite(u32 code, u32 /*reg*/, u32 branch_pc)
 {
   // rennyAssert(reg < 32);
   ExecuteOpcode(code);
-  R3000a().LeaveDelaySlot();
-  R3000ARegs().PC = branch_pc;
-  R3000a().BranchTest();
+  cpu_.LeaveDelaySlot();
+  SetGPR(GPR_PC, branch_pc);
+  cpu_.BranchTest();
 }
 
 void Interpreter::delayReadWrite(u32, u32 /*reg*/, u32 branch_pc)
 {
   // rennyAssert(reg < 32);
-  R3000a().LeaveDelaySlot();
-  R3000ARegs().PC = branch_pc;
-  R3000a().BranchTest();
+  cpu_.LeaveDelaySlot();
+  SetGPR(GPR_PC, branch_pc);
+  cpu_.BranchTest();
 }
 
 
@@ -231,7 +238,7 @@ Interpreter::DelayFunc Interpreter::delayBCOND = &Interpreter::delayRs;
 
 bool Interpreter::delayJAL(u32 code, u32 reg, u32 branch_pc)
 {
-  if (reg == R3000A::GPR_RA) {
+  if (reg == GPR_RA) {
     delayWrite(code, reg, branch_pc);
     return true;
   }
@@ -321,28 +328,28 @@ Interpreter::DelayFunc Interpreter::delayOpcodes[64] = {
 void Interpreter::delayTest(u32 reg, u32 branch_pc)
 {
   u32 branch_code(psxMu32val(branch_pc));
-  R3000a().EnterDelaySlot();
+  cpu_.EnterDelaySlot();
   u32 op = Opcode(branch_code);
   if ((this->*delayOpcodes[op])(branch_code, reg, branch_pc)) {
     return;
   }
 
-  R3000ARegs().PC = branch_pc;
+  SetGPR(GPR_PC, branch_pc);
   ExecuteOpcode(branch_code);
-  R3000a().LeaveDelaySlot();
-  R3000a().BranchTest();
+  cpu_.LeaveDelaySlot();
+  cpu_.BranchTest();
 }
 
 
 void Interpreter::doBranch(u32 branch_pc)
 {
-  R3000a().doingBranch = true;
+  cpu_.doingBranch = true;
 
-  u32 pc = R3000ARegs().PC;
+  u32 pc = GPR(GPR_PC);
   u32 code(psxMu32val(pc));
   pc += 4;
-  R3000ARegs().PC = pc;
-  R3000ARegs().sysclock++;
+  SetGPR(GPR_PC, pc);
+  Cycle++;
 
   const u32 op = Opcode(code);
   switch (op) {
@@ -367,13 +374,13 @@ void Interpreter::doBranch(u32 branch_pc)
   ExecuteOpcode(code);
 
   // branch itself & nop
-  if (R3000ARegs().PC - 8 == branch_pc && !op) {
-    RCnt().DeadLoopSkip();
+  if (GPR(GPR_PC) - 8 == branch_pc && !op) {
+    rcnt_->DeadLoopSkip();
   }
-  R3000a().LeaveDelaySlot();
-  R3000ARegs().PC = branch_pc;
+  cpu_.LeaveDelaySlot();
+  SetGPR(GPR_PC, branch_pc);
 
-  R3000a().BranchTest();
+  cpu_.BranchTest();
 }
 
 
@@ -385,7 +392,7 @@ void Interpreter::NLOP(u32 code) {
 /*
 inline void CommitDelayedLoad() {
     if (delayed_load_target) {
-        R3000ARegs().GPR.R[delayed_load_target] = delayed_load_value;
+        SetGPR(GPR_R(delayed_load_target, delayed_load_value);
         delayed_load_target = 0;
         delayed_load_value = 0;
     }
@@ -402,17 +409,17 @@ inline void DelayedBranch(u32 target) {
 inline void Interpreter::Load(u32 rt, u32 value) {
   // CommitDelayedLoad();
   if (rt != 0) {
-    R3000ARegs().GPR.R[rt] = value;
+    SetGPR(rt, value);
   }
 }
 
 /*
 // for load function from memory or not GPR into GPR
 inline void DelayedLoad(u32 rt, u32 value) {
-    rennyAssert_MSG(rt != GPR_PC, "Delayed-load target must be other than R3000ARegs().PC.");
+    rennyAssert_MSG(rt != GPR_PC, "Delayed-load target must be other than GPR(GPR_PC).");
     if (delayed_load_target == GPR_PC) {
         // delay load
-        R3000ARegs().PC = delayed_load_value;
+        GPR(GPR_PC) = delayed_load_value;
         delayed_load_target = rt;
         delayed_load_value = value;
         wxMessageOutputDebug().Printf("Delayed-loaded.");
@@ -430,84 +437,62 @@ inline void DelayedLoad(u32 rt, u32 value) {
 
 // Load Byte
 void Interpreter::LB(u32 code) {
-  Load(Rt(code), static_cast<int8_t>(ReadMemory8(Addr(R3000ARegs().GPR, code))));
+  cpu_.Load8s(Rt(code), Addr(GPR(), code));
 }
 
 // Load Byte Unsigned
 void Interpreter::LBU(u32 code) {
-  Load(Rt(code), ReadMemory8(Addr(R3000ARegs().GPR, code)));
+  cpu_.Load8u(Rt(code), Addr(GPR(), code));
 }
 
 // Load Halfword
 void Interpreter::LH(u32 code) {
-  Load(Rt(code), static_cast<int16_t>(ReadMemory16(Addr(R3000ARegs().GPR, code))));
+  cpu_.Load16s(Rt(code), Addr(GPR(), code));
 }
 
 // Load Halfword Unsigned
 void Interpreter::LHU(u32 code) {
-  Load(Rt(code), ReadMemory16(Addr(R3000ARegs().GPR, code)));
+  cpu_.Load16u(Rt(code), Addr(GPR(), code));
 }
 
 // Load Word
 void Interpreter::LW(u32 code) {
-  Load(Rt(code), ReadMemory32(Addr(R3000ARegs().GPR, code)));
+  cpu_.Load32(Rt(code), Addr(GPR(), code));
 }
 
 // Load Word Left
 void Interpreter::LWL(u32 code) {
-  static const u32 LWL_MASK[4] = { 0x00ffffff, 0x0000ffff, 0x000000ff, 0x00000000 };
-  static const u32 LWL_SHIFT[4] = { 24, 16, 8, 0 };
-  const u32 rt = Rt(code);
-  const u32 addr = Addr(R3000ARegs().GPR, code);
-  const u32 shift = addr & 3;
-  const u32 mem = ReadMemory32(addr & ~3);
-  Load(rt, (R3000ARegs().GPR.R[rt] & LWL_MASK[shift]) | (mem << LWL_SHIFT[shift]));
+  cpu_.Load32Left(Rt(code), Addr(GPR(), code));
 }
 
 // Load Word Right
 void Interpreter::LWR(u32 code) {
-  static const u32 LWR_MASK[4] = { 0xff000000, 0xffff0000, 0xffffff00, 0x00000000 };
-  static const u32 LWR_SHIFT[4] = { 0, 8, 16, 24 };
-  const u32 rt = Rt(code);
-  const u32 addr = Addr(R3000ARegs().GPR, code);
-  const u32 shift = addr & 3;
-  const u32 mem = ReadMemory32(addr & ~3);
-  Load(rt, (R3000ARegs().GPR.R[rt] & LWR_MASK[shift]) | (mem >> LWR_SHIFT[shift]));
+  cpu_.Load32Right(Rt(code), Addr(GPR(), code));
 }
 
 // Store Byte
 void Interpreter::SB(u32 code) {
-  WriteMemory8(Addr(R3000ARegs().GPR, code), RtVal(R3000ARegs().GPR, code) & 0xff);
+  cpu_.Store8(Rt(code), Addr(GPR(), code));
 }
 
 // Store Halfword
 void Interpreter::SH(u32 code) {
-  WriteMemory16(Addr(R3000ARegs().GPR, code), RtVal(R3000ARegs().GPR, code) & 0xffff);
+  cpu_.Store16(Rt(code), Addr(GPR(), code));
 }
 
 // Store Word
 void Interpreter::SW(u32 code) {
-  WriteMemory32(Addr(R3000ARegs().GPR, code), RtVal(R3000ARegs().GPR, code));
+  cpu_.Store32(Rt(code), Addr(GPR(), code));
 }
 
 // Store Word Left
 void Interpreter::SWL(u32 code) {
-  static const u32 SWL_MASK[4] = { 0xffffff00, 0xffff0000, 0xff000000, 0x00000000 };
-  static const u32 SWL_SHIFT[4] = { 24, 16, 8, 0 };
-  const u32 addr = Addr(R3000ARegs().GPR, code);
-  const u32 shift = addr & 3;
-  const u32 mem = ReadMemory32(addr & ~3);
-  WriteMemory32(addr & ~3, (RtVal(R3000ARegs().GPR, code) >> SWL_SHIFT[shift]) | (mem & SWL_MASK[shift]));
+  cpu_.Store32Left(Rt(code), Addr(GPR(), code));
 }
 
 // Store Word Right
 void Interpreter::SWR(u32 code) {
-  static const u32 SWR_MASK[4] = { 0x00000000, 0x000000ff, 0x0000ffff, 0x00ffffff };
-  static const u32 SWR_SHIFT[4] = { 0, 8, 16, 24 };
-  const u32 addr = Addr(R3000ARegs().GPR, code);
-  const u32 shift = addr & 3;
-  const u32 mem = ReadMemory32(addr & ~3);
-  WriteMemory32(addr & ~3, (RtVal(R3000ARegs().GPR, code) << SWR_SHIFT[shift]) | (mem & SWR_MASK[shift]));
+  cpu_.Store32Right(Rt(code), Addr(GPR(), code));
 }
 
 
@@ -517,42 +502,41 @@ void Interpreter::SWR(u32 code) {
 
 // ADD Immediate
 void Interpreter::ADDI(u32 code) {
-  Load(Rt(code), RsVal(R3000ARegs().GPR, code) + Imm(code));
-  // TODO: Trap on two's complement overflow.
+  cpu_.AddImmediate(Rt(code), Rs(code), Imm(code), true);
 }
 
 // ADD Immediate Unsigned
 void Interpreter::ADDIU(u32 code) {
-  if (Rt(code) == 0) {
-    Iop().Call(R3000ARegs().PC - 4, Imm(code));
+  if (Rt(code) == GPR_ZR) {
+    iop_.Call(GPR(GPR_PC) - 4, Imm(code));
   } else {
-    Load(Rt(code), RsVal(R3000ARegs().GPR, code) + Imm(code));
+    cpu_.AddImmediate(Rt(code), Rs(code), Imm(code), false);
   }
 }
 
 // Set on Less Than Immediate
 void Interpreter::SLTI(u32 code) {
-  Load(Rt(code), (static_cast<s32>(RsVal(R3000ARegs().GPR, code)) < Imm(code)) ? 1 : 0);
+  Load(Rt(code), (static_cast<s32>(RsVal(GPR(), code)) < Imm(code)) ? 1 : 0);
 }
 
 // Set on Less Than Unsigned Immediate
 void Interpreter::SLTIU(u32 code) {
-  Load(Rt(code), (RsVal(R3000ARegs().GPR, code) < static_cast<u32>(Imm(code))) ? 1 : 0);
+  Load(Rt(code), (RsVal(GPR(), code) < static_cast<u32>(Imm(code))) ? 1 : 0);
 }
 
 // AND Immediate
 void Interpreter::ANDI(u32 code) {
-  Load(Rt(code), RsVal(R3000ARegs().GPR, code) & ImmU(code));
+  Load(Rt(code), RsVal(GPR(), code) & ImmU(code));
 }
 
 // OR Immediate
 void Interpreter::ORI(u32 code) {
-  Load(Rt(code), RsVal(R3000ARegs().GPR, code) | ImmU(code));
+  Load(Rt(code), RsVal(GPR(), code) | ImmU(code));
 }
 
 // eXclusive OR Immediate
 void Interpreter::XORI(u32 code) {
-  Load(Rt(code), RsVal(R3000ARegs().GPR, code) ^ ImmU(code));
+  Load(Rt(code), RsVal(GPR(), code) ^ ImmU(code));
 }
 
 // Load Upper Immediate
@@ -563,148 +547,128 @@ void Interpreter::LUI(u32 code) {
 
 // ADD
 void Interpreter::ADD(u32 code) {
-  Load(Rd(code), RsVal(R3000ARegs().GPR, code) + RtVal(R3000ARegs().GPR, code));
-  // ? Trap on two's complement overflow.
+  cpu_.Add(Rd(code), Rs(code), Rt(code), true);
 }
 
 // ADD Unsigned
 void Interpreter::ADDU(u32 code) {
-  Load(Rd(code), RsVal(R3000ARegs().GPR, code) + RtVal(R3000ARegs().GPR, code));
+  cpu_.Add(Rd(code), Rs(code), Rt(code), false);
 }
 
 // SUBtract
 void Interpreter::SUB(u32 code) {
-  Load(Rd(code), RsVal(R3000ARegs().GPR, code) - RtVal(R3000ARegs().GPR, code));
-  // ? Trap on two's complement overflow.
+  cpu_.Sub(Rd(code), Rs(code), Rt(code), true);
 }
 
 // SUBtract Unsigned
 void Interpreter::SUBU(u32 code) {
-  Load(Rd(code), RsVal(R3000ARegs().GPR, code) - RtVal(R3000ARegs().GPR, code));
+  cpu_.Sub(Rd(code), Rs(code), Rt(code), false);
 }
 
 // Set on Less Than
 void Interpreter::SLT(u32 code) {
-  Load(Rd(code), (static_cast<int32_t>(RsVal(R3000ARegs().GPR, code)) < static_cast<int32_t>(RtVal(R3000ARegs().GPR, code))) ? 1 : 0);
+  Load(Rd(code), (static_cast<s32>(RsVal(GPR(), code)) < static_cast<s32>(RtVal(GPR(), code))) ? 1 : 0);
 }
 
 // Set on Less Than Unsigned
 void Interpreter::SLTU(u32 code) {
-  Load(Rd(code), (RsVal(R3000ARegs().GPR, code) < RtVal(R3000ARegs().GPR, code)) ? 1 : 0);
+  Load(Rd(code), (RsVal(GPR(), code) < RtVal(GPR(), code)) ? 1 : 0);
 }
 
 // AND
 void Interpreter::AND(u32 code) {
-  Load(Rd(code), RsVal(R3000ARegs().GPR, code) & RtVal(R3000ARegs().GPR, code));
+  Load(Rd(code), RsVal(GPR(), code) & RtVal(GPR(), code));
 }
 
 // OR
 void Interpreter::OR(u32 code) {
-  Load(Rd(code), RsVal(R3000ARegs().GPR, code) | RtVal(R3000ARegs().GPR, code));
+  Load(Rd(code), RsVal(GPR(), code) | RtVal(GPR(), code));
 }
 
 // eXclusive OR
 void Interpreter::XOR(u32 code) {
-  Load(Rd(code), RsVal(R3000ARegs().GPR, code) ^ RtVal(R3000ARegs().GPR, code));
+  Load(Rd(code), RsVal(GPR(), code) ^ RtVal(GPR(), code));
 }
 
 // NOR
 void Interpreter::NOR(u32 code) {
-  Load(Rd(code), ~(RsVal(R3000ARegs().GPR, code) | RtVal(R3000ARegs().GPR, code)));
+  Load(Rd(code), ~(RsVal(GPR(), code) | RtVal(GPR(), code)));
 }
 
 
 // Shift Left Logical
 void Interpreter::SLL(u32 code) {
-  Load(Rd(code), RtVal(R3000ARegs().GPR, code) << Shamt(code));
+  Load(Rd(code), RtVal(GPR(), code) << Shamt(code));
 }
 
 // Shift Right Logical
 void Interpreter::SRL(u32 code) {
-  Load(Rd(code), RtVal(R3000ARegs().GPR, code) >> Shamt(code));
+  Load(Rd(code), RtVal(GPR(), code) >> Shamt(code));
 }
 
 // Shift Right Arithmetic
 void Interpreter::SRA(u32 code) {
-  Load(Rd(code), static_cast<s32>(RtVal(R3000ARegs().GPR, code)) >> Shamt(code));
+  Load(Rd(code), static_cast<s32>(RtVal(GPR(), code)) >> Shamt(code));
 }
 
 // Shift Left Logical Variable
 void Interpreter::SLLV(u32 code) {
-  Load(Rd(code), RtVal(R3000ARegs().GPR, code) << RsVal(R3000ARegs().GPR, code));
+  Load(Rd(code), RtVal(GPR(), code) << RsVal(GPR(), code));
 }
 
 // Shift Right Logical Variable
 void Interpreter::SRLV(u32 code) {
-  Load(Rd(code), RtVal(R3000ARegs().GPR, code) >> RsVal(R3000ARegs().GPR, code));
+  Load(Rd(code), RtVal(GPR(), code) >> RsVal(GPR(), code));
 }
 
 // Shift Right Arithmetic Variable
 void Interpreter::SRAV(u32 code) {
-  Load(Rd(code), static_cast<s32>(RtVal(R3000ARegs().GPR, code)) >> RsVal(R3000ARegs().GPR, code));
+  Load(Rd(code), static_cast<s32>(RtVal(GPR(), code)) >> RsVal(GPR(), code));
 }
 
 
 // MULTiply
 void Interpreter::MULT(u32 code) {
-  int32_t rs = static_cast<int32_t>(RsVal(R3000ARegs().GPR, code));
-  int32_t rt = static_cast<int32_t>(RtVal(R3000ARegs().GPR, code));
-  // CommitDelayedLoad();
-  int64_t res = (int64_t)rs * (int64_t)rt;
-  R3000ARegs().GPR.LO = static_cast<u32>(res & 0xffffffff);
-  R3000ARegs().GPR.HI = static_cast<u32>(res >> 32);
+  cpu_.Mul(Rs(code), Rt(code));
 }
 
 // MULtiply Unsigned
 void Interpreter::MULTU(u32 code) {
-  u32 rs = RsVal(R3000ARegs().GPR, code);
-  u32 rt = RtVal(R3000ARegs().GPR, code);
-  // CommitDelayedLoad();
-  uint64_t res = (uint64_t)rs * (uint64_t)rt;
-  R3000ARegs().GPR.LO = static_cast<u32>(res & 0xffffffff);
-  R3000ARegs().GPR.HI = static_cast<u32>(res >> 32);
+  cpu_.MulUnsigned(Rs(code), Rt(code));
 }
 
 // Divide
 void Interpreter::DIV(u32 code) {
-  int32_t rs = static_cast<int32_t>(RsVal(R3000ARegs().GPR, code));
-  int32_t rt = static_cast<int32_t>(RtVal(R3000ARegs().GPR, code));
-  // CommitDelayedLoad();
-  R3000ARegs().GPR.LO = static_cast<u32>(rs / rt);
-  R3000ARegs().GPR.HI = static_cast<u32>(rs % rt);
+  cpu_.Div(Rs(code), Rt(code));
 }
 
 // Divide Unsigned
 void Interpreter::DIVU(u32 code) {
-  u32 rs = RsVal(R3000ARegs().GPR, code);
-  u32 rt = RtVal(R3000ARegs().GPR, code);
-  // CommitDelayedLoad();
-  R3000ARegs().GPR.LO = rs / rt;
-  R3000ARegs().GPR.HI = rs % rt;
+  cpu_.DivUnsigned(Rs(code), Rt(code));
 }
 
 // Move From HI
 void Interpreter::MFHI(u32 code) {
-  Load(Rd(code), R3000ARegs().GPR.HI);
+  MoveGPR(Rd(code), GPR_HI);
 }
 
 // Move From LO
 void Interpreter::MFLO(u32 code) {
-  Load(Rd(code), R3000ARegs().GPR.LO);
+  MoveGPR(Rd(code), GPR_LO);
 }
 
 // Move To HI
 void Interpreter::MTHI(u32 code) {
-  u32 rd = RdVal(R3000ARegs().GPR, code);
+  u32 rd_enum = Rd(code);
   // CommitDelayedLoad();
-  R3000ARegs().GPR.HI = rd;
+  MoveGPR(GPR_HI, rd_enum);
 }
 
 // Move To LO
 void Interpreter::MTLO(u32 code) {
-  u32 rd = RdVal(R3000ARegs().GPR, code);
+  u32 rd_enum = Rd(code);
   // CommitDelayedLoad();
-  R3000ARegs().GPR.LO = rd;
+  MoveGPR(GPR_LO, rd_enum);
 }
 
 
@@ -714,86 +678,86 @@ void Interpreter::MTLO(u32 code) {
 
 // Jump
 void Interpreter::J(u32 code) {
-  doBranch((Target(code) << 2) | (R3000ARegs().PC & 0xf0000000));
+  doBranch((Target(code) << 2) | (GPR(GPR_PC) & 0xf0000000));
 }
 
 // Jump And Link
 void Interpreter::JAL(u32 code) {
-  R3000ARegs().GPR.RA = R3000ARegs().PC + 4;
-  doBranch((Target(code) << 2) | (R3000ARegs().PC & 0xf0000000));
+  SetGPR(GPR_RA, GPR(GPR_PC) + 4);
+  doBranch((Target(code) << 2) | (GPR(GPR_PC) & 0xf0000000));
 }
 
 // Jump Register
 void Interpreter::JR(u32 code) {
-  doBranch(RsVal(R3000ARegs().GPR, code));
+  doBranch(RsVal(GPR(), code));
 }
 
 // Jump And Link Register
 void Interpreter::JALR(u32 code) {
   u32 rd = Rd(code);
   if (rd != 0) {
-    R3000ARegs().GPR.R[rd] = R3000ARegs().PC + 4;
+    SetGPR(rd, GPR(GPR_PC) + 4);
   }
-  doBranch(RsVal(R3000ARegs().GPR, code));
+  doBranch(RsVal(GPR(), code));
 }
 
 
 // Branch on EQual
 void Interpreter::BEQ(u32 code) {
-  if (RsVal(R3000ARegs().GPR, code) == RtVal(R3000ARegs().GPR, code)) {
-    doBranch(R3000ARegs().PC + (Imm(code) << 2));
+  if (RsVal(GPR(), code) == RtVal(GPR(), code)) {
+    doBranch(GPR(GPR_PC) + (Imm(code) << 2));
   }
 }
 
 // Branch on Not Equal
 void Interpreter::BNE(u32 code) {
-  if (RsVal(R3000ARegs().GPR, code) != RtVal(R3000ARegs().GPR, code)) {
-    doBranch(R3000ARegs().PC + (Imm(code) << 2));
+  if (RsVal(GPR(), code) != RtVal(GPR(), code)) {
+    doBranch(GPR(GPR_PC) + (Imm(code) << 2));
   }
 }
 
 // Branch on Less than or Equal Zero
 void Interpreter::BLEZ(u32 code) {
-  if (static_cast<int32_t>(RsVal(R3000ARegs().GPR, code)) <= 0) {
-    doBranch(R3000ARegs().PC + (Imm(code) << 2));
+  if (static_cast<int32_t>(RsVal(GPR(), code)) <= 0) {
+    doBranch(GPR(GPR_PC) + (Imm(code) << 2));
   }
 }
 
 // Branch on Greate Than Zero
 void Interpreter::BGTZ(u32 code) {
-  if (static_cast<int32_t>(RsVal(R3000ARegs().GPR, code)) > 0) {
-    doBranch(R3000ARegs().PC + (Imm(code) << 2));
+  if (static_cast<int32_t>(RsVal(GPR(), code)) > 0) {
+    doBranch(GPR(GPR_PC) + (Imm(code) << 2));
   }
 }
 
 // Branch on Less Than Zero
 void Interpreter::BLTZ(u32 code) {
-  if (static_cast<int32_t>(RsVal(R3000ARegs().GPR, code)) < 0) {
-    doBranch(R3000ARegs().PC + (Imm(code) << 2));
+  if (static_cast<int32_t>(RsVal(GPR(), code)) < 0) {
+    doBranch(GPR(GPR_PC) + (Imm(code) << 2));
   }
 }
 
 // Branch on Greater than or Equal Zero
 void Interpreter::BGEZ(u32 code) {
-  if (static_cast<int32_t>(RsVal(R3000ARegs().GPR, code)) >= 0) {
-    doBranch(R3000ARegs().PC + (Imm(code) << 2));
+  if (static_cast<int32_t>(RsVal(GPR(), code)) >= 0) {
+    doBranch(GPR(GPR_PC) + (Imm(code) << 2));
   }
 }
 
 // Branch on Less Than Zero And Link
 void Interpreter::BLTZAL(u32 code) {
-  if (static_cast<int32_t>(RsVal(R3000ARegs().GPR, code)) < 0) {
-    u32 pc = R3000ARegs().PC;
-    R3000ARegs().GPR.RA = pc + 4;
+  if (static_cast<int32_t>(RsVal(GPR(), code)) < 0) {
+    u32 pc = GPR(GPR_PC);
+    SetGPR(GPR_RA, pc + 4);
     doBranch(pc + (Imm(code) << 2));
   }
 }
 
 // Branch on Greater than or Equal Zero And Link
 void Interpreter::BGEZAL(u32 code) {
-  if (static_cast<int32_t>(RsVal(R3000ARegs().GPR, code)) >= 0) {
-    u32 pc = R3000ARegs().PC;
-    R3000ARegs().GPR.RA = pc + 4;
+  if (static_cast<int32_t>(RsVal(GPR(), code)) >= 0) {
+    u32 pc = GPR(GPR_PC);
+    SetGPR(GPR_RA, pc + 4);
     doBranch(pc + (Imm(code) << 2));
   }
 }
@@ -810,8 +774,8 @@ void Interpreter::BCOND(u32 code) {
 ////////////////////////////////////////
 
 void Interpreter::SYSCALL(u32) {
-  R3000ARegs().PC -= 4;
-  R3000a().Exception(0x20, R3000a().IsInDelaySlot());
+  SetGPR(GPR_PC, GPR(GPR_PC) - 4);
+  cpu_.Exception(0x20, cpu_.IsInDelaySlot());
 }
 void Interpreter::BREAK(u32) {}
 
@@ -868,30 +832,30 @@ void Interpreter::COP3(u32 code) {
 
 void Interpreter::hleDummy()
 {
-  // std::printf("HLE Dummy: PC = 0x%08x\n", R3000ARegs().PC - 4);
-  R3000ARegs().PC = R3000ARegs().GPR.RA;
-  R3000a().BranchTest();
+  // std::printf("HLE Dummy: PC = 0x%08x\n", GPR(GPR_PC) - 4);
+  SetGPR(GPR_PC, GPR(GPR_RA));
+  cpu_.BranchTest();
 }
 
 void Interpreter::hleA0()
 {
-  rennyAssert(R3000ARegs().PC == 0x00a0 + 4);
-  (Bios().*BIOS::biosA0[R3000ARegs().GPR.T1 & 0xff])();
-  R3000a().BranchTest();
+  rennyAssert(GPR(GPR_PC) == 0x00a0 + 4);
+  (bios_.*BIOS::biosA0[GPR(GPR_T1) & 0xff])();
+  cpu_.BranchTest();
 }
 
 void Interpreter::hleB0()
 {
-  rennyAssert(R3000ARegs().PC == 0x00b0 + 4);
-  (Bios().*BIOS::biosB0[R3000ARegs().GPR.T1 & 0xff])();
-  R3000a().BranchTest();
+  rennyAssert(GPR(GPR_PC) == 0x00b0 + 4);
+  (bios_.*BIOS::biosB0[GPR(GPR_T1) & 0xff])();
+  cpu_.BranchTest();
 }
 
 void Interpreter::hleC0()
 {
-  rennyAssert(R3000ARegs().PC == 0x00c0 + 4);
-  (Bios().*BIOS::biosC0[R3000ARegs().GPR.T1 & 0xff])();
-  R3000a().BranchTest();
+  rennyAssert(GPR(GPR_PC) == 0x00c0 + 4);
+  (bios_.*BIOS::biosC0[GPR(GPR_T1) & 0xff])();
+  cpu_.BranchTest();
 }
 
 void Interpreter::hleBootstrap() {}
@@ -912,14 +876,14 @@ struct EXEC {
 
 void Interpreter::hleExecRet()
 {
-  EXEC *header = static_cast<EXEC*>(psxMptr(R3000ARegs().GPR.S0));
-  R3000ARegs().GPR.RA = BFLIP32(header->ret);
-  R3000ARegs().GPR.SP = BFLIP32(header->sp);
-  R3000ARegs().GPR.FP = BFLIP32(header->fp);
-  R3000ARegs().GPR.GP = BFLIP32(header->gp);
-  R3000ARegs().GPR.S0 = BFLIP32(header->base);
-  R3000ARegs().GPR.V0 = 1;
-  R3000ARegs().PC = R3000ARegs().GPR.RA;
+  EXEC *header = static_cast<EXEC*>(psxMptr(GPR(GPR_S0)));
+  SetGPR(GPR_RA, BFLIP32(header->ret));
+  SetGPR(GPR_SP, BFLIP32(header->sp));
+  SetGPR(GPR_FP, BFLIP32(header->fp));
+  SetGPR(GPR_GP, BFLIP32(header->gp));
+  SetGPR(GPR_S0, BFLIP32(header->base));
+  SetGPR(GPR_V0, 1);
+  SetGPR(GPR_PC, GPR(GPR_RA));
 }
 
 void (Interpreter::*const Interpreter::HLEt[])() = {
@@ -932,83 +896,9 @@ void Interpreter::HLECALL(u32 code) {
   (this->*HLEt[code & 0xff])();
 }
 
-
-
 ////////////////////////////////////////////////////////////////
-// Thread (deprecated)
+// Opcode LUT
 ////////////////////////////////////////////////////////////////
-
-InterpreterThread::InterpreterThread(Interpreter *interp)
-: wxThread(wxTHREAD_JOINABLE),
-  interp_(*interp), isRunning_(false)
-{}
-
-
-wxThread::ExitCode InterpreterThread::Entry()
-{
-  rennyLogDebug("PSXInterpreterThread", "Started the thread.");
-
-  SoundBlock tmp;
-
-  isRunning_ = true;
-  do {
-    int ret = interp_.RCnt().SPURun(&tmp);
-    if (ret < 0) break;
-    if (ret == 1) {
-      // TODO: transfer tmp to SoundDevice
-    }
-    //#warning PSX::Interpreter::Thread don't call SPUendflush
-    interp_.ExecuteOnce();
-  } while (isRunning_);
-
-  return 0;
-}
-
-
-void InterpreterThread::Shutdown()
-{
-  if (isRunning_ == false) return;
-  isRunning_ = false;
-  rennyLogDebug("PSXInterpreterThread", "Requested that PSX interpreter thread stop running.");
-  wxThread::Wait();
-}
-
-
-void InterpreterThread::OnExit()
-{
-  // interp_.Spu().Close();
-  rennyLogDebug("PSXInterpreterThread", "PSX Thread is ended. (cycle = %d)", interp_.R3000ARegs().sysclock);
-}
-
-
-
-////////////////////////////////////////////////////////////////
-// Main Loop
-////////////////////////////////////////////////////////////////
-
-InterpreterThread *Interpreter::thread = 0;
-
-InterpreterThread *Interpreter::Execute()
-{
-  if (thread != 0) {
-    Shutdown();
-  }
-  thread = new InterpreterThread(this);
-  thread->Create();
-  thread->Run();
-  return thread;
-}
-
-void Interpreter::Shutdown()
-{
-  if (thread == 0) return;
-  if (thread->IsRunning()) {
-    thread->Shutdown();
-  }
-  delete thread;  // WARN
-  thread = 0;
-}
-
 
 void (Interpreter::*const Interpreter::OPCODES[64])(u32) = {
     &Interpreter::SPCL, &Interpreter::BCOND, &Interpreter::J,    &Interpreter::JAL,
@@ -1060,32 +950,31 @@ void (Interpreter::*const Interpreter::BCONDS[24])(u32) = {
 };
 
 
-void Interpreter::Init()
-{
+void Interpreter::Init(RootCounterManager* rcnt) {
+  rcnt_ = rcnt;
 }
-
 
 void Interpreter::ExecuteOnce()
 {
-  u32 pc = R3000ARegs().PC;
+  u32 pc = GPR(GPR_PC);
   u32 code(psxMu32val(pc));
   pc += 4;
-  ++R3000ARegs().sysclock;
-  R3000ARegs().PC = pc;
+  cpu_.Cycle++;
+  SetGPR(GPR_PC, pc);
 
   ExecuteOpcode(code);
 }
 
 // called from BIOS::Softcall()
 void Interpreter::ExecuteBlock() {
-  R3000a().doingBranch = false;
+  cpu_.doingBranch = false;
   do {
     ExecuteOnce();
-  } while (!R3000a().doingBranch);
+  } while (!cpu_.doingBranch);
 }
 
 uint32_t Interpreter::Execute(uint32_t cycles) {
-  const uint32_t& cycle = R3000ARegs().sysclock;
+  const uint32_t& cycle = cpu_.Cycle;
   const uint32_t cycle_start = cycle;
   const uint32_t cycle_end = cycle + cycles;
 
@@ -1095,15 +984,7 @@ uint32_t Interpreter::Execute(uint32_t cycles) {
   return cycle - cycle_start;
 }
 
-/*
-Interpreter& Interpreter::GetInstance()
-{
-    static Interpreter instance;
-    return instance;
-}
- */
+void Interpreter::Shutdown() {}
+
 }   // namespace R3000A
-
-// R3000A::Interpreter& Interpreter_ = R3000A::Interpreter::GetInstance();
-
 }   // namespace PSX

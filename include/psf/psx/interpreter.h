@@ -1,40 +1,23 @@
 #pragma once
-
 #include "common.h"
 #include "r3000a.h"
 #include "disassembler.h"
 #include "memory.h"
-#include <wx/thread.h>
-
 
 namespace PSX {
+
+class BIOS;
+class IOP;
+
 namespace R3000A {
 
-class InterpreterThread: public wxThread
-{
- public:
-  void Shutdown();
-
- protected:
-  InterpreterThread(Interpreter* interp);
-  ExitCode Entry();
-  void OnExit();
-
- private:
-  Interpreter& interp_;
-  bool isRunning_;
-
-  friend class Interpreter;
-};
-
-class Interpreter : public Component, private UserMemoryAccessor
+class Interpreter : /*public Component, */private RegisterAccessor, private UserMemoryAccessor
 {
 public:
-  Interpreter(Composite* composite, Processor* cpu)
-    : Component(composite), UserMemoryAccessor(composite), cpu_(*cpu) {}
+  Interpreter(Composite* psx, Processor* cpu, BIOS* bios, IOP* iop);
   ~Interpreter() {}
 
-  void Init();
+  void Init(RootCounterManager* rcnt);
   void Reset();
   void ExecuteBIOS();
 
@@ -42,7 +25,6 @@ public:
   void ExecuteOnce();
   void ExecuteBlock();
 
-  InterpreterThread* Execute();
   void Shutdown();
 private:
   void ExecuteOpcode(u32 code);
@@ -190,6 +172,10 @@ private:
 
 private:
   Processor& cpu_;
+  BIOS& bios_;
+  IOP& iop_;
+
+  RootCounterManager* rcnt_;  // for DeadLoopSkip
 
   static DelayFunc delaySpecials[64];
   static DelayFunc delayOpcodes[64];
@@ -200,12 +186,10 @@ private:
   static void (Interpreter::*const COPz[16])(u32);
 
   static void (Interpreter::*const HLEt[])();
-
-  static InterpreterThread* thread;
 };
 
 inline void Interpreter::ExecuteOpcode(u32 code) {
-  Disasm().OutputToFile();
+  // Disasm().OutputToFile();
   (this->*OPCODES[Opcode(code)])(code);
 }
 

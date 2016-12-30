@@ -231,7 +231,7 @@ uint16_t (*const readGlobalRegisterLUT[])(const SPUBase& /*spu*/) = {
 // SPUreadRegister
 ////////////////////////////////////////////////////////////////
 
-uint16_t SPUBase::ReadRegister(uint32_t reg)
+uint16_t SPUBase::ReadRegister(uint32_t reg) const
 {
   rennyAssert((reg & 0xfffffe00) == 0x1f801c00);
   // TODO: mutex lock
@@ -242,7 +242,7 @@ uint16_t SPUBase::ReadRegister(uint32_t reg)
 
   if (ch < 24) {
     const int ofs = (reg & 0xf) >> 1;
-    return readChannelRegisterLUT[ofs](Voice(ch));
+    return readChannelRegisterLUT[ofs](const_cast<SPUBase*>(this)->Voice(ch));
   }
 
   // SPU Global Registers

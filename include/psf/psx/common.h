@@ -56,7 +56,7 @@ namespace R3000A {
 class Processor;
 class Interpreter;
 class Recompiler;
-struct Registers;
+class Registers;
 class Disassembler;
 }
 
@@ -94,35 +94,10 @@ public:
   void WriteMemory16(PSXAddr addr, u16 value);
   void WriteMemory32(PSXAddr addr, u32 value);
 
-  /*
-  virtual s8& S8M_ref(PSXAddr addr);
-  virtual u8& U8M_ref(PSXAddr addr);
-  virtual s16& S16M_ref(PSXAddr addr);
-  virtual u16& U16M_ref(PSXAddr addr);
-  virtual u32& U32M_ref(PSXAddr addr);
-
-  virtual void* Mvptr(PSXAddr addr);
-  virtual s8* S8M_ptr(PSXAddr addr);
-  virtual u8* U8M_ptr(PSXAddr addr);
-  virtual u16* U16M_ptr(PSXAddr addr);
-  virtual u32* U32M_ptr(PSXAddr addr);
-
-  virtual u8& U8H_ref(PSXAddr addr);
-  virtual u16& U16H_ref(PSXAddr addr);
-  virtual u32& U32H_ref(PSXAddr addr);
-
-  virtual u8* U8H_ptr(PSXAddr addr);
-  virtual u16* U16H_ptr(PSXAddr addr);
-  virtual u32* U32H_ptr(PSXAddr addr);
-
-  virtual u32& U32R_ref(PSXAddr addr);
-
-  virtual void* Rvptr(PSXAddr addr);
-*/
-
   R3000A::Processor& R3000a();
   R3000A::Interpreter& Interp();
   RootCounterManager& RCnt();
+  const RootCounterManager& RCnt() const;
 
   R3000A::Disassembler& Disasm();
 
@@ -134,46 +109,10 @@ public:
 
   // TODO: replace SPU with SPUCore
   SPU::SPUBase& Spu();
+  const SPU::SPUBase& Spu() const;
   SPU::SPU2& Spu2();
 
 protected:
-/*
-  // User Memory Accessors (Value)
-  s8   psxMs8val(PSXAddr addr) const;
-  u8   psxMu8val(PSXAddr addr) const;
-  s16  psxMs16val(PSXAddr addr) const;
-  u16  psxMu16val(PSXAddr addr) const;
-  u32  psxMu32val(PSXAddr addr) const;
-
-  // User Memory Accessors (Reference)
-  s8&  psxMs8ref(PSXAddr addr);
-  u8&  psxMu8ref(PSXAddr addr);
-  s16& psxMs16ref(PSXAddr addr);
-  u16& psxMu16ref(PSXAddr addr);
-  u32& psxMu32ref(PSXAddr addr);
-
-  // User Memory Accessors (Pointer)
-  void* psxMptr(PSXAddr addr);
-  s8*   psxMs8ptr(PSXAddr addr);
-  u8*   psxMu8ptr(PSXAddr addr);
-  u16*  psxMu16ptr(PSXAddr addr);
-  u32*  psxMu32ptr(PSXAddr addr);
-
-  // Hardware Register Accessors (Value)
-  u8  psxHu8val(PSXAddr addr) const;
-  u16 psxHu16val(PSXAddr addr) const;
-  u32 psxHu32val(PSXAddr addr) const;
-
-  // Hardware Register Accessors (Reference)
-  u8&  psxHu8ref(PSXAddr addr);
-  u16& psxHu16ref(PSXAddr addr);
-  u32& psxHu32ref(PSXAddr addr);
-
-  // Hardware Register Accessors (Pointer)
-  u8*  psxHu8ptr(PSXAddr addr);
-  u16* psxHu16ptr(PSXAddr addr);
-  u32* psxHu32ptr(PSXAddr addr);
-*/
 
   // BIOS Accessors (Reference)
   u32& psxRu32ref(PSXAddr addr);

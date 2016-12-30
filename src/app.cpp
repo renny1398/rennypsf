@@ -21,9 +21,12 @@ RennyPlayer::~RennyPlayer() {
   if (wxThread::IsRunning()) {
     Stop();
   }
+  if (p_sound_) {
+    delete p_sound_;
+  }
 }
 
-bool RennyPlayer::PlayShared(wxSharedPtr<SoundData>& p_sound, SoundDevice *p_device) {
+bool RennyPlayer::PlayShared(SoundData* p_sound, SoundDevice *p_device) {
   if (p_sound == NULL || p_device == NULL) return false;
   switch (wxThread::Create()) {
   case wxTHREAD_NO_ERROR:
@@ -39,6 +42,9 @@ bool RennyPlayer::PlayShared(wxSharedPtr<SoundData>& p_sound, SoundDevice *p_dev
 
   if (p_sound->Open(&block_) == false) return false;
 
+  if (p_sound_) {
+    delete p_sound_;
+  }
   p_sound_ = p_sound;
   p_device_ = p_device;
   wxThread::Run();
@@ -47,8 +53,7 @@ bool RennyPlayer::PlayShared(wxSharedPtr<SoundData>& p_sound, SoundDevice *p_dev
 }
 
 bool RennyPlayer::Play(SoundData *p_sound, SoundDevice *p_device) {
-  wxSharedPtr<SoundData> sh_p_sound(p_sound);
-  return PlayShared(sh_p_sound, p_device);
+  return PlayShared(p_sound, p_device);
 }
 
 bool RennyPlayer::Stop() {
@@ -101,23 +106,23 @@ wxIMPLEMENT_APP_NO_MAIN(RennypsfApp);
 
 bool RennypsfApp::OnInit()
 {
-	wxMessageOutputDebug().Printf(wxT("RennypsfApp::OnInit()"));
+  wxMessageOutputDebug().Printf(wxT("RennypsfApp::OnInit()"));
 
 #ifdef __WXDEBUG__
-	MainFrame *frame = new MainFrame("Rennypsf (Debug mode)", wxPoint(50,50), wxSize(640,480));
+  MainFrame *frame = new MainFrame("Rennypsf (Debug mode)", wxPoint(50,50), wxSize(640,480));
 #else
-	rennyAssert(0);
-	MainFrame *frame = new MainFrame("Rennypsf", wxPoint(50,50), wxSize(640,480));
+  rennyAssert(0);
+  MainFrame *frame = new MainFrame("Rennypsf", wxPoint(50,50), wxSize(640,480));
 #endif
-	sdd_.reset(new WaveOutAL);
+  sdd_.reset(new WaveOutAL);
 
-	ChannelFrame* ch_frame = new ChannelFrame(frame);
-	frame->Show(true);
-	ch_frame->Show(true);
+  ChannelFrame* ch_frame = new ChannelFrame(frame);
+  frame->Show(true);
+  ch_frame->Show(true);
 
-	wxMessageOutputDebug().Printf(wxT("Started this application."));
+  wxMessageOutputDebug().Printf(wxT("Started this application."));
 
-	return true;
+  return true;
 }
 
 
@@ -203,7 +208,6 @@ int RennypsfApp::OnExit() {
 
 bool RennypsfApp::Play(SoundData* sound)
 {
-  playing_sf_ = sound;
   // sdd_->SetSamplingRate(sound->GetSamplingRate());
   // return sound->Play(sdd_);
   return player_->Play(sound, sdd_);
@@ -247,13 +251,13 @@ const wxSharedPtr<SoundData>& RennypsfApp::GetPlayingSound() const {
 #include "common/SoundLoader.h"
 
 int main(int argc, char** argv) {
-	wxMessageOutputDebug().Printf(wxT("Started this application."));
+  wxMessageOutputDebug().Printf(wxT("Started this application."));
 
-	wxApp::SetInstance(new RennypsfApp());
-	wxEntryStart(argc, argv);
+  wxApp::SetInstance(new RennypsfApp());
+  wxEntryStart(argc, argv);
 #ifdef __WXMAC__
-	ProcessSerialNumber PSN = { 0, kCurrentProcess };
-	TransformProcessType(&PSN, kProcessTransformToForegroundApplication);
+  ProcessSerialNumber PSN = { 0, kCurrentProcess };
+  TransformProcessType(&PSN, kProcessTransformToForegroundApplication);
 #endif
   wxTheApp->OnInit();
 
@@ -282,7 +286,7 @@ int main(int argc, char** argv) {
 
   wxTheApp->OnRun();
   wxTheApp->OnExit();
-	wxEntryCleanup();
+  wxEntryCleanup();
 
-	return 0;
+  return 0;
 }

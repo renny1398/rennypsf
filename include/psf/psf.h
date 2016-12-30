@@ -1,5 +1,4 @@
 #pragma once
-
 #include "common/SoundFormat.h"
 #include "psf/psx/psx.h"
 #include <stdint.h>
@@ -34,16 +33,7 @@ public:
   friend class PSFLoader;
 
 protected:
-
-  /*
-  SoundBlock& sound_block() {
-    // TODO: multicore
-    return psx_->Spu().core(0).Voices();
-  }
-  */
-
   PSX::Composite* psx_;
-  PSX::R3000A::InterpreterThread *m_thread;
 
 private:
   uint32_t unprocessed_cycles_;

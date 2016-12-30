@@ -41,12 +41,12 @@ class HardwareRegisters : public Component, private IRQAccessor {
   // void Init() {}
   void Reset();
 
-  template<typename T> T Read(PSXAddr addr);
+  template<typename T> T Read(PSXAddr addr) const;
   template<typename T> void Write(PSXAddr addr, T value);
 
-  u8 Read8(PSXAddr addr);
-  u16 Read16(PSXAddr addr);
-  u32 Read32(PSXAddr addr);
+  u8 Read8(PSXAddr addr) const;
+  u16 Read16(PSXAddr addr) const;
+  u32 Read32(PSXAddr addr) const;
 
   void Write8(PSXAddr addr, u8 value);
   void Write16(PSXAddr addr, u16 value);
@@ -60,7 +60,7 @@ class HardwareRegisters : public Component, private IRQAccessor {
 };
 
 template<typename T>
-inline T HardwareRegisters::Read(PSXAddr) {
+inline T HardwareRegisters::Read(PSXAddr) const {
   // return H_ref<T>(addr);   // dummy
   return 0;
 }
@@ -70,15 +70,15 @@ inline void HardwareRegisters::Write(PSXAddr, T) {
 }
 
 template<>
-inline u8 HardwareRegisters::Read(PSXAddr addr) {
+inline u8 HardwareRegisters::Read(PSXAddr addr) const {
   return Read8(addr);
 }
 template<>
-inline u16 HardwareRegisters::Read(PSXAddr addr) {
+inline u16 HardwareRegisters::Read(PSXAddr addr) const {
   return Read16(addr);
 }
 template<>
-inline u32 HardwareRegisters::Read(PSXAddr addr) {
+inline u32 HardwareRegisters::Read(PSXAddr addr) const {
   return Read32(addr);
 }
 
@@ -102,7 +102,7 @@ inline void HardwareRegisters::Write(PSXAddr addr, u32 value) {
 class HardwareRegisterAccessor {
 
 public:
-  // HardwareRegisterAccessor(HardwareRegisters* hw_regs) : regs_(hw_regs->hw_regs_) {}
+  HardwareRegisterAccessor(HardwareRegisters* hw_regs);
   HardwareRegisterAccessor(Composite* psx);
 
   u8* psxHu8ptr(PSXAddr addr) {

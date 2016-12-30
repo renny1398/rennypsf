@@ -5,7 +5,7 @@
 #include "hardware.h"
 
 namespace PSX {
-class BIOS : public Component, private UserMemoryAccessor, private IRQAccessor {
+class BIOS : public Component, private R3000A::RegisterAccessor, private UserMemoryAccessor, private IRQAccessor {
 
  public:
   BIOS(Composite* psx);
@@ -93,17 +93,19 @@ class BIOS : public Component, private UserMemoryAccessor, private IRQAccessor {
   void SysDeqIntRP();
   void ChangeClearRCnt();
 
-
  protected:
+  void Return();
+  void Return(u32 return_code);
   void SoftCall(u32 pc);
   void SoftCall2(u32 pc);
   void DeliverEventEx(u32 ev, u32 spec);
 
  private:
   // Composite* const psx_;
-  R3000A::GeneralPurposeRegisters& GPR;
-  R3000A::Cop0Registers& CP0;
+  // R3000A::GeneralPurposeRegisters& GPR;
+  // R3000A::Cop0Registers& CP0;
 
+  /*
   u32& PC;
   u32& A0, &A1, &A2, &A3;
   u32& V0;
@@ -111,6 +113,7 @@ class BIOS : public Component, private UserMemoryAccessor, private IRQAccessor {
   u32& SP;
   u32& FP;
   u32& RA;
+  */
 
   struct malloc_chunk {
     u32 stat;
@@ -137,7 +140,8 @@ class BIOS : public Component, private UserMemoryAccessor, private IRQAccessor {
   struct TCB {
     u32 status;
     u32 mode;
-    u32 reg[32];
+    // u32 reg[32];
+    R3000A::GeneralPurposeRegisters reg;
     u32 func;
   };
 

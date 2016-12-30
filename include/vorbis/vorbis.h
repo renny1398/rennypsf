@@ -33,6 +33,7 @@ private:
   Soundbank* soundbank_;
   
   OggVorbis_File* vf_;
+  size_t length_;
   long loop_start_;
   long loop_length_;
   long pos_;

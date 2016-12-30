@@ -233,7 +233,7 @@ public:
   }
 
   // Register
-  unsigned short ReadRegister(uint32_t reg);
+  unsigned short ReadRegister(uint32_t reg) const;
   void WriteRegister(uint32_t reg, uint16_t val);
 
   // Listener Registration
@@ -377,19 +377,15 @@ private:
 };
 
 
-
-
 /*
 class SPUListener {
 public:
     virtual ~SPUListener() {}
 
 protected:
-
     void onUpdate(SPU*);
 };
  */
-
 
 
 inline SPUVoice& SPUBase::Voice(int ch) {

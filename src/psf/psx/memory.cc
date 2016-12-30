@@ -1,18 +1,36 @@
+#include <stdint.h>
+#include <memory.h>
 #include "psf/psx/psx.h"
 #include "psf/psx/memory.h"
 #include "psf/psx/hardware.h"
-#include <memory.h>
 #include "common/debug.h"
 
 namespace PSX {
 
+UserMemoryAccessor::UserMemoryAccessor(Memory* mem)
+  : mem_(mem->mem_user_) {
+  rennyAssert(mem_ != NULL);
+}
+
 UserMemoryAccessor::UserMemoryAccessor(Composite* psx)
-  : mem_(psx->Mem().mem_user_)
-{}
+  : mem_(psx->Mem().mem_user_) {
+  rennyAssert(mem_ != NULL);
+}
+
+MemoryAccessor::MemoryAccessor(Memory *mem)
+  : mem_(*mem) {
+  rennyAssert(&mem_ != NULL);
+}
+
+MemoryAccessor::MemoryAccessor(Composite *psx)
+  : mem_(psx->Mem()) {
+  rennyAssert(&mem_ != NULL);
+}
 
 
-Memory::Memory(Composite* composite)
-  : Component(composite), HardwareRegisterAccessor(composite) {
+Memory::Memory(int version, HardwareRegisters* hw_regs)
+  : version_(version), hw_regs_(*hw_regs), psxH_(hw_regs) {
+  rennyAssert(&hw_regs_ != NULL);
   ::memset(segment_LUT_, 0, 0x10000);
   ::memset(mem_user_, 0, 0x200000);
   ::memset(mem_parallel_port_, 0, 0x10000);
@@ -36,7 +54,7 @@ void Memory::Init()
   ::memcpy(segment_LUT_ + 0xa000, segment_LUT_, 0x20 * sizeof (char*));
 
   segment_LUT_[0x1f00] = mem_parallel_port_;
-  segment_LUT_[0x1f80] = psxHu8ptr(0);
+  segment_LUT_[0x1f80] = psxH_.psxHu8ptr(0);
   segment_LUT_[0xbfc0] = mem_bios_;
 
   rennyLogDebug("PSXMemory", "Initialized memory.");
@@ -79,18 +97,18 @@ void Memory::Copy(PSXAddr dest, const void* src, int length)
 
 
 template<typename T>
-T Memory::Read(PSXAddr addr)
+T Memory::Read(PSXAddr addr) const
 {
   u32 segment = addr >> 16;
   if (segment == 0x1f80) {
     if (addr < 0x1f801000) {
       // read Scratch Pad
-      return psxHval<T>(addr);
+      return psxH_.psxHval<T>(addr);
     }
     // read Hardware Registers
-    return HwRegs().Read<T>(addr);
-  } else if (Psx().version() == 2 && (segment & 0xfff0) == 0xbf90) {
-    return HwRegs().Read<T>(addr);
+    return hw_regs_.Read<T>(addr);
+  } else if (version_ == 2 && (segment & 0xfff0) == 0xbf90) {
+    return hw_regs_.Read<T>(addr);
   }
   u8 *base_addr = segment_LUT_[segment];
   u32 offset = addr & 0xffff;
@@ -102,20 +120,20 @@ T Memory::Read(PSXAddr addr)
   return BFLIP(*reinterpret_cast<T*>(base_addr + offset));
 }
 
-template u8 Memory::Read<u8>(PSXAddr addr);
-template u16 Memory::Read<u16>(PSXAddr addr);
-template u32 Memory::Read<u32>(PSXAddr addr);
+template uint8_t Memory::Read<uint8_t>(PSXAddr addr) const;
+template uint16_t Memory::Read<uint16_t>(PSXAddr addr) const;
+template uint32_t Memory::Read<uint32_t>(PSXAddr addr) const;
 
 
-u8 Memory::Read8(PSXAddr addr) {
+u8 Memory::Read8(PSXAddr addr) const {
   return Read<u8>(addr);
 }
 
-u16 Memory::Read16(PSXAddr addr) {
+u16 Memory::Read16(PSXAddr addr) const {
   return Read<u16>(addr);
 }
 
-u32 Memory::Read32(PSXAddr addr) {
+u32 Memory::Read32(PSXAddr addr) const {
   return Read<u32>(addr);
 }
 
@@ -126,13 +144,13 @@ void Memory::Write(PSXAddr addr, T value)
   u32 segment = addr >> 16;
   if (segment == 0x1f80) {
     if (addr < 0x1f801000) {
-      psxHref<T>(addr) = BFLIP(value);
+      psxH_.psxHref<T>(addr) = BFLIP(value);
       return;
     }
-    HwRegs().Write(addr, value);
+    hw_regs_.Write(addr, value);
     return;
-  } else if (Psx().version() == 2 && (segment == 0xbf80 || segment == 0xbf90)) {
-    HwRegs().Write(addr, addr);
+  } else if (version_ == 2 && (segment == 0xbf80 || segment == 0xbf90)) {
+    hw_regs_.Write(addr, addr);
   }
   u8 *base_addr = segment_LUT_[segment];
   u32 offset = addr & 0xffff;

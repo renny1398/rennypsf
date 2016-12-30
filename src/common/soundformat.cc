@@ -395,6 +395,7 @@ wxThread::ExitCode OrdinarySoundThread::Entry() {
 }
 */
 
+/*
 OrdinarySoundData::OrdinarySoundData() {}
 
 OrdinarySoundData::~OrdinarySoundData() {
@@ -410,3 +411,4 @@ bool OrdinarySoundData::DoPlay() {
 bool OrdinarySoundData::DoStop() {
   return false;
 }
+*/

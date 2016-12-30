@@ -116,15 +116,16 @@ bool PSF::ChangeOutputSamplingRate(uint32_t rate) {
 }
 
 
+using namespace PSX;
 
 PSF1::PSF1(uint32_t pc0, uint32_t gp0, uint32_t sp0) : PSF(1) {
-  psx_->R3000ARegs().GPR.PC = pc0;
-  psx_->R3000ARegs().GPR.GP = gp0;
-  psx_->R3000ARegs().GPR.SP = sp0;
+  psx_->R3000a().SetGPR(GPR_PC, pc0);
+  psx_->R3000a().SetGPR(GPR_GP, gp0);
+  psx_->R3000a().SetGPR(GPR_SP, sp0);
 }
 
 
-void PSF1::PSXMemCpy(PSX::PSXAddr dest, void *src, int length) {
+void PSF1::PSXMemCpy(PSXAddr dest, void *src, int length) {
   psx_->Memcpy(dest, src, length);
 }
 
@@ -133,13 +134,13 @@ void PSF1::PSXMemCpy(PSX::PSXAddr dest, void *src, int length) {
 PSF2::PSF2(PSF2File* psf2irx)
   : PSF(2) {
 
-  psx_->R3000ARegs().GPR.PC = psx_->LoadELF(psf2irx);
-  psx_->R3000ARegs().GPR.SP = 0x801ffff0;
-  psx_->R3000ARegs().GPR.FP = 0x801ffff0;
+  psx_->R3000a().SetGPR(GPR_PC, psx_->LoadELF(psf2irx));
+  psx_->R3000a().SetGPR(GPR_SP, 0x801ffff0);
+  psx_->R3000a().SetGPR(GPR_FP, 0x801ffff0);
 
-  psx_->R3000ARegs().GPR.RA = 0x80000000;
-  psx_->R3000ARegs().GPR.A0 = 2;
-  psx_->R3000ARegs().GPR.A1 = 0x80000004;
+  psx_->R3000a().SetGPR(GPR_RA, 0x80000000);
+  psx_->R3000a().SetGPR(GPR_A0, 2);
+  psx_->R3000a().SetGPR(GPR_A1, 0x80000004);
 
   psx_->SetRootDirectory(psf2irx->GetRoot());
 }
@@ -149,5 +150,5 @@ PSF2::~PSF2() {}
 
 
 bool PSF2::IsOk() const {
-  return psx_->R3000ARegs().GPR.PC != 0xffffffff;
+  return psx_->R3000a().GPR(GPR_PC) != 0xffffffff;
 }
