@@ -1,219 +1,198 @@
 #pragma once
-
 #include "common.h"
 #include "r3000a.h"
 #include "disassembler.h"
 #include "memory.h"
-#include <wx/thread.h>
-
 
 namespace PSX {
-  namespace R3000A {
 
-    class InterpreterThread: public wxThread
-    {
-     public:
-      void Shutdown();
+class BIOS;
+class IOP;
 
-     protected:
-      InterpreterThread(Interpreter* interp);
-      ExitCode Entry();
-      void OnExit();
+namespace R3000A {
 
-     private:
-      Interpreter& interp_;
-      bool isRunning_;
+class Interpreter : /*public Component, */private RegisterAccessor, private UserMemoryAccessor
+{
+public:
+  Interpreter(Composite* psx, Processor* cpu, BIOS* bios, IOP* iop);
+  ~Interpreter() {}
 
-      friend class Interpreter;
-    };
+  void Init(RootCounterManager* rcnt);
+  void Reset();
+  void ExecuteBIOS();
 
-    class Interpreter : public Component
-    {
-    public:
-      Interpreter(Composite* composite, Processor* cpu)
-        : Component(composite), cpu_(*cpu) {}
-      ~Interpreter() {}
+  uint32_t Execute(uint32_t cycles);
+  void ExecuteOnce();
+  void ExecuteBlock();
 
-      void Init();
-      void Reset();
-      void ExecuteBIOS();
+  void Shutdown();
+private:
+  void ExecuteOpcode(u32 code);
 
-      void ExecuteOnce();
-      void ExecuteBlock();
+private:
+  void delayRead(u32 code, u32 reg, u32 branch_pc);
+  void delayWrite(u32 code, u32 reg, u32 branch_pc);
+  void delayReadWrite(u32 code, u32 reg, u32 branch_pc);
 
-      InterpreterThread* Execute();
-      void Shutdown();
-    private:
-      void ExecuteOpcode(Instruction code);
+  bool delayNOP(u32 code, u32 reg, u32 branch_pc);
+  bool delayRs(u32 code, u32 reg, u32 branch_pc);
+  bool delayWt(u32 code, u32 reg, u32 branch_pc);
+  bool delayWd(u32 code, u32 reg, u32 branch_pc);
+  bool delayRsRt(u32 code, u32 reg, u32 branch_pc);
+  bool delayRsWt(u32 code, u32 reg, u32 branch_pc);
+  bool delayRsWd(u32 code, u32 reg, u32 branch_pc);
+  bool delayRtWd(u32 code, u32 reg, u32 branch_pc);
+  bool delayRsRtWd(u32 code, u32 reg, u32 branch_pc);
 
-    public:
-      // static Interpreter& GetInstance();
+  typedef bool (Interpreter::*const DelayFunc)(u32, u32, u32);
 
-    private:
-      void delayRead(Instruction code, u32 reg, u32 branch_pc);
-      void delayWrite(Instruction code, u32 reg, u32 branch_pc);
-      void delayReadWrite(Instruction code, u32 reg, u32 branch_pc);
+  bool delaySLL(u32 code, u32 reg, u32 branch_pc);
+  static DelayFunc delaySRL, delaySRA;
+  static DelayFunc delayJR, delayJALR;
+  static DelayFunc delayADD, delayADDU;
+  static DelayFunc delaySLLV;
+  static DelayFunc delayMFHI, delayMFLO;
+  static DelayFunc delayMTHI, delayMTLO;
+  static DelayFunc delayMULT, delayDIV;
 
-      bool delayNOP(Instruction code, u32 reg, u32 branch_pc);
-      bool delayRs(Instruction code, u32 reg, u32 branch_pc);
-      bool delayWt(Instruction code, u32 reg, u32 branch_pc);
-      bool delayWd(Instruction code, u32 reg, u32 branch_pc);
-      bool delayRsRt(Instruction code, u32 reg, u32 branch_pc);
-      bool delayRsWt(Instruction code, u32 reg, u32 branch_pc);
-      bool delayRsWd(Instruction code, u32 reg, u32 branch_pc);
-      bool delayRtWd(Instruction code, u32 reg, u32 branch_pc);
-      bool delayRsRtWd(Instruction code, u32 reg, u32 branch_pc);
+  bool delaySPCL(u32, u32, u32);
+  static DelayFunc delayBCOND;
 
-      typedef bool (Interpreter::*const DelayFunc)(Instruction, u32, u32);
+  bool delayJAL(u32, u32, u32);
+  static DelayFunc delayBEQ, delayBNE;
+  static DelayFunc delayBLEZ, delayBGTZ;
+  static DelayFunc delayADDI, delayADDIU;
+  static DelayFunc delayLUI;
 
-      bool delaySLL(Instruction code, u32 reg, u32 branch_pc);
-      static DelayFunc delaySRL, delaySRA;
-      static DelayFunc delayJR, delayJALR;
-      static DelayFunc delayADD, delayADDU;
-      static DelayFunc delaySLLV;
-      static DelayFunc delayMFHI, delayMFLO;
-      static DelayFunc delayMTHI, delayMTLO;
-      static DelayFunc delayMULT, delayDIV;
+  bool delayCOP0(u32, u32, u32);
+  bool delayLWL(u32, u32, u32);
+  static DelayFunc delayLWR;
+  static DelayFunc delayLB, delayLH, delayLW, delayLBU, delayLHU;
+  static DelayFunc delaySB, delaySH, delaySWL, delaySW, delaySWR;
+  static DelayFunc delayLWC2, delaySWC2;
 
-      bool delaySPCL(Instruction, u32, u32);
-      static DelayFunc delayBCOND;
+  void delayTest(u32 reg, u32 branch_pc);
+  void doBranch(u32 branch_pc);
 
-      bool delayJAL(Instruction, u32, u32);
-      static DelayFunc delayBEQ, delayBNE;
-      static DelayFunc delayBLEZ, delayBGTZ;
-      static DelayFunc delayADDI, delayADDIU;
-      static DelayFunc delayLUI;
+  void Load(u32 rt, u32 value);
 
-      bool delayCOP0(Instruction, u32, u32);
-      bool delayLWL(Instruction, u32, u32);
-      static DelayFunc delayLWR;
-      static DelayFunc delayLB, delayLH, delayLW, delayLBU, delayLHU;
-      static DelayFunc delaySB, delaySH, delaySWL, delaySW, delaySWR;
-      static DelayFunc delayLWC2, delaySWC2;
+  // Opcodes
+  void NLOP(u32);
 
-      void delayTest(u32 reg, u32 branch_pc);
-      void doBranch(u32 branch_pc);
+  void LB(u32);
+  void LBU(u32);
+  void LH(u32);
+  void LHU(u32);
+  void LW(u32);
+  void LWL(u32);
+  void LWR(u32);
 
-      void Load(u32 rt, u32 value);
+  void SB(u32);
+  void SH(u32);
+  void SW(u32);
+  void SWL(u32);
+  void SWR(u32);
 
-      // Opcodes
-      void NLOP(Instruction);
+  void ADDI(u32);
+  void ADDIU(u32);
+  void SLTI(u32);
+  void SLTIU(u32);
+  void ANDI(u32);
+  void ORI(u32);
+  void XORI(u32);
+  void LUI(u32);
 
-      void LB(Instruction);
-      void LBU(Instruction);
-      void LH(Instruction);
-      void LHU(Instruction);
-      void LW(Instruction);
-      void LWL(Instruction);
-      void LWR(Instruction);
+  void ADD(u32);
+  void ADDU(u32);
+  void SUB(u32);
+  void SUBU(u32);
+  void SLT(u32);
+  void SLTU(u32);
+  void AND(u32);
+  void OR(u32);
+  void XOR(u32);
+  void NOR(u32);
 
-      void SB(Instruction);
-      void SH(Instruction);
-      void SW(Instruction);
-      void SWL(Instruction);
-      void SWR(Instruction);
+  void SLL(u32);
+  void SRL(u32);
+  void SRA(u32);
+  void SLLV(u32);
+  void SRLV(u32);
+  void SRAV(u32);
 
-      void ADDI(Instruction);
-      void ADDIU(Instruction);
-      void SLTI(Instruction);
-      void SLTIU(Instruction);
-      void ANDI(Instruction);
-      void ORI(Instruction);
-      void XORI(Instruction);
-      void LUI(Instruction);
+  void MULT(u32);
+  void MULTU(u32);
+  void DIV(u32);
+  void DIVU(u32);
+  void MFHI(u32);
+  void MFLO(u32);
+  void MTHI(u32);
+  void MTLO(u32);
 
-      void ADD(Instruction);
-      void ADDU(Instruction);
-      void SUB(Instruction);
-      void SUBU(Instruction);
-      void SLT(Instruction);
-      void SLTU(Instruction);
-      void AND(Instruction);
-      void OR(Instruction);
-      void XOR(Instruction);
-      void NOR(Instruction);
+  void J(u32);
+  void JAL(u32);
+  void JR(u32);
+  void JALR(u32);
+  void BEQ(u32);
+  void BNE(u32);
+  void BLEZ(u32);
+  void BGTZ(u32);
+  void BLTZ(u32);
+  void BGEZ(u32);
+  void BLTZAL(u32);
+  void BGEZAL(u32);
 
-      void SLL(Instruction);
-      void SRL(Instruction);
-      void SRA(Instruction);
-      void SLLV(Instruction);
-      void SRLV(Instruction);
-      void SRAV(Instruction);
+  void BCOND(u32);
+  void SYSCALL(u32);
+  void BREAK(u32);
+  void SPCL(u32);
 
-      void MULT(Instruction);
-      void MULTU(Instruction);
-      void DIV(Instruction);
-      void DIVU(Instruction);
-      void MFHI(Instruction);
-      void MFLO(Instruction);
-      void MTHI(Instruction);
-      void MTLO(Instruction);
+  void LWC0(u32);
+  void LWC1(u32);
+  void LWC2(u32);
+  void LWC3(u32);
+  void SWC0(u32);
+  void SWC1(u32);
+  void SWC2(u32);
+  void SWC3(u32);
+  void COP0(u32);
+  void COP1(u32);
+  void COP2(u32);
+  void COP3(u32);
 
-      void J(Instruction);
-      void JAL(Instruction);
-      void JR(Instruction);
-      void JALR(Instruction);
-      void BEQ(Instruction);
-      void BNE(Instruction);
-      void BLEZ(Instruction);
-      void BGTZ(Instruction);
-      void BLTZ(Instruction);
-      void BGEZ(Instruction);
-      void BLTZAL(Instruction);
-      void BGEZAL(Instruction);
+  void HLECALL(u32);
 
-      void BCOND(Instruction);
-      void SYSCALL(Instruction);
-      void BREAK(Instruction);
-      void SPCL(Instruction);
+  // HLE functions
+  void hleDummy();
+  void hleA0();
+  void hleB0();
+  void hleC0();
+  void hleBootstrap();
+  void hleExecRet();
 
-      void LWC0(Instruction);
-      void LWC1(Instruction);
-      void LWC2(Instruction);
-      void LWC3(Instruction);
-      void SWC0(Instruction);
-      void SWC1(Instruction);
-      void SWC2(Instruction);
-      void SWC3(Instruction);
-      void COP0(Instruction);
-      void COP1(Instruction);
-      void COP2(Instruction);
-      void COP3(Instruction);
+private:
+  Processor& cpu_;
+  BIOS& bios_;
+  IOP& iop_;
 
-      void HLECALL(Instruction);
+  RootCounterManager* rcnt_;  // for DeadLoopSkip
 
-      // HLE functions
-      void hleDummy();
-      void hleA0();
-      void hleB0();
-      void hleC0();
-      void hleBootstrap();
-      void hleExecRet();
+  static DelayFunc delaySpecials[64];
+  static DelayFunc delayOpcodes[64];
 
-    private:
-      Processor& cpu_;
+  static void (Interpreter::*const OPCODES[64])(u32);
+  static void (Interpreter::*const SPECIALS[64])(u32);
+  static void (Interpreter::*const BCONDS[24])(u32);
+  static void (Interpreter::*const COPz[16])(u32);
 
-      static DelayFunc delaySpecials[64];
-      static DelayFunc delayOpcodes[64];
+  static void (Interpreter::*const HLEt[])();
+};
 
-      static void (Interpreter::*const OPCODES[64])(Instruction);
-      static void (Interpreter::*const SPECIALS[64])(Instruction);
-      static void (Interpreter::*const BCONDS[24])(Instruction);
-      static void (Interpreter::*const COPz[16])(Instruction);
+inline void Interpreter::ExecuteOpcode(u32 code) {
+  // Disasm().OutputToFile();
+  (this->*OPCODES[Opcode(code)])(code);
+}
 
-      static void (Interpreter::*const HLEt[])();
-
-      static InterpreterThread* thread;
-    };
-
-
-    inline void Interpreter::ExecuteOpcode(Instruction code) {
-      (this->*OPCODES[code.Opcode()])(code);
-    }
-
-  }   // namespace Interpreter
-
-  // an alias of InterpretImpl instance
-  // extern R3000A::Interpreter& Interpreter_;
+}   // namespace Interpreter
 
 }   // namespace PSX

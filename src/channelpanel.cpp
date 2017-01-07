@@ -94,11 +94,11 @@ void MuteButton::onClick(wxMouseEvent &)
   if (sf == NULL) return;
   muted_ = !muted_;
   if (muted_) {
-    sf->Ch(channel_number_).Mute();
+    // sf->Ch(channel_number_).Mute();
     SetForegroundColour(wxColour(128, 128, 128));
     wxMessageOutputDebug().Printf(wxT("Mute on Ch.%d"), channel_number_);
   } else {
-    sf->Ch(channel_number_).Unmute();
+    // sf->Ch(channel_number_).Unmute();
     SetForegroundColour(wxColour(0, 0, 0));
     wxMessageOutputDebug().Printf(wxT("Mute off Ch.%d"), channel_number_);
   }

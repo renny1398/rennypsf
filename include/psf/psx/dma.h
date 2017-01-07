@@ -1,10 +1,10 @@
 #pragma once
 #include "common.h"
-
+#include "hardware.h"
 
 namespace PSX {
 
-  class DMA : public Component {
+  class DMA : public Component, private IRQAccessor, private HardwareRegisterAccessor {
 
     // 0x1f80_1080: DMA0 MDECin
     // 0x1f80_1090: DMA1 MDECout

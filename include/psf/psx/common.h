@@ -1,5 +1,8 @@
 #pragma once
 
+////////////////////////////////////////////////////////////////////////
+// Short-typename Definitions
+////////////////////////////////////////////////////////////////////////
 
 typedef char s8;
 typedef unsigned char u8;
@@ -10,10 +13,9 @@ typedef unsigned int u32;
 typedef long long s64;
 typedef unsigned long long u64;
 
-
-////////////////////////////////
+////////////////////////////////////////////////////////////////////////
 // BFLIP Macros
-////////////////////////////////
+////////////////////////////////////////////////////////////////////////
 
 template<typename T> inline T BFLIP(T x)
 {
@@ -39,6 +41,9 @@ inline u32 BFLIP32(u32 x) {
   return BFLIP(x);
 }
 
+////////////////////////////////////////////////////////////////////////
+// Prototype Definitions
+////////////////////////////////////////////////////////////////////////
 
 namespace PSX {
 typedef u32 PSXAddr;
@@ -51,7 +56,8 @@ namespace R3000A {
 class Processor;
 class Interpreter;
 class Recompiler;
-struct Registers;
+class Registers;
+class Disassembler;
 }
 
 class RootCounterManager;
@@ -61,15 +67,15 @@ class BIOS;
 class IOP;
 }
 
-
 namespace SPU {
-class SPUBase;
 struct SPUCore;
 class SPUBase;
 class SPU2;
 }
 
-
+////////////////////////////////////////////////////////////////////////
+// PSX::Component Definitions
+////////////////////////////////////////////////////////////////////////
 
 namespace PSX {
 
@@ -78,7 +84,7 @@ class Component {
 public:
   explicit Component(Composite* composite);
 
-  Composite& Psx() { return composite_; }
+  Composite& Psx() { return psx_; }
 
   u8 ReadMemory8(PSXAddr addr);
   u16 ReadMemory16(PSXAddr addr);
@@ -88,33 +94,12 @@ public:
   void WriteMemory16(PSXAddr addr, u16 value);
   void WriteMemory32(PSXAddr addr, u32 value);
 
-  virtual s8& S8M_ref(PSXAddr addr);
-  virtual u8& U8M_ref(PSXAddr addr);
-  virtual s16& S16M_ref(PSXAddr addr);
-  virtual u16& U16M_ref(PSXAddr addr);
-  virtual u32& U32M_ref(PSXAddr addr);
-
-  virtual void* M_ptr(PSXAddr addr);
-  virtual s8* S8M_ptr(PSXAddr addr);
-  virtual u8* U8M_ptr(PSXAddr addr);
-  virtual u16* U16M_ptr(PSXAddr addr);
-  virtual u32* U32M_ptr(PSXAddr addr);
-
-  virtual u8& U8H_ref(PSXAddr addr);
-  virtual u16& U16H_ref(PSXAddr addr);
-  virtual u32& U32H_ref(PSXAddr addr);
-
-  virtual u8* U8H_ptr(PSXAddr addr);
-  virtual u16* U16H_ptr(PSXAddr addr);
-  virtual u32* U32H_ptr(PSXAddr addr);
-
-  virtual u32& U32R_ref(PSXAddr addr);
-
-  virtual void* R_ptr(PSXAddr addr);
-
   R3000A::Processor& R3000a();
   R3000A::Interpreter& Interp();
   RootCounterManager& RCnt();
+  const RootCounterManager& RCnt() const;
+
+  R3000A::Disassembler& Disasm();
 
   R3000A::Registers& R3000ARegs();
   HardwareRegisters& HwRegs();
@@ -124,11 +109,19 @@ public:
 
   // TODO: replace SPU with SPUCore
   SPU::SPUBase& Spu();
+  const SPU::SPUBase& Spu() const;
   SPU::SPU2& Spu2();
 
-private:
-  Composite& composite_;
-};
+protected:
 
+  // BIOS Accessors (Reference)
+  u32& psxRu32ref(PSXAddr addr);
+
+  // BIOS Accessors (Pointer)
+  void* psxRptr(PSXAddr addr);
+
+private:
+  Composite& psx_;
+};
 
 }   // namespace PSX

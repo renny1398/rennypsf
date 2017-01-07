@@ -18,9 +18,7 @@ class PSF2Directory;
 
 namespace PSX {
 
-
 class Component;
-
 
 // Mediator rather than Composite
 class Composite {
@@ -35,13 +33,15 @@ public:
 
   u32 version() const;
 
-  R3000A::InterpreterThread *Run();
   void Terminate();
 
-
+  Memory& Mem();
   R3000A::Processor& R3000a();
   R3000A::Interpreter& Interp();
   RootCounterManager& RCnt();
+  const RootCounterManager& RCnt() const;
+
+  R3000A::Disassembler& Disasm();
 
   R3000A::Registers& R3000ARegs();
   HardwareRegisters& HwRegs();
@@ -50,7 +50,7 @@ public:
   IOP& Iop();
 
   SPU::SPUBase& Spu();
-
+  const SPU::SPUBase& Spu() const;
 
   void InitMemory();
 
@@ -66,30 +66,8 @@ public:
   void Memcpy(void* dest, PSXAddr src, int length) const;
   void Memset(PSXAddr dest, int data, int length);
 
-  s8& S8M_ref(PSXAddr addr);
-  u8& U8M_ref(PSXAddr addr);
-  s16& S16M_ref(PSXAddr addr);
-  u16& U16M_ref(PSXAddr addr);
-  u32& U32M_ref(PSXAddr addr);
-
-  void* M_ptr(PSXAddr addr);
-  s8* S8M_ptr(PSXAddr addr);
-  u8* U8M_ptr(PSXAddr addr);
-  u16* U16M_ptr(PSXAddr addr);
-  u32* U32M_ptr(PSXAddr addr);
-
-  u8& U8H_ref(PSXAddr addr);
-  u16& U16H_ref(PSXAddr addr);
-  u32& U32H_ref(PSXAddr addr);
-
-  u8* U8H_ptr(PSXAddr addr);
-  u16* U16H_ptr(PSXAddr addr);
-  u32* U32H_ptr(PSXAddr addr);
-
-  u32& U32R_ref(PSXAddr addr);
-
-  void* R_ptr(PSXAddr addr);
-
+  u32& Ru32ref(PSXAddr addr);
+  void* Rvptr(PSXAddr addr);
 
   uint32_t GetSamplingRate() const;
   void ChangeOutputSamplingRate(uint32_t rate);
@@ -102,29 +80,24 @@ public:
 private:
   u32 version_; // 1 or 2
 
-  R3000A::Processor r3000a_;
-  R3000A::Interpreter interp_;
-  RootCounterManager rcnt_;
-  SPU::SPUBase spu_;
-
-  R3000A::Registers r3000a_regs_;
-  Memory mem_;
   HardwareRegisters hw_regs_;
+  Memory mem_;
   DMA dma_;
+  R3000A::Processor r3000a_;
+  RootCounterManager rcnt_;
   BIOS bios_;
   IOP iop_;
 
+  R3000A::Interpreter interp_;
+  R3000A::Disassembler disasm_;
+
+  SPU::SPUBase spu_;
 };
 
+// BIOS Accessor Definitions (Reference)
+inline u32& Composite::Ru32ref(PSXAddr addr) { return mem_.Rref<u32>(addr); }
 
-
-
-class PSX : public Composite {};
-
-
-class PS2 : public Composite {
-
-};
-
+// BIOS Accessor Definitions (Pointer)
+inline void* Composite::Rvptr(PSXAddr addr) { return mem_.Rvptr(addr); }
 
 }   // namespace PSX

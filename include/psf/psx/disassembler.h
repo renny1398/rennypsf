@@ -1,62 +1,71 @@
 #pragma once
 #include "common.h"
+#include "memory.h"
+
 #include <wx/string.h>
 #include <wx/vector.h>
+#include <wx/file.h>
 
+class wxOutputStream;
 
 namespace PSX {
 namespace R3000A {
 
-class Instruction;
-
-class Disassembler : public Component
+class Disassembler : private UserMemoryAccessor
 {
 public:
-    Disassembler(Composite *composite);
+  Disassembler(Composite *composite);
 
-    bool Parse(Instruction code);
-    void PrintCode();
-    void PrintChangedRegisters();
+  bool Parse(u32 code);
+  void PrintCode(wxOutputStream* out = NULL);
+  void PrintChangedRegisters();
 
-    void DumpRegisters();
+  void StartOutputToFile();
+  bool OutputToFile();
+  void StopOutputToFile();
 
-    static Disassembler& GetInstance();
+  void DumpRegisters();
 
-private:
-    bool parseNop(Instruction);
-    bool parseLoad(Instruction code);
-    bool parseStore(Instruction code);
-    bool parseALUI(Instruction code);
-    bool parse3OpReg(Instruction code);
-    bool parseShift(Instruction code);
-    bool parseShiftVar(Instruction code);
-    bool parseMulDiv(Instruction code);
-    bool parseHILO(Instruction code);
-    bool parseJ(Instruction code);
-    bool parseJAL(Instruction code);
-    bool parseJR(Instruction code);
-    bool parseJALR(Instruction code);
-    bool parseJumpReg(Instruction code);
-    bool parseBranch(Instruction code);
-    bool parseBranchZ(Instruction code);
-    bool parseBranchZAL(Instruction code);
-    bool parseCopz(Instruction code);
-
-    bool parseSpecial(Instruction code);
-    bool parseBcond(Instruction code);
-    // void HLECALL(Instruction);
+  static Disassembler& GetInstance();
 
 private:
-    u32 pc0;
-    wxString opcodeName;
-    wxVector<wxString> operands;
-    wxVector<wxString> changedRegisters;
+  bool parseNop(u32);
+  bool parseLoad(u32 code);
+  bool parseStore(u32 code);
+  bool parseALUI(u32 code);
+  bool parse3OpReg(u32 code);
+  bool parseShift(u32 code);
+  bool parseShiftVar(u32 code);
+  bool parseMulDiv(u32 code);
+  bool parseHILO(u32 code);
+  bool parseJ(u32 code);
+  bool parseJAL(u32 code);
+  bool parseJR(u32 code);
+  bool parseJALR(u32 code);
+  bool parseJumpReg(u32 code);
+  bool parseBranch(u32 code);
+  bool parseBranchZ(u32 code);
+  bool parseBranchZAL(u32 code);
+  bool parseCopz(u32 code);
+
+  bool parseSpecial(u32 code);
+  bool parseBcond(u32 code);
+  // void HLECALL(u32);
+
+private:
+  Registers* const regs_;
+  u32 pc0;
+  u32 code_;
+  wxString opcodeName;
+  wxVector<wxString> operands;
+  wxVector<wxString> changedRegisters;
+  wxFile output_to_;
 
 protected:
-    static bool (Disassembler::*const OPCODES[64])(Instruction);
-    static bool (Disassembler::*const SPECIALS[64])(Instruction);
-    //static bool (*const BCONDS[64])(Instruction);
-    //static bool (*const COPz[64])(Instruction);
+  static bool (Disassembler::*const OPCODES[64])(u32);
+  static bool (Disassembler::*const SPECIALS[64])(u32);
+  //static bool (*const BCONDS[64])(u32);
+  //static bool (*const COPz[64])(u32);
 };
 
 }   // namespace R3000A

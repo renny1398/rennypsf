@@ -6,9 +6,10 @@ namespace PSX {
 
 Composite::Composite(u32 version)
   : version_(version),
-    r3000a_(this), interp_(this, &r3000a_), rcnt_(this), spu_(this),
-    r3000a_regs_(), mem_(this), hw_regs_(this), dma_(this),
-    bios_(this), iop_(this) {
+    hw_regs_(this), mem_(version, &hw_regs_), dma_(this),
+    r3000a_(this), rcnt_(this, &r3000a_.Regs), bios_(this), iop_(this),
+    interp_(this, &r3000a_, &bios_, &iop_), disasm_(this), spu_(this) {
+  interp_.Init(&rcnt_);
 }
 
 
@@ -27,21 +28,23 @@ u32 Composite::version() const {
   return version_;
 }
 
-
+/*
 R3000A::InterpreterThread* Composite::Run() {
   Reset();
   bios_.Init();
   return interp_.Execute();
 }
 
-
 void Composite::Terminate() {
   interp_.Shutdown();
   spu_.Shutdown();
   mem_.Reset();
 }
+*/
 
-
+Memory& Composite::Mem() {
+  return mem_;
+}
 
 R3000A::Processor& Composite::R3000a() {
   return r3000a_;
@@ -55,8 +58,16 @@ RootCounterManager& Composite::RCnt() {
   return rcnt_;
 }
 
+const RootCounterManager& Composite::RCnt() const {
+  return rcnt_;
+}
+
+R3000A::Disassembler& Composite::Disasm() {
+  return disasm_;
+}
+
 R3000A::Registers& Composite::R3000ARegs() {
-  return r3000a_regs_;
+  return r3000a_.Regs;
 }
 
 HardwareRegisters& Composite::HwRegs() {
@@ -76,6 +87,10 @@ IOP& Composite::Iop() {
 }
 
 SPU::SPUBase& Composite::Spu() {
+  return spu_;
+}
+
+const SPU::SPUBase& Composite::Spu() const {
   return spu_;
 }
 
@@ -123,86 +138,7 @@ void Composite::Memcpy(PSXAddr dest, const void *src, int length) {
 */
 
 void Composite::Memset(PSXAddr dest, int data, int length) {
-  ::memset(mem_.M_ptr(dest), data, length);
-}
-
-
-
-s8& Composite::S8M_ref(PSXAddr addr) {
-  return mem_.S8M_ref(addr);
-}
-
-u8& Composite::U8M_ref(PSXAddr addr) {
-  return mem_.U8M_ref(addr);
-}
-
-s16& Composite::S16M_ref(PSXAddr addr) {
-  return mem_.S16M_ref(addr);
-}
-
-u16& Composite::U16M_ref(PSXAddr addr) {
-  return mem_.U16M_ref(addr);
-}
-
-u32& Composite::U32M_ref(PSXAddr addr) {
-  return mem_.U32M_ref(addr);
-}
-
-
-void* Composite::M_ptr(PSXAddr addr) {
-  return mem_.M_ptr(addr);
-}
-
-s8* Composite::S8M_ptr(PSXAddr addr) {
-  return mem_.S8M_ptr(addr);
-}
-
-u8* Composite::U8M_ptr(PSXAddr addr) {
-  return mem_.U8M_ptr(addr);
-}
-
-u16* Composite::U16M_ptr(PSXAddr addr) {
-  return mem_.U16M_ptr(addr);
-}
-
-u32* Composite::U32M_ptr(PSXAddr addr) {
-  return mem_.U32M_ptr(addr);
-}
-
-
-u8& Composite::U8H_ref(PSXAddr addr) {
-  return mem_.U8H_ref(addr);
-}
-
-u16& Composite::U16H_ref(PSXAddr addr) {
-  return mem_.U16H_ref(addr);
-}
-
-u32& Composite::U32H_ref(PSXAddr addr) {
-  return mem_.U32H_ref(addr);
-}
-
-
-u8* Composite::U8H_ptr(PSXAddr addr) {
-  return mem_.U8H_ptr(addr);
-}
-
-u16* Composite::U16H_ptr(PSXAddr addr) {
-  return mem_.U16H_ptr(addr);
-}
-
-u32* Composite::U32H_ptr(PSXAddr addr) {
-  return mem_.U32H_ptr(addr);
-}
-
-
-u32& Composite::U32R_ref(PSXAddr addr) {
-  return mem_.U32R_ref(addr);
-}
-
-
-void* Composite::R_ptr(PSXAddr addr) {
-  return mem_.R_ptr(addr);
+  Mem().Set(dest, data, length);
 }
 
 
@@ -228,123 +164,90 @@ unsigned int Composite::LoadELF(PSF2File *psf2irx) {
 // Component
 
 Component::Component(Composite *composite)
-  : composite_(*composite) {}
+  : psx_(*composite) {}
 
-R3000A::Processor& Component::R3000a() { return composite_.R3000a(); }
-R3000A::Interpreter& Component::Interp() { return composite_.Interp(); }
-RootCounterManager& Component::RCnt() { return composite_.RCnt(); }
+R3000A::Processor& Component::R3000a() { return psx_.R3000a(); }
+R3000A::Interpreter& Component::Interp() { return psx_.Interp(); }
+RootCounterManager& Component::RCnt() { return psx_.RCnt(); }
+const RootCounterManager& Component::RCnt() const { return psx_.RCnt(); }
 
-R3000A::Registers& Component::R3000ARegs() { return composite_.R3000ARegs(); }
-HardwareRegisters& Component::HwRegs() { return composite_.HwRegs(); }
-DMA& Component::Dma() { return composite_.Dma(); }
-BIOS& Component::Bios() { return composite_.Bios(); }
-IOP& Component::Iop() { return composite_.Iop(); }
+R3000A::Disassembler& Component::Disasm() { return psx_.Disasm(); }
 
-SPU::SPUBase& Component::Spu() { return composite_.Spu(); }
+R3000A::Registers& Component::R3000ARegs() { return psx_.R3000ARegs(); }
+HardwareRegisters& Component::HwRegs() { return psx_.HwRegs(); }
+DMA& Component::Dma() { return psx_.Dma(); }
+BIOS& Component::Bios() { return psx_.Bios(); }
+IOP& Component::Iop() { return psx_.Iop(); }
+
+SPU::SPUBase& Component::Spu() { return psx_.Spu(); }
+const SPU::SPUBase& Component::Spu() const { return psx_.Spu(); }
 
 
 u8 Component::ReadMemory8(PSXAddr addr) {
-  return composite_.ReadMemory8(addr);
+  return psx_.ReadMemory8(addr);
 }
 
 u16 Component::ReadMemory16(PSXAddr addr) {
-  return composite_.ReadMemory16(addr);
+  return psx_.ReadMemory16(addr);
 }
 
 u32 Component::ReadMemory32(PSXAddr addr) {
-  return composite_.ReadMemory32(addr);
+  return psx_.ReadMemory32(addr);
 }
 
 
 void Component::WriteMemory8(PSXAddr addr, u8 value) {
-  composite_.WriteMemory8(addr, value);
+  psx_.WriteMemory8(addr, value);
 }
 
 void Component::WriteMemory16(PSXAddr addr, u16 value) {
-  composite_.WriteMemory16(addr, value);
+  psx_.WriteMemory16(addr, value);
 }
 
 void Component::WriteMemory32(PSXAddr addr, u32 value) {
-  composite_.WriteMemory32(addr, value);
+  psx_.WriteMemory32(addr, value);
 }
 
+/*
+// User Memory Accessor Definitions (Value)
+s8  Component::psxMs8val(PSXAddr addr)  const { return psx_.Ms8val(addr);  }
+u8  Component::psxMu8val(PSXAddr addr)  const { return psx_.Mu8val(addr);  }
+s16 Component::psxMs16val(PSXAddr addr) const { return psx_.Ms16val(addr); }
+u16 Component::psxMu16val(PSXAddr addr) const { return psx_.Mu16val(addr); }
+u32 Component::psxMu32val(PSXAddr addr) const { return psx_.Mu32ref(addr); }
 
-s8& Component::S8M_ref(PSXAddr addr) {
-  return composite_.S8M_ref(addr);
-}
+// User Memory Accessor Definitions (Reference)
+s8&  Component::psxMs8ref(PSXAddr addr)  { return psx_.Ms8ref(addr);  }
+u8&  Component::psxMu8ref(PSXAddr addr)  { return psx_.Mu8ref(addr);  }
+s16& Component::psxMs16ref(PSXAddr addr) { return psx_.Ms16ref(addr); }
+u16& Component::psxMu16ref(PSXAddr addr) { return psx_.Mu16ref(addr); }
+u32& Component::psxMu32ref(PSXAddr addr) { return psx_.Mu32ref(addr); }
 
-u8& Component::U8M_ref(PSXAddr addr) {
-  return composite_.U8M_ref(addr);
-}
+// User Memory Accessor Definitions (Pointer)
+void* Component::psxMptr(PSXAddr addr)    { return psx_.Mvptr(addr);    }
+s8*   Component::psxMs8ptr(PSXAddr addr)  { return psx_.Ms8ptr(addr);  }
+u8*   Component::psxMu8ptr(PSXAddr addr)  { return psx_.Mu8ptr(addr);  }
+u16*  Component::psxMu16ptr(PSXAddr addr) { return psx_.Mu16ptr(addr); }
+u32*  Component::psxMu32ptr(PSXAddr addr) { return psx_.Mu32ptr(addr); }
 
-s16& Component::S16M_ref(PSXAddr addr) {
-  return composite_.S16M_ref(addr);
-}
+// Hardware Register Accessor Definitions (Value)
+u8  Component::psxHu8val(PSXAddr addr) const  { return psx_.Hu8val(addr);  }
+u16 Component::psxHu16val(PSXAddr addr) const { return psx_.Hu16val(addr); }
+u32 Component::psxHu32val(PSXAddr addr) const { return psx_.Hu32val(addr); }
 
-u16& Component::U16M_ref(PSXAddr addr) {
-  return composite_.U16M_ref(addr);
-}
+// Hardware Register Accessor Definitions (Reference)
+u8&  Component::psxHu8ref(PSXAddr addr)  { return psx_.Hu8ref(addr);  }
+u16& Component::psxHu16ref(PSXAddr addr) { return psx_.Hu16ref(addr); }
+u32& Component::psxHu32ref(PSXAddr addr) { return psx_.Hu32ref(addr); }
 
-u32& Component::U32M_ref(PSXAddr addr) {
-  return composite_.U32M_ref(addr);
-}
+// Hardware Register Accessor Definitions (Pointer)
+u32* Component::psxHu32ptr(PSXAddr addr) { return psx_.Hu32ptr(addr); }
+*/
 
+// BIOS Accessor Definitions (Reference)
+u32& Component::psxRu32ref(PSXAddr addr) { return psx_.Ru32ref(addr); }
 
-void* Component::M_ptr(PSXAddr addr) {
-  return composite_.M_ptr(addr);
-}
-
-s8* Component::S8M_ptr(PSXAddr addr) {
-  return composite_.S8M_ptr(addr);
-}
-
-u8* Component::U8M_ptr(PSXAddr addr) {
-  return composite_.U8M_ptr(addr);
-}
-
-u16* Component::U16M_ptr(PSXAddr addr) {
-  return composite_.U16M_ptr(addr);
-}
-
-u32* Component::U32M_ptr(PSXAddr addr) {
-  return composite_.U32M_ptr(addr);
-}
-
-
-u8& Component::U8H_ref(PSXAddr addr) {
-  return composite_.U8H_ref(addr);
-}
-
-u16& Component::U16H_ref(PSXAddr addr) {
-  return composite_.U16H_ref(addr);
-}
-
-u32& Component::U32H_ref(PSXAddr addr) {
-  return composite_.U32H_ref(addr);
-}
-
-
-u8* Component::U8H_ptr(PSXAddr addr) {
-  return composite_.U8H_ptr(addr);
-}
-
-u16* Component::U16H_ptr(PSXAddr addr) {
-  return composite_.U16H_ptr(addr);
-}
-
-u32* Component::U32H_ptr(PSXAddr addr) {
-  return composite_.U32H_ptr(addr);
-}
-
-
-u32& Component::U32R_ref(PSXAddr addr) {
-  return composite_.U32R_ref(addr);
-}
-
-
-void* Component::R_ptr(PSXAddr addr) {
-  return composite_.R_ptr(addr);
-}
-
+// BIOS Accessor Definitions (Pointer)
+void* Component::psxRptr(PSXAddr addr) { return psx_.Rvptr(addr); }
 
 }   // namespace PSX

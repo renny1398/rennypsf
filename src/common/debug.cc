@@ -1,19 +1,18 @@
 #include "common/debug.h"
-#include <wx/vector.h>
 #include <wx/frame.h>
 #include <wx/listctrl.h>
 #include <wx/sizer.h>
 #include <wx/event.h>
 #include <wx/thread.h>
 #include <wx/utils.h>
-
+#include <vector>
+#include <deque>
 
 namespace {
 
 const wxString str_log_levels[RennyDebug::kLogLevelMax] =
     {"", "Debug", "Info", "Notice", "Warning",
      "Error", "Critical", "Alert", "Emergency"};
-
 }
 
 
@@ -39,18 +38,19 @@ private:
   struct Item {
     wxString level;
     wxString instance;
-    wxString msg;
+    wxString message;
     wxString created_on;
-    Item(const wxString& level, const wxString& instance, const wxString& msg, const wxString& created_on)
-      : level(level), instance(instance), msg(msg), created_on(created_on) {}
+    Item(const wxString& lvl, const wxString& ins, const wxString& msg, const wxString& crtd_on)
+      : level(lvl), instance(ins), message(msg), created_on(crtd_on) {}
   };
-  wxVector<Item> items_;
+  std::deque<Item> items_;
+  std::vector<Item> item_acc_;
   wxMutex mutex_;
 
   mutable wxListItemAttr attr_debug_;
   mutable wxListItemAttr attr_info_;
   mutable wxListItemAttr attr_warning_;
-  mutable  wxListItemAttr attr_error_;
+  mutable wxListItemAttr attr_error_;
 };
 
 
@@ -70,6 +70,10 @@ RennyDebugListCtrl::RennyDebugListCtrl(wxWindow *parent)
 void RennyDebugListCtrl::Log(const wxString &level, const wxString &instance, const wxString &msg, const wxString &created_on) {
   mutex_.Lock();
   items_.push_back(Item(level, instance, msg, created_on));
+  if (items_.size() > 1000) {
+    item_acc_.push_back(items_.front());
+    items_.pop_front();
+  }
   mutex_.Unlock();
   SetItemCount(items_.size());
 }
@@ -81,7 +85,7 @@ wxString RennyDebugListCtrl::OnGetItemText(long item, long column) const {
   case kColumnInstance:
     return items_.at(item).instance;
   case kColumnMessage:
-    return items_.at(item).msg;
+    return items_.at(item).message;
   case kColumnCreatedOn:
     return items_.at(item).created_on;
   default:

@@ -165,8 +165,8 @@ void PeteReverb::StoreReverb(const SPUVoice &ch)
   int *pN;
   int iRn, iRr = 0;
 
-  int iRxl = (ch.GetRaw16() * ch.volume_left()) / 0x8000;
-  int iRxr = (ch.GetRaw16() * ch.volume_right()) / 0x8000;
+  int iRxl = (ch.sval * ch.iLeftVolume) / 0x8000;
+  int iRxr = (ch.sval * ch.iRightVolume) / 0x8000;
 
   for (iRn = 1; iRn <= ch.iRVBNum; iRn++) {
     pN = sReverbPlay + ((ch.iRVBOffset + iRr + dbpos_) << 1);
@@ -183,8 +183,8 @@ void PeteReverb::StoreReverb(const SPUVoice &ch)
 
 
 void NeilReverb::StoreReverb(const SPUVoice &ch) {
-  const int iRxl = (ch.GetRaw16() * ch.volume_left()) / ch.volume_max();
-  const int iRxr = (ch.GetRaw16() * ch.volume_right()) / ch.volume_max();
+  const int iRxl = (ch.sval * ch.iLeftVolume) / 0x4000;
+  const int iRxr = (ch.sval * ch.iRightVolume) / 0x4000;
   // wxMessageOutputDebug().Printf(wxT("left = %d"), iRxl);
   sReverbStart[2*dbpos_+0] += iRxl;
   sReverbStart[2*dbpos_+1] += iRxr;

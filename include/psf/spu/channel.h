@@ -4,9 +4,11 @@
 #include <wx/scopedptr.h>
 #include <wx/vector.h>
 
-#include "common/SoundFormat.h"
+// #include "common/SoundFormat.h"
 #include "psf/spu/soundbank.h"
 
+
+class Sample;
 
 namespace SPU {
 
@@ -159,7 +161,7 @@ class SPUBase;
 class SPUVoiceManager;
 
 
-class SPUVoice : public ::Sample16 {
+class SPUVoice/* : public ::Sample16 */ {
 public:
   SPUVoice();   // for vector constructor
   SPUVoice(const SPUVoice&);
@@ -170,6 +172,7 @@ public:
   int AdvanceEnvelope();
 
   void Step();
+  bool Get(Sample* dest) const;
 
   SPUBase& Spu() { return *p_spu_; }
   const SPUBase& Spu() const { return *p_spu_; }
@@ -192,7 +195,6 @@ public:
 
   // bool            bNew;                               // start flag
   // bool            isUpdating;
-  bool is_ready;
 
   int             iSBPos;                             // mixing stuff
   InterpolationPtr  pInterpolation;
@@ -247,8 +249,25 @@ public:
   void NotifyOnChangePitch() const;
   void NotifyOnChangeVelocity() const;
 
+  // temporary
+  int envelope() const { return env_; }
+  // int envelope_max() const;
+  void set_envelope(int env) { env_ = env; }
+
+protected:
+  // bool IsReady() const;
+  void SetReady() const;
+  void SetUnready() const;
+
 private:
-  bool            is_on_;
+  mutable bool is_ready_;
+  mutable wxMutex ready_mutex_;
+  mutable wxCondition ready_cond_;
+
+  bool is_on_;
+
+  // temporary
+  int env_;
 
   // mutable wxMutex on_mutex_;
 
@@ -257,7 +276,7 @@ private:
 
 
 
-class SPUCoreVoiceManager : public ::SoundBlock {
+class SPUCoreVoiceManager/* : public ::SoundBlock */ {
 
 public:
   SPUCoreVoiceManager();
@@ -278,21 +297,16 @@ private:
 
 
 
-class SPUVoiceManager: public ::SoundBlock
-{
+class SPUVoiceManager/* : public ::SoundBlock */ {
 public:
   SPUVoiceManager();  // for vector constructor
   SPUVoiceManager(SPUBase* pSPU, int channelNumber);
 
-  unsigned int block_size() const {
-    return channelNumber_ * 2;
-  }
-
-  Sample& Ch(int ch) { return channels_.at(ch); }
+  /* Sample& Ch(int ch) { return channels_.at(ch); } */
   SPUVoice& At(int ch) { return channels_.at(ch); }
 
   unsigned int channel_count() const {
-    return channelNumber_;
+    return channels_.size();
   }
 
   bool ExistsNew() const;
@@ -306,7 +320,6 @@ private:
   SPUBase* const pSPU_;
   // ChannelInfo* channels_;
   wxVector<SPUVoice> channels_;
-  int channelNumber_;
   uint32_t flagNewChannels_;
 
   friend class SPUVoice;

@@ -6,8 +6,9 @@
 #include <wx/vector.h>
 #include <wx/thread.h>
 
-#include "psf/spu/channel.h"
-#include "psf/psx/common.h"
+#include "channel.h"
+#include "../psx/common.h"
+#include "../psx/memory.h"
 #include "reverb.h"
 #include "interpolation.h"
 #include "soundbank.h"
@@ -154,7 +155,7 @@ private:
 
 
 
-class SPUBase : public PSX::Component
+class SPUBase : public PSX::Component, private PSX::UserMemoryAccessor
 {
 public:
   SPUBase(PSX::Composite* composite);
@@ -168,6 +169,11 @@ public:
 
   bool Step(int step_count);
   void ResetStepStatus();
+
+  bool IsAsync() const;
+  bool (SPUBase::*Get)(SoundBlock* dest);
+  bool GetSync(SoundBlock* dest);
+  bool GetAsync(SoundBlock* dest);
 
   void NotifyObservers();
 
@@ -227,7 +233,7 @@ public:
   }
 
   // Register
-  unsigned short ReadRegister(uint32_t reg);
+  unsigned short ReadRegister(uint32_t reg) const;
   void WriteRegister(uint32_t reg, uint16_t val);
 
   // Listener Registration
@@ -371,19 +377,15 @@ private:
 };
 
 
-
-
 /*
 class SPUListener {
 public:
     virtual ~SPUListener() {}
 
 protected:
-
     void onUpdate(SPU*);
 };
  */
-
 
 
 inline SPUVoice& SPUBase::Voice(int ch) {

@@ -5,11 +5,14 @@
 #include <wx/vector.h>
 #include <wx/regex.h>
 
+// for debug
+#include "psf/psx/disassembler.h"
+
 namespace PSX {
 
 
 IOP::IOP(Composite* psx) :
-  Component(psx), root_(NULL), load_addr_(0x23f00) {}
+  Component(psx), UserMemoryAccessor(psx), root_(NULL), load_addr_(0x23f00) {}
 
 IOP::~IOP() {
   if (root_) {
@@ -93,7 +96,7 @@ unsigned int IOP::LoadELF(PSF2File* psf2irx) {
 
         offs = *(reinterpret_cast<const unsigned int*>(data + offset + (rec*8)));
         info = *(reinterpret_cast<const unsigned int*>(data + offset + (rec*8) + 4));
-        target = BFLIP32(U32M_ref(load_addr_ + offs));
+        target = BFLIP32(psxMu32val(load_addr_ + offs));
 
         switch (info & 0xff) {
         case 2:
@@ -125,19 +128,20 @@ unsigned int IOP::LoadELF(PSF2File* psf2irx) {
           val = load_addr_ + vallo;
           target = (target & ~0xffff) | (val & 0xffff);
 
-          U32M_ref(load_addr_ + hi16offs) = BFLIP32(hi16target);
+          psxMu32ref(load_addr_ + hi16offs) = BFLIP32(hi16target);
           break;
 
         default:
           break;
         }
 
-        U32M_ref(load_addr_ + offs) = BFLIP32(target);
+        psxMu32ref(load_addr_ + offs) = BFLIP32(target);
       }
       break;
 
     case 0x70000000:
       // do_iopmod
+      rennyLogWarning("IOP::LoadELF", "Not implemented do_iopmod().");
       break;
 
     default:
@@ -150,6 +154,7 @@ unsigned int IOP::LoadELF(PSF2File* psf2irx) {
   entry |= 0x80000000;
   load_addr_ += totallen;
 
+  rennyLogDebug("IOP::LoadELF", "%s Load Entry = 0x%08x", psf2irx->GetName().c_str().AsChar(), entry);
   return entry;
 }
 
@@ -198,7 +203,7 @@ const wxString IOP::sprintf(const wxString& format, uint32_t param1, uint32_t pa
     if (idx_isnum < idx_isstr) {
       printf_params.push_back(params[i]);
     } else if (idx_isstr < idx_isnum) {
-      const wxString str_param(const_cast<IOP*>(this)->S8M_ptr(params[i]));
+      const wxString str_param(const_cast<IOP*>(this)->psxMu8ptr(params[i]));
       // rennyLogDebug("IOP_sprintf", "String parameter (%d): %s", i, static_cast<const char*>(str_param));
       re_isstr.ReplaceFirst(&msg, str_param);
       // rennyLogDebug("IOP_sprintf", static_cast<const char*>(msg));
@@ -227,7 +232,17 @@ bool IOP::stdio(uint32_t call_num) {
 
   switch (call_num) {
   case 4: // printf
-    rennyLogInfo("IOP::stdio(printf)", static_cast<const char*>(sprintf(S8M_ptr(a0), a1, a2, a3)));
+    do {
+      wxString out = sprintf(psxMs8ptr(a0), a1, a2, a3);
+      if (out.Find("start") != wxNOT_FOUND) {
+        rennyLogInfo("IOP::stdio(printf)", "Start Dumping.");
+        Disasm().StartOutputToFile();
+      } else if (out.Find("end") != wxNOT_FOUND) {
+        rennyLogInfo("IOP::stdio(printf)", "End Dumping.");
+        Disasm().StopOutputToFile();
+      }
+      rennyLogInfo("IOP::stdio(printf)", static_cast<const char*>(out));
+    } while (false);
     return true;
   default:
     rennyLogError("IOP::stdio", "Unhandled service %d.", call_num);
@@ -277,7 +292,7 @@ bool IOP::sysmem(uint32_t call_num) {
 
   case 14:  // Kprintf
     {
-      wxString out = IOP::sprintf(wxString(S8M_ptr(a0) + (a0 & 3)), a1, a2, a3);
+      wxString out = IOP::sprintf(wxString(psxMs8ptr(a0) + (a0 & 3)), a1, a2, a3);
       out.Replace(wxT("\x1b"), wxT("]"));
       rennyLogDebug("IOP::sysmem", "KTTY: %s", static_cast<const char*>(out));
     }
@@ -299,8 +314,8 @@ bool IOP::modload(uint32_t call_num) {
   switch (call_num) {
     case 7:	// LoadStartModule
       {
-        wxString module_name = S8M_ptr(a0 + 6); // len("psf2:/") == 6
-        wxString str1 =S8M_ptr(a2);
+        wxString module_name = psxMs8ptr(a0 + 6); // len("psf2:/") == 6
+        wxString str1 =psxMs8ptr(a2);
         rennyLogDebug("IOP::modload", "LoadStartModule: %s", static_cast<const char*>(module_name));
 
         uint32_t new_alloc_addr = load_addr_;
@@ -318,7 +333,7 @@ bool IOP::modload(uint32_t call_num) {
 
           if (start != 0xffffffff) {
             uint32_t args[20], numargs = 1, argofs;
-            uint8_t *argwalk = U8M_ptr(a2);
+            uint8_t *argwalk = psxMu8ptr(a2);
 
             args[0] = a0;
             argofs = 0;
@@ -337,7 +352,7 @@ bool IOP::modload(uint32_t call_num) {
             }
 
             for (uint32_t i = 0; i < numargs; i++) {
-              U32M_ref(new_alloc_addr + i*4) = BFLIP32(args[i]);
+              psxMu32ref(new_alloc_addr + i*4) = BFLIP32(args[i]);
             }
 
             R3000ARegs().GPR.A0 = numargs;
@@ -378,7 +393,7 @@ bool IOP::ioman(uint32_t call_num) {
         handle = files_.size() - 1;
       }
 
-      wxString filename(S8M_ptr(a0));
+      wxString filename(psxMs8ptr(a0));
       filename = filename.Mid(filename.find_first_of(":/") + 2, wxString::npos);
       PSF2File* file = dynamic_cast<PSF2File*>(const_cast<PSF2Directory*>(root_)->Find(filename));
 
@@ -479,18 +494,18 @@ bool IOP::ioman(uint32_t call_num) {
 bool IOP::Call(PSXAddr pc, uint32_t call_num) {
 
   PSXAddr scan = pc & 0x0fffffff;
-  while ((U32M_ref(scan) != BFLIP32(0x41e00000)) && (scan >= 0x10000)) {
+  while ((psxMu32val(scan) != BFLIP32(0x41e00000)) && (scan >= 0x10000)) {
     scan -= 4;
   }
 
-  if (U32M_ref(scan) != BFLIP32(0x41e00000)) { // scan < 0x10000
+  if (psxMu32val(scan) != BFLIP32(0x41e00000)) { // scan < 0x10000
     rennyLogError("IOP", "Couldn't find IOP link signature.");
     return false;
   }
 
   scan += 12;	// skip '0x41e00000', zero and version
 
-  const wxString module_name(reinterpret_cast<const char*>(U32M_ptr(scan)), 8);
+  const wxString module_name(reinterpret_cast<const char*>(psxMu32ptr(scan)), 8);
 
   bool ret = false;
   if (module_name.IsSameAs(wxString("stdio\0", 6))) {

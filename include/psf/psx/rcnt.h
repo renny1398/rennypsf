@@ -1,6 +1,8 @@
 #pragma once
 #include "common.h"
+#include "hardware.h"
 
+class SoundBlock;
 
 namespace PSX {
 
@@ -33,11 +35,10 @@ protected:
   friend class RootCounterManager;
 };
 
-class RootCounterManager : public Component {
+class RootCounterManager : public Component, private IRQAccessor {
 
  public:
-  RootCounterManager(Composite* composite)
-    : Component(composite) {}
+  RootCounterManager(Composite* composite, R3000A::Registers* regs);
 
   void Init();
   void Update();
@@ -45,17 +46,15 @@ class RootCounterManager : public Component {
   void WriteCount(unsigned int index, unsigned int value);
   void WriteMode(unsigned int index, unsigned int value);
   void WriteTarget(unsigned int index, unsigned int value);
-  unsigned int ReadCount(unsigned int index);
+  unsigned int ReadCount(unsigned int index) const;
 
-  unsigned int SPURun();
+  int SPURun(SoundBlock*);
   void DeadLoopSkip();
 
  protected:
   void UpdateCycle(u32 index);
   void Reset(unsigned int index);
   void SetNextCounter();
-
-
 
  public: // NEW
   unsigned int ReadCountEx(unsigned int index) const;
@@ -83,8 +82,11 @@ class RootCounterManager : public Component {
   RootCounter counters[5];
 
 private:
-  unsigned int clks_to_update_min_, nextsCounter;
-  signed   int nextiCounter;
+  mutable unsigned int clks_to_update_min_, nextsCounter;
+  mutable signed   int nextiCounter;
+
+  // R3000A::Registers regs_;
+  unsigned int& cycle_;
 
   friend class R3000A::Processor;
 };

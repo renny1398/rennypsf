@@ -64,7 +64,7 @@ bool SoundDevice::Listen()
 {
   ZeroCounter();
   is_playing_ = true;
-  rennyLogInfo("SoundDeviceDriver", "Started playing.");
+  rennyLogInfo("SoundDevice", "Started playing.");
   return true;
 }
 
@@ -72,7 +72,7 @@ bool SoundDevice::Listen()
 bool SoundDevice::Stop()
 {
   is_playing_ = false;
-  rennyLogInfo("SoundDeviceDriver", "Stopped playing.");
+  rennyLogInfo("SoundDevice", "Stopped playing.");
   return true;
 }
 

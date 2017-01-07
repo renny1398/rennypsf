@@ -30,8 +30,8 @@ public:
   static CommandFactory* GetInstance();
 
 protected:
-  CommandFactory() {};
-  ~CommandFactory() {};
+  CommandFactory() = default;
+  ~CommandFactory() = default;
   Command& operator=(const Command&);
 };
 

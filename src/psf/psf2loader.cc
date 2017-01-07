@@ -90,11 +90,11 @@ PSF2Directory* PSF2Entry::GetRoot() {
 
 
 PSF2File::PSF2File(PSF2Directory *parent, const char *name)
-  : PSF2Entry(parent, name), data_(NULL), size_(0) {}
+  : PSF2Entry(parent, name), data_(nullptr), size_(0) {}
 
 
 PSF2File::PSF2File(PSF2Directory *parent, const char *name, wxScopedArray<unsigned char>& data, int size)
-  : PSF2Entry(parent, name), data_(NULL) {
+  : PSF2Entry(parent, name), data_(nullptr) {
   data_.swap(data);
   size_ = size;
 }

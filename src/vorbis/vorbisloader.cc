@@ -56,14 +56,25 @@ ov_callbacks VorbisLoader::oc_ = {
 VorbisLoader::VorbisLoader(int fd, const wxString& filename)
   : file_(fd), path_(filename), loop_start_(-1), loop_length_(0) {
     
-    file_.Seek(0, wxFromStart);
+  vf_tmp_ = new OggVorbis_File();
+  file_.Seek(0, wxFromStart);
 
-  switch (ov_open_callbacks(&file_, &vf_, NULL, 0, oc_)) {
-    case OV_EREAD:{printf("A read from media returned an error.\n");break;}
-    case OV_ENOTVORBIS:{printf("Bitstream is not Vorbis data. \n");break;}
-    case OV_EVERSION :{printf("Vorbis version mismatch. \n");break;}
-    case OV_EBADHEADER:{printf("Invalid Vorbis bitstream header. \n");break;}
-    case OV_EFAULT:{printf("Internal logic fault; indicates a bug or heap/stack corruption. \n");break;}
+  switch (ov_open_callbacks(&file_, vf_tmp_, NULL, 0, oc_)) {
+  case OV_EREAD:
+    rennyLogError("VorbisLoader", "A read from media returned an error");
+    break;
+  case OV_ENOTVORBIS:
+    rennyLogError("VorbisLoader", "Bitstream is not Vorbis data.");
+    break;
+  case OV_EVERSION :
+    rennyLogError("VorbisLoader", "Vorbis version mismatch.");
+    break;
+  case OV_EBADHEADER:
+    rennyLogError("VorbisLoader", "Invalid Vorbis bitstream header.");
+    break;
+  case OV_EFAULT:
+    rennyLogError("VorbisLoader", "Internal logic fault; indicates a bug or heap/stack corruption.");
+    break;
   }
 }
 
@@ -83,7 +94,7 @@ SoundInfo* VorbisLoader::LoadInfo() {
     return ref_info_;
   }
   
-  vorbis_comment* vc = ov_comment(&vf_, -1);
+  vorbis_comment* vc = ov_comment(vf_tmp_, -1);
   if (vc == NULL) return NULL;
   
   SoundInfo* info = new SoundInfo();
@@ -99,14 +110,14 @@ SoundInfo* VorbisLoader::LoadInfo() {
   comment = vorbis_comment_query(vc, "LOOPSTART", 0);
   if (comment) {
     wxString(comment).ToLong(&loop_start_);
-    rennyLogDebug("VorbisLoader", "LOOPSTART = %d", loop_start_);
+    // rennyLogDebug("VorbisLoader", "LOOPSTART = %d", loop_start_);
   } else {
     loop_start_ = -1L;
   }
   comment = vorbis_comment_query(vc, "LOOPLENGTH", 0);
   if (comment) {
     wxString(comment).ToLong(&loop_length_);
-    rennyLogDebug("VorbisLoader", "LOOPLENGTH = %d", loop_length_);
+    // rennyLogDebug("VorbisLoader", "LOOPLENGTH = %d", loop_length_);
   } else {
     loop_length_ = 0L;
   }
@@ -123,7 +134,8 @@ Vorbis* VorbisLoader::LoadDataEx() {
     return ref_data_;
   }
   
-  Vorbis* vorbis = new Vorbis(&vf_, loop_start_, loop_length_);
+  Vorbis* vorbis = new Vorbis(vf_tmp_, loop_start_, loop_length_);
+  if (vorbis) vf_tmp_ = NULL;
 
   ref_data_ = vorbis;
   return vorbis;

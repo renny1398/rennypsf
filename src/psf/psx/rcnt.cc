@@ -1,8 +1,9 @@
-
 #include "psf/psx/rcnt.h"
 #include "psf/psx/r3000a.h"
 #include "psf/psx/memory.h"
 #include "psf/spu/spu.h"
+
+#include "common/SoundFormat.h"
 #include "common/debug.h"
 #include <cstring>
 
@@ -19,10 +20,13 @@ uint32_t last = 0;
 
 namespace PSX {
 
+RootCounterManager::RootCounterManager(Composite* composite, R3000A::Registers* regs)
+  : Component(composite), IRQAccessor(composite), cycle_(regs->sysclock) {}
+
 
 void RootCounterManager::UpdateCycle(u32 index)
 {
-  counters[index].count_start_clk = R3000ARegs().sysclock;
+  counters[index].count_start_clk = cycle_;
 
   if ( ((counters[index].mode_ & RootCounter::kCounterStopped) == 0 || (index != kCounterSystemClock)) &&
        counters[index].mode_ & (RootCounter::kIrqOnTarget | RootCounter::kIrqOnOverflow) ) {
@@ -44,17 +48,18 @@ void RootCounterManager::Reset(unsigned int index)
   counters[index].count_ = 0;
   UpdateCycle(index);
 
-  U32H_ref(0x1070) |= BFLIP32(counters[index].interrupt);
+  set_irq_data(counters[index].interrupt);
   if ( (counters[index].mode_ & RootCounter::kIrqRegenerate) == 0 ) {
     counters[index].rest_of_count_clk = 0xffffffff;
   }
+  // printf("RootCounter(%d): Reset: %d\n", index, counters[index].rest_of_count_clk);
 }
 
 void RootCounterManager::SetNextCounter()
 {
   clks_to_update_min_ = 0x7fffffff;
   nextiCounter = -1;
-  uint32_t sysclock = R3000ARegs().sysclock;
+  uint32_t sysclock = cycle_;
   nextsCounter = sysclock;
 
   for (int i = 0; i < counter_num; i++) {
@@ -107,21 +112,27 @@ void RootCounterManager::Init()
 
 void RootCounterManager::Update()
 {
-  const uint32_t sysclk = R3000ARegs().sysclock;
+  const uint32_t sysclk = cycle_;
 
   if (sysclk - nextsCounter < clks_to_update_min_) return;
 
   if ( (sysclk - counters[3].count_start_clk) >= counters[3].rest_of_count_clk ) {
     UpdateCycle(3);
-    U32H_ref(0x1070) |= BFLIP32(1);
+    set_irq_data(1);
   }
   if ( (sysclk - counters[0].count_start_clk) >= counters[0].rest_of_count_clk ) {
+    //std::printf("RootCounter(0): Target is reached. (sysclk = %d, target = %d)\n",
+    //            sysclk - counters[0].count_start_clk, counters[0].rest_of_count_clk);
     Reset(0);
   }
   if ( (sysclk - counters[1].count_start_clk) >= counters[1].rest_of_count_clk ) {
+    //std::printf("RootCounter(1): Target is reached. (sysclk = %d, target = %d)\n",
+    //            sysclk - counters[1].count_start_clk, counters[1].rest_of_count_clk);
     Reset(1);
   }
   if ( (sysclk - counters[2].count_start_clk) >= counters[2].rest_of_count_clk ) {
+    //std::printf("RootCounter(2): Target is reached. (sysclk = %d, target = %d)\n",
+    //            sysclk - counters[2].count_start_clk, counters[2].rest_of_count_clk);
     Reset(2);
   }
 
@@ -183,22 +194,22 @@ void RootCounterManager::WriteTarget(unsigned int index, unsigned int value)
 }
 
 
-unsigned int RootCounterManager::ReadCount(unsigned int index)
+unsigned int RootCounterManager::ReadCount(unsigned int index) const
 {
   unsigned int ret;
 
-  Update();
+  const_cast<RootCounterManager*>(this)->Update();
   // if (counters[index].mode_ & RootCounter::kCountToTarget) {
-    ret = counters[index].count_ + BIAS*((R3000ARegs().sysclock - counters[index].count_start_clk) / counters[index].rate);
+    ret = counters[index].count_ + BIAS*((cycle_ - counters[index].count_start_clk) / counters[index].rate);
   // } else {
-  //   ret = counters[index].count_ + BIAS*(R3000ARegs().sysclock / counters[index].rate);
+  //   ret = counters[index].count_ + BIAS*(cycle_ / counters[index].rate);
   // }
 
   return ret & 0xffff;
 }
 
 
-unsigned int RootCounterManager::SPURun()
+int RootCounterManager::SPURun(SoundBlock* /*dest*/)
 {
   // for debug
 /*
@@ -209,11 +220,11 @@ unsigned int RootCounterManager::SPURun()
   }
 */
   uint32_t cycles;
-  if (R3000ARegs().sysclock < last) {
+  if (cycle_ < last) {
     cycles = 0xffffffff - last;
-    cycles += R3000ARegs().sysclock + 1;
+    cycles += cycle_ + 1;
   } else {
-    cycles = R3000ARegs().sysclock - last;
+    cycles = cycle_ - last;
   }
 
   const uint32_t clk_p_hz = PSXCLK / Spu().GetCurrentSamplingRate() / 2;
@@ -221,14 +232,15 @@ unsigned int RootCounterManager::SPURun()
     uint32_t step_count = cycles / clk_p_hz;
     uint32_t pool = cycles % clk_p_hz;
     bool ret = Spu().Step(step_count);
-    last = R3000ARegs().sysclock - pool;
+    last = cycle_ - pool;
     if (ret == false) {
       // wxMessageOutputDebug().Printf(wxT("RootCounter: counter = %d"), R3000ARegs().Cycle);
-      return 0;
+      return -1;
     }
+    return 1;
   }
 
-  return 1;
+  return 0;
 }
 
 void RootCounterManager::DeadLoopSkip()
@@ -236,7 +248,7 @@ void RootCounterManager::DeadLoopSkip()
   // wxMessageOutputDebug().Printf(wxT("CounterDeadLoopSkip"));
 
   int32_t min, lmin;
-  uint32_t cycle = R3000ARegs().sysclock;
+  uint32_t cycle = cycle_;
 
   lmin = 0x7fffffff;
 
@@ -252,7 +264,7 @@ void RootCounterManager::DeadLoopSkip()
   }
 
   if (lmin > 0) {
-    R3000ARegs().sysclock = cycle + lmin;
+    cycle_ = cycle + lmin;
   }
 }
 

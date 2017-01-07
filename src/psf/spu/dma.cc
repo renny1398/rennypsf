@@ -17,7 +17,7 @@ using namespace PSX;
 void SPUBase::ReadDMAMemoryEx(SPUCore* core, PSXAddr psx_addr, uint32_t size) {
   rennyAssert(core != NULL);
   SPUAddr spu_addr = core->addr_;
-  uint16_t* p_psx_mem16 = U16M_ptr(psx_addr);
+  uint16_t* p_psx_mem16 = psxMu16ptr(psx_addr);
   unsigned int kMemorySize = memory_size();
 #ifdef MSB_FIRST
   for (uint32_t i = 0; i < size; i += 2) {
@@ -47,7 +47,7 @@ void SPUBase::ReadDMAMemoryEx(SPUCore* core, PSXAddr psx_addr, uint32_t size) {
 void SPUBase::WriteDMAMemoryEx(SPUCore* core, PSXAddr psx_addr, uint32_t size) {
   rennyAssert(core != NULL);
   SPUAddr spu_addr = core->addr_;
-  uint16_t* p_psx_mem16 = U16M_ptr(psx_addr);
+  uint16_t* p_psx_mem16 = psxMu16ptr(psx_addr);
   unsigned int kMemorySize = memory_size();
 #ifdef MSB_FIRST
   for (uint32_t i = 0; i < size; i += 2) {
