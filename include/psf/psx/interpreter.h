@@ -4,20 +4,19 @@
 #include "disassembler.h"
 #include "memory.h"
 
-namespace PSX {
+namespace psx {
 
 class BIOS;
 class IOP;
 
-namespace R3000A {
+namespace mips {
 
 class Interpreter : /*public Component, */private RegisterAccessor, private UserMemoryAccessor
 {
 public:
-  Interpreter(Composite* psx, Processor* cpu, BIOS* bios, IOP* iop);
+  Interpreter(PSX* psx, Processor* cpu, BIOS* bios, IOP* iop);
   ~Interpreter() {}
 
-  void Init(RootCounterManager* rcnt);
   void Reset();
   void ExecuteBIOS();
 
@@ -174,8 +173,6 @@ private:
   Processor& cpu_;
   BIOS& bios_;
   IOP& iop_;
-
-  RootCounterManager* rcnt_;  // for DeadLoopSkip
 
   static DelayFunc delaySpecials[64];
   static DelayFunc delayOpcodes[64];

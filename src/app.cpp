@@ -42,13 +42,16 @@ RennyPlayer::~RennyPlayer() {
   if (IsPlaying()) {
     Stop();
   }
+  if (thread_) {
+    delete thread_;
+  }
   if (p_sound_) {
     delete p_sound_;
   }
 }
 
 bool RennyPlayer::Play(SoundData *p_sound, SoundDevice *p_device) {
-  if (p_sound == NULL || p_device == NULL) return false;
+  if (p_sound == nullptr || p_device == nullptr) return false;
   if (thread_ == nullptr) {
     thread_ = new RennyPlayerThread(this);
   }
@@ -59,7 +62,7 @@ bool RennyPlayer::Play(SoundData *p_sound, SoundDevice *p_device) {
     return false;
   case wxTHREAD_RUNNING:
     Stop();
-    break;
+    return Play(p_sound, p_device);
   default:
     break;
   }
@@ -156,7 +159,7 @@ wxThread::ExitCode ConsoleThread::Entry() {
     std::getline(std::cin, line);
     if (TestDestroy()) break;
     Command* cmd = CommandFactory::GetInstance()->CreateCommand(line);
-    if (cmd == NULL) continue;
+    if (cmd == nullptr) continue;
     cmd->Execute();
     if (is_exiting_) break;
   }
@@ -184,7 +187,7 @@ bool RennypsfApp::OnInit() {
   console_thread_->Create();
   console_thread_->Run();
 
-  rennyCreateDebugWindow(NULL);
+  rennyCreateDebugWindow(nullptr);
   rennyShowDebugWindow();
 
   player_ = new RennyPlayer();
@@ -212,7 +215,7 @@ void RennypsfApp::ProcessExitEvent(wxThreadEvent&) {
 
 #endif
 
-void RennypsfApp::Exit(int code) {
+void RennypsfApp::Exit() {
 #ifdef USE_GUI
   // main_window_->Destroy();
   ExitMainLoop();
@@ -223,7 +226,7 @@ void RennypsfApp::Exit(int code) {
   const int wxID_EXIT = 1000;
   Bind(wxEVT_THREAD, &RennypsfApp::ProcessExitEvent, this, wxID_EXIT);
   wxThreadEvent event(wxEVT_THREAD, wxID_EXIT);
-  event.SetInt(code);
+  event.SetInt(0);
   QueueEvent(event.Clone());
 #endif
 }
@@ -249,9 +252,9 @@ bool RennypsfApp::Stop()
 {
   /*
   SoundData* sf = playing_sf_.get();
-  if (sf == NULL) return true;
+  if (sf == nullptr) return true;
   bool ret = sf->Stop();
-  if (sdd_ != NULL) {
+  if (sdd_ != nullptr) {
     sdd_->Stop();
   }
   playing_sf_.reset();
@@ -295,7 +298,7 @@ int main(int argc, char** argv) {
 
   if (argc > 1) {
     SoundLoader* loader = SoundLoader::Instance(argv[1]);
-    if (loader == NULL) {
+    if (loader == nullptr) {
       return false;
     }
 
@@ -307,7 +310,7 @@ int main(int argc, char** argv) {
     }
 
     SoundDevice* sdd = wxGetApp().GetSoundManager();
-    if (sdd == NULL) {
+    if (sdd == nullptr) {
       wxGetApp().SetSoundDevice(new WaveOutAL);
     }
     wxGetApp().Play(sound);

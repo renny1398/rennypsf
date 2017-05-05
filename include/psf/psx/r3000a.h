@@ -5,7 +5,13 @@
 #include "memory.h"
 #include "hardware.h"
 
-namespace PSX {
+class SoundBlock;
+
+namespace SPU {
+class SPUBase;
+}
+
+namespace psx {
 
 enum GPR_ENUM {
     GPR_ZR, GPR_AT, GPR_V0, GPR_V1, GPR_A0, GPR_A1, GPR_A2, GPR_A3,
@@ -21,7 +27,7 @@ enum COP0_ENUM {
   COP0_ERREG
 };
 
-namespace R3000A {
+namespace mips {
 
 ////////////////////////////////////////////////////////////////////////
 // R3000A Registers
@@ -94,7 +100,8 @@ enum OPCODE_ENUM {
   OPCODE_LB = 0x20, OPCODE_LH, OPCODE_LWL, OPCODE_LW, OPCODE_LBU, OPCODE_LHU, OPCODE_LWR,
   OPCODE_SB = 0x28, OPCODE_SH, OPCODE_SWL, OPCODE_SW, OPCODE_SWR = 0x2e,
   OPCODE_LWC0 = 0x30, OPCODE_LWC1, OPCODE_LWC2, OPCODE_LWC3,
-  OPCODE_SWC0 = 0x38, OPCODE_SWC1, OPCODE_SWC2, OPCODE_SWC3, OPCODE_HLECALL = 0x3b
+  OPCODE_SWC0 = 0x38, OPCODE_SWC1, OPCODE_SWC2, OPCODE_SWC3, OPCODE_HLECALL = 0x3b,
+  OPCODE_MAX = 0x40
 };
 
 enum SPECIAL_ENUM {
@@ -103,7 +110,8 @@ enum SPECIAL_ENUM {
   SPECIAL_MFHI = 0x10, SPECIAL_MTHI, SPECIAL_MFLO, SPECIAL_MTLO,
   SPECIAL_MULT = 0x18, SPECIAL_MULTU, SPECIAL_DIV, SPECIAL_DIVU,
   SPECIAL_ADD = 0x20, SPECIAL_ADDU, SPECIAL_SUB, SPECIAL_SUBU, SPECIAL_AND, SPECIAL_OR, SPECIAL_XOR, SPECIAL_NOR,
-  SPECIAL_SLT = 0x2a, SPECIAL_SLTU
+  SPECIAL_SLT = 0x2a, SPECIAL_SLTU,
+  SPECIAL_MAX = 0x40
 };
 
 enum BCOND_ENUM {
@@ -111,13 +119,13 @@ enum BCOND_ENUM {
 };
 
 ////////////////////////////////////////////////////////////////////////
-// R3000A Registers Composite
+// R3000A Registers PSX
 ////////////////////////////////////////////////////////////////////////
 
 class Registers {
 public:
   Registers() : HI(GPR.HI), LO(GPR.LO), PC(GPR.PC),
-                sysclock(0), Interrupt(0) {}
+                /*ref_cycle_(0), */Interrupt(0) {}
 
   void Reset();
 
@@ -126,7 +134,7 @@ public:
   u32& HI;
   u32& LO;
   u32& PC;
-  u32 sysclock;  // clock count
+  // u32& ref_cycle_;
   u32 Interrupt;
 
   friend class RegisterAccessor;
@@ -139,7 +147,7 @@ public:
 class RegisterAccessor {
 public:
   RegisterAccessor(Registers& regs);
-  RegisterAccessor(Composite* psx);
+  RegisterAccessor(PSX* psx);
 
   u32 GPR(u32 i) const { return regs_.GPR(i); }
   const GeneralPurposeRegisters& GPR() const { return regs_.GPR; }
@@ -161,7 +169,7 @@ protected:
   u32& HI;
   u32& LO;
   u32& PC;
-  u32& Cycle;
+  // u32& Cycle;
   u32& Interrupt;
 };
 
@@ -169,12 +177,14 @@ protected:
 // R3000A Processor Class Definition
 ////////////////////////////////////////////////////////////////////////
 
+class Interpreter;
+
 class Processor // TODO: implement RootCounterAccessor, remove Component
     : public Component, public RegisterAccessor, private MemoryAccessor,
       private IRQAccessor/*, private RootCounterAccessor*/ {
 public:
-  Processor(Composite* psx);
-  ~Processor() {}
+  Processor(PSX* psx, RootCounterManager* rcnt);
+  ~Processor() = default;
 
   void Reset();
   void Execute();
@@ -182,7 +192,13 @@ public:
   // void Clear(u32 addr, u32 size);
   void Shutdown();
 
-  // static Processor& GetInstance();
+  // static Processor& GetInstance()
+  // Conter Cycle Functions
+  unsigned int cycle32() const;
+  void IncreaseCycle();
+
+  // Execute Functions
+  void Execute(Interpreter* interp, bool in_softcall = false);
 
   // Load Functions (TODO: Delay Load)
   void Load8s(u32 reg_enum, PSXAddr addr);
@@ -218,19 +234,13 @@ public:
 
   bool isDoingBranch() const;
 
+  void DeadLoopSkip();
+
   Registers Regs; // TODO: into private variable
   GeneralPurposeRegisters& GPR;
 
 private:
-/*
-  GeneralPurposeRegisters& GPR;
-  Cop0Registers& CP0;
-  u32& HI;
-  u32& LO;
-  u32& PC;
-  u32& Cycle;
-  u32& Interrupt;
-*/
+  RootCounterManager* const rcnt_;
 
   bool inDelaySlot;    // for SYSCALL
   bool doingBranch;    // set when doBranch is called
@@ -256,13 +266,13 @@ inline bool Processor::isDoingBranch() const {
   return doingBranch;
 }
 
-} // namespace R3000A
+} // namespace mips
 
 ////////////////////////////////////////////////////////////////////////
 // Instruction Macros
 ////////////////////////////////////////////////////////////////////////
 
-namespace R3000A {
+namespace mips {
 
 inline u32 Opcode(u32 ins) { return ins >> 26; }
 inline u32 Rs(u32 ins) { return (ins >> 21) & 0x01f; }
@@ -300,6 +310,6 @@ inline u32 EncodeR(u32 opcode, u32 rs_enum, u32 rt_enum, u32 rd_enum, u32 shamt,
       (shamt << 6) | funct;
 }
 
-}   // namespace R3000A
+}   // namespace mips
 
-}   // namespace PSX
+}   // namespace psx

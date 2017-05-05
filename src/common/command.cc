@@ -56,7 +56,7 @@ public:
     }
 
     SoundLoader* loader = SoundLoader::Instance(file_path);
-    if (loader == NULL) {
+    if (loader == nullptr) {
       return false;
     }
 
@@ -68,7 +68,7 @@ public:
     }
 
     SoundDevice* sdd = wxGetApp().GetSoundManager();
-    if (sdd == NULL) {
+    if (sdd == nullptr) {
       wxGetApp().SetSoundDevice(new WaveOutAL);
     }
     // sound->Play(sdd);
@@ -105,7 +105,7 @@ public:
     if (param.empty()) return false;
     float vol = std::stof(param);
    SoundDevice* sdd = wxGetApp().GetSoundManager();
-    if (sdd == NULL) {
+    if (sdd == nullptr) {
       rennyLogWarning("SetVolumeCommand", "SoundDevice is not initialized.");
       return false;
     }
@@ -199,7 +199,7 @@ public:
   ExitCommand(const std::string& p) : Command(p) {}
 
   bool Execute() {
-    wxGetApp().Exit(0);
+    wxGetApp().Exit();
     return true;
   }
 };
@@ -243,7 +243,7 @@ Command* CommandFactory::CreateCommand(const std::string &line) {
     return new ExitCommand(params);
   }
 
-  return NULL;
+  return nullptr;
 }
 
 

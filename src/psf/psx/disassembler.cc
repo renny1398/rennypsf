@@ -65,8 +65,8 @@ const wxChar *regNames[] = {
 
 
 
-namespace PSX {
-namespace R3000A {
+namespace psx {
+namespace mips {
 
 bool Disassembler::parseNop(u32)
 {
@@ -267,7 +267,7 @@ bool (Disassembler::*const Disassembler::OPCODES[64])(u32) = {
 
 
 
-Disassembler::Disassembler(Composite* composite)
+Disassembler::Disassembler(PSX* composite)
   : UserMemoryAccessor(composite), regs_(&composite->R3000ARegs())
 {
   operands.reserve(4);
@@ -398,8 +398,8 @@ Disassembler& Disassembler::GetInstance()
 }
 */
 
-}   // namespace R3000A
+}   // namespace mips
 
 // R3000A::Disassembler& Disasm = R3000A::Disassembler::GetInstance();
 
-}   // namespace PSX
+}   // namespace psx

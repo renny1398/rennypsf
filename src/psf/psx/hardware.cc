@@ -6,35 +6,35 @@
 #include "common/debug.h"
 
 
-namespace PSX {
+namespace psx {
 
 
 IRQAccessor::IRQAccessor(HardwareRegisters* p_regs)
   : irq_data_(*reinterpret_cast<u32*>(&p_regs->hw_regs_[0x1070])),
     irq_mask_(*reinterpret_cast<u32*>(&p_regs->hw_regs_[0x1074])) {
-  rennyAssert(&irq_data_ != NULL);
-  rennyAssert(&irq_mask_ != NULL);
+  // rennyAssert(&irq_data_ != nullptr);
+  // rennyAssert(&irq_mask_ != nullptr);
 }
 
-IRQAccessor::IRQAccessor(Composite* psx)
+IRQAccessor::IRQAccessor(PSX* psx)
   : irq_data_(*reinterpret_cast<u32*>(&psx->HwRegs().hw_regs_[0x1070])),
     irq_mask_(*reinterpret_cast<u32*>(&psx->HwRegs().hw_regs_[0x1074])) {
-  rennyAssert(&irq_data_ != NULL);
-  rennyAssert(&irq_mask_ != NULL);
+  // rennyAssert(&irq_data_ != nullptr);
+  // rennyAssert(&irq_mask_ != nullptr);
 }
 
 HardwareRegisterAccessor::HardwareRegisterAccessor(HardwareRegisters* hw_regs)
   : regs_(hw_regs->hw_regs_) {
-  rennyAssert(regs_ != NULL);
+  rennyAssert(regs_ != nullptr);
 }
 
-HardwareRegisterAccessor::HardwareRegisterAccessor(Composite* psx)
+HardwareRegisterAccessor::HardwareRegisterAccessor(PSX* psx)
   : regs_(psx->HwRegs().hw_regs_) {
-  rennyAssert(regs_ != NULL);
+  rennyAssert(regs_ != nullptr);
 }
 
 
-HardwareRegisters::HardwareRegisters(Composite* composite)
+HardwareRegisters::HardwareRegisters(PSX* composite)
   : Component(composite), IRQAccessor(this) {
   ::memset(hw_regs_, 0, 0x3000);
 }
@@ -52,11 +52,11 @@ uint16_t HardwareRegisters::Read16(u32 addr) const {
     int ofs = (addr & 0xf) >> 2;
     switch (ofs) {
     case 0:
-      return static_cast<uint16_t>(RCnt().ReadCount(index));
+      return static_cast<uint16_t>(RCnt().ReadCountEx(index));
     case 1:
-      return static_cast<uint16_t>(RCnt().counters[index].mode_);
+      return static_cast<uint16_t>(RCnt().ReadModeEx(index));
     case 2:
-      return static_cast<uint16_t>(RCnt().counters[index].target_);
+      return static_cast<uint16_t>(RCnt().ReadTargetEx(index));
     }
     rennyLogWarning("PSXHardware", "Read16(0x%08x): invalid PSX memory address.", addr);
     return 0;
@@ -78,11 +78,11 @@ u32 HardwareRegisters::Read32(u32 addr) const {
     int ofs = (addr & 0xf) >> 2;
     switch (ofs) {
     case 0:
-      return RCnt().ReadCount(index);
+      return RCnt().ReadCountEx(index);
     case 1:
-      return RCnt().counters[index].mode_;
+      return RCnt().ReadModeEx(index);
     case 2:
-      return RCnt().counters[index].target_;
+      return RCnt().ReadTargetEx(index);
     }
     rennyLogWarning("PSXHardware", "Read32(0x%08x): invalid PSX memory address.", addr);
     return 0;
@@ -114,13 +114,13 @@ void HardwareRegisters::Write16(u32 addr, uint16_t value) {
     int ofs = (addr & 0xf) >> 2;
     switch (ofs) {
     case 0:
-      RCnt().WriteCount(index, value);
+      RCnt().WriteCountEx(index, value);
       return;
     case 1:
-      RCnt().WriteMode(index, value);
+      RCnt().WriteModeEx(index, value);
       return;
     case 2:
-      RCnt().WriteTarget(index, value);
+      RCnt().WriteTargetEx(index, value);
       return;
     default:
       rennyLogWarning("PSXHardware", "Write16(0x%08x): invalid PSX memory address.", addr);
@@ -158,13 +158,13 @@ void HardwareRegisters::Write32(u32 addr, u32 value) {
     int ofs = (addr & 0xf) >> 2;
     switch (ofs) {
     case 0:
-      RCnt().WriteCount(index, value);
+      RCnt().WriteCountEx(index, value);
       return;
     case 1:
-      RCnt().WriteMode(index, value);
+      RCnt().WriteModeEx(index, value);
       return;
     case 2:
-      RCnt().WriteTarget(index, value);
+      RCnt().WriteTargetEx(index, value);
       return;
     default:
       rennyLogWarning("PSXHardware", "Write32(0x%08x): invalid PSX memory address.", addr);

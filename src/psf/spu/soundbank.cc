@@ -36,7 +36,7 @@ const uint8_t* SPUInstrument::GetADPCM() const
 
 const int32_t* SPUInstrument::GetData() const
 {
-  if (LPCM_.empty()) return NULL;
+  if (LPCM_.empty()) return nullptr;
   return &LPCM_[0];
 }
 
@@ -91,7 +91,7 @@ void SPUInstrument::SetFreq(double f)
 bool SPUInstrument::hasFinishedConv() const
 {
   // return (0x80000000 <= processedBlockNumber_);
-  return (current_pointer_ == NULL);
+  return (current_pointer_ == nullptr);
 }
 
 
@@ -121,7 +121,7 @@ int SPUInstrument::At(int index) const
 
 void SPUInstrument::ADPCM2LPCM()
 {
-  rennyAssert(current_pointer_ != NULL);
+  rennyAssert(current_pointer_ != nullptr);
 
   static const int xa_adpcm_table[5][2] = {
     {   0,   0 },
@@ -205,7 +205,7 @@ void SPUInstrument::ADPCM2LPCM()
       }
 
       end_addr_ = current_pointer_ - GetADPCM() + GetAddr();
-      current_pointer_ = NULL;
+      current_pointer_ = nullptr;
       processedBlockNumber_ = 0xffffffff;
 
       // wxMessageOutputDebug().Printf(wxT("End of this voice. (id: %d, start_addr: 0x%08x, ext_loop_addr: 0x%08x, end_addr: 0x%08x)"), GetAddr() / 16, GetAddr(), external_loop_addr_, end_addr_);
@@ -418,7 +418,7 @@ void* FourierTransformer::mainLoop(void *param)
         ip[0] = 0;
       }
 
-      SamplingToneIterator itr = tone->Iterator(NULL);
+      SamplingToneIterator itr = tone->Iterator(nullptr);
       int i = 0;
       while (i < n) {
         // a[i] = (double)tone->At(dn+i);
@@ -549,14 +549,14 @@ SPUInstrument* SoundBank::GetSamplingTone(uint32_t addr) const {
   if (it != tones_.end()) {
     return it.m_node->m_value.second;
   }
-  return NULL;
+  return nullptr;
 }
 
 
 SPUInstrument* SoundBank::GetSamplingTone(uint32_t addr)
 {
   SPUInstrument* tone = static_cast<const SoundBank*>(this)->GetSamplingTone(addr);
-  if (tone != NULL) return tone;
+  if (tone != nullptr) return tone;
   tone = new SPUInstrument(const_cast<SoundBank*>(this), pSPU_->GetSoundBuffer() + addr);
   // tones_.insert(addr, tone);
   tones_[addr] = tone;
@@ -613,14 +613,14 @@ void SoundBank::RemoveListener(wxEvtHandler* listener)
 void SoundBank::OnMuteTone(wxCommandEvent& event) {
   const int id = event.GetInt();
   SPUInstrument* const tone = static_cast<const SoundBank*>(this)->GetSamplingTone(id);
-  if (tone == NULL) return;
+  if (tone == nullptr) return;
   tone->Mute();
 }
 
 void SoundBank::OnUnmuteTone(wxCommandEvent& event) {
   const int id = event.GetInt();
   SPUInstrument* const tone = static_cast<const SoundBank*>(this)->GetSamplingTone(id);
-  if (tone == NULL) return;
+  if (tone == nullptr) return;
   tone->Unmute();
 }
 #endif

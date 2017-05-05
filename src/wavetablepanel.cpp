@@ -153,7 +153,7 @@ void WavetableList::OnChar(wxKeyEvent &event) {
         str_ofs.ToLong(&ofs);
         // bool muted = wxGetApp().GetSoundManager()->SwitchToneMuted(ofs);
         const wxSharedPtr<SoundFormat>& sf = wxGetApp().GetPlayingSound();
-        if (sf == NULL) continue;
+        if (sf == nullptr) continue;
         bool muted =
         if (muted == true) {
           wxListCtrl::SetItem(item, COLUMN_INDEX_MUTED, wxT("M"));

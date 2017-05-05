@@ -9,237 +9,257 @@
 
 
 namespace {
-const int BIAS = 2;
-const int PSXCLK = 33868800;	/* 33.8688 Mhz */
-
-const int counter_num = 4;
-uint32_t last = 0;
-
+const int BIAS = 1; // 2;
 } // namespace
 
+namespace psx {
 
-namespace PSX {
+const int PSXCLK = 33868800;	/* 33.8688 Mhz */
 
-RootCounterManager::RootCounterManager(Composite* composite, R3000A::Registers* regs)
-  : Component(composite), IRQAccessor(composite), cycle_(regs->sysclock) {}
+RootCounter::RootCounter()
+  : mode_(0), target_(0),
+    cycle_start_(0), cycle_(0), rate_(1),
+    counts_to_target_(false), irq_(false) {}
 
-
-void RootCounterManager::UpdateCycle(u32 index)
-{
-  counters[index].count_start_clk = cycle_;
-
-  if ( ((counters[index].mode_ & RootCounter::kCounterStopped) == 0 || (index != kCounterSystemClock)) &&
-       counters[index].mode_ & (RootCounter::kIrqOnTarget | RootCounter::kIrqOnOverflow) ) {
-    if (counters[index].mode_ & RootCounter::kIrqOnTarget) {
-      counters[index].rest_of_count_clk = (counters[index].target_ - counters[index].count_) * counters[index].rate / BIAS;
-    } else {
-      counters[index].rest_of_count_clk = (0xffff - counters[index].count_) * counters[index].rate / BIAS;
-    }
+void RootCounter::UpdateCycle(const unsigned int cycle32) {
+  if (count(cycle32) < target_) {
+    cycle_ = target_ * rate_ / BIAS;
+    counts_to_target_ = true;
   } else {
-    counters[index].rest_of_count_clk = 0xffffffff;
+    cycle_ = 0xffff * rate_ / BIAS;
+    counts_to_target_ = false;
   }
-
 }
 
-void RootCounterManager::Reset(unsigned int index)
-{
-  rennyAssert(index < 4);
-
-  counters[index].count_ = 0;
-  UpdateCycle(index);
-
-  set_irq_data(counters[index].interrupt);
-  if ( (counters[index].mode_ & RootCounter::kIrqRegenerate) == 0 ) {
-    counters[index].rest_of_count_clk = 0xffffffff;
+void RootCounter::UpdateCycle(unsigned int count, const unsigned int cycle32) {
+  count &= 0xffff;
+  cycle_start_ = cycle32 - (count * rate_ / BIAS);
+  if (count < target_) {
+    cycle_ = target_ * rate_ / BIAS;
+    counts_to_target_ = true;
+  } else {
+    cycle_ = 0xffff * rate_ / BIAS;
+    counts_to_target_ = false;
   }
-  // printf("RootCounter(%d): Reset: %d\n", index, counters[index].rest_of_count_clk);
 }
 
-void RootCounterManager::SetNextCounter()
-{
-  clks_to_update_min_ = 0x7fffffff;
-  nextiCounter = -1;
-  uint32_t sysclock = cycle_;
-  nextsCounter = sysclock;
+unsigned int RootCounter::count(const unsigned int cycle32) const {
+  return ((cycle32 - cycle_start_) * BIAS / rate_) & 0xffff;
+}
 
-  for (int i = 0; i < counter_num; i++) {
-    if (counters[i].rest_of_count_clk == 0xffffffff) continue;
-    const int clks_to_update = counters[i].rest_of_count_clk - (sysclock - counters[i].count_start_clk);
-    if (clks_to_update < 0) {
-      clks_to_update_min_ = 0;
-      nextiCounter = i;
-      break;
+unsigned int RootCounter::mode() const {
+  return mode_;
+}
+
+unsigned int RootCounter::target() const {
+  return target_;
+}
+
+bool RootCounter::irq() const {
+  return irq_;
+}
+
+void RootCounter::reset_irq() {
+  irq_ = false;
+}
+
+void RootCounter::Update(const unsigned int cycle32) {
+  if (cycle32 - cycle_start_ >= cycle_) {
+    // Reset
+    unsigned int count;
+    if (counts_to_target_) {
+      if (mode_ & kCountToTarget) {
+        count = (cycle32 - cycle_start_) * BIAS / rate_ - target_;
+        UpdateCycle(count, cycle32);
+      } else {
+        RootCounter::UpdateCycle(cycle32);
+      }
+      if ((mode_ & kIrqOnTarget) &&
+          ((mode_ & kIrqRegenerate) || (mode_ & kCountEqTarget) == 0)) {
+        irq_ = true;
+      }
+      mode_ |= kCountEqTarget;
+    } else {
+      count = (cycle32 - cycle_start_) * BIAS / rate_ - 0xffff;
+      UpdateCycle(count, cycle32);
+      if ((mode_ & kIrqOnOverflow) &&
+          ((mode_ & kIrqRegenerate) || (mode_ & kOverflow) == 0)) {
+        irq_ = true;
+      }
+      mode_ |= kOverflow;
     }
-    if (clks_to_update < static_cast<int>(clks_to_update_min_)) {
-      clks_to_update_min_ = clks_to_update;
-      nextiCounter = i;
-    }
+    mode_ |= kIrqRequest;
   }
 }
 
-
-void RootCounterManager::UpdateVSyncRate()
-{
-  counters[3].rate = (PSXCLK / 60);   // 60 Hz
+unsigned int RootCounter::ReadCount(unsigned int cycle32) const {
+  const_cast<RootCounter*>(this)->Update(cycle32);
+  return count(cycle32);
 }
 
+unsigned int RootCounter::ReadMode(unsigned int cycle32) const {
+  const_cast<RootCounter*>(this)->Update(cycle32);
+  return mode();
+}
+
+unsigned int RootCounter::ReadTarget() const {
+  return target();
+}
+
+void RootCounter::WriteCount(unsigned int count, unsigned int cycle32) {
+  Update(cycle32);
+  UpdateCycle(count, cycle32);
+}
+
+void RootCounter::WriteMode(unsigned int mode, unsigned int cycle32) {
+  Update(cycle32);
+  mode_ = mode;
+  reset_irq();
+}
+
+void RootCounter::WriteTarget(unsigned int target, unsigned int cycle32) {
+  Update(cycle32);
+  target_ = target;
+  UpdateCycle(count(cycle32), cycle32);
+}
+
+RootCounterManager::RootCounterManager(PSX* composite)
+  : Component(composite), IRQAccessor(composite),
+    interrupt_{ 0x10, 0x20, 0x40, 0x01 }, cycle_(0),
+    last_spusync_cycle_(0) {}
+
+unsigned int RootCounterManager::cycle32() const {
+  return cycle_;
+}
+
+void RootCounterManager::IncreaseCycle() {
+  ++cycle_;
+  SPURun();
+}
+
+void RootCounterManager::UpdateVSyncRate() {
+  counters[3].rate_ = (PSXCLK / 60);   // 60 Hz
+}
 
 void RootCounterManager::Init()
 {
   memset(counters, 0, sizeof(counters));
 
+  cycle_ = 0;
+
   // pixelclock
-  counters[0].rate = 1; counters[0].interrupt = 0x10;
+  counters[0].rate_ = 1;
   // horizontal retrace
-  counters[1].rate = 1; counters[1].interrupt = 0x20;
+  counters[1].rate_ = 1;
   // 1/8 system clock
-  counters[2].rate = 1; counters[2].interrupt = 0x40;
+  counters[2].rate_ = 1;
   // vertical retrace
-  counters[3].interrupt = 1;
   counters[3].mode_ = RootCounter::kTargetReached | RootCounter::kCountToTarget;
   counters[3].target_ = 1;
   UpdateVSyncRate();
 
-  // cnt = 4; // if SPU_async == NULL
-
-  UpdateCycle(0); UpdateCycle(1); UpdateCycle(2); UpdateCycle(3);
-  SetNextCounter();
-  last = 0;
-
+  for (auto i = 0; i < 4; ++i) {
+    counters[i].UpdateCycle(0, cycle_);
+  }
+  last_spusync_cycle_ = 0;
   rennyLogDebug("PSXRootCounter", "Initialized PSX root counter.");
 }
 
+unsigned int RootCounterManager::interrupt(unsigned int index) const {
+  return interrupt_[index];
+}
 
-void RootCounterManager::Update()
-{
-  const uint32_t sysclk = cycle_;
+void RootCounterManager::Update(unsigned int index) {
+  rennyAssert(index < 4);
+  counters[index].Update(cycle_);
+  if (counters[index].irq()) {
+    set_irq_data(interrupt_[index]);
+    counters[index].reset_irq();
+  }
+}
 
-  if (sysclk - nextsCounter < clks_to_update_min_) return;
+void RootCounterManager::Update() {
+  for (unsigned int i = 0; i < 4; ++i) {
+    Update(i);
+  }
+}
 
-  if ( (sysclk - counters[3].count_start_clk) >= counters[3].rest_of_count_clk ) {
-    UpdateCycle(3);
-    set_irq_data(1);
-  }
-  if ( (sysclk - counters[0].count_start_clk) >= counters[0].rest_of_count_clk ) {
-    //std::printf("RootCounter(0): Target is reached. (sysclk = %d, target = %d)\n",
-    //            sysclk - counters[0].count_start_clk, counters[0].rest_of_count_clk);
-    Reset(0);
-  }
-  if ( (sysclk - counters[1].count_start_clk) >= counters[1].rest_of_count_clk ) {
-    //std::printf("RootCounter(1): Target is reached. (sysclk = %d, target = %d)\n",
-    //            sysclk - counters[1].count_start_clk, counters[1].rest_of_count_clk);
-    Reset(1);
-  }
-  if ( (sysclk - counters[2].count_start_clk) >= counters[2].rest_of_count_clk ) {
-    //std::printf("RootCounter(2): Target is reached. (sysclk = %d, target = %d)\n",
-    //            sysclk - counters[2].count_start_clk, counters[2].rest_of_count_clk);
-    Reset(2);
-  }
+unsigned int RootCounterManager::ReadCountEx(unsigned int index) const {
+  // return counters[index].count_;
+  return counters[index].ReadCount(cycle_);
+}
 
-  SetNextCounter();
+unsigned int RootCounterManager::ReadModeEx(unsigned int index) const {
+  return counters[index].ReadMode(cycle_);
+}
+
+unsigned int RootCounterManager::ReadTargetEx(unsigned int index) const {
+  return counters[index].ReadTarget();
 }
 
 
-void RootCounterManager::WriteCount(unsigned int index, unsigned int value)
-{
-  counters[index].count_ = value;
-  UpdateCycle(index);
-  SetNextCounter();
+void RootCounterManager::WriteCountEx(unsigned int index, unsigned int value) {
+  counters[index].WriteCount(value, cycle_);
 }
 
-
-void RootCounterManager::WriteMode(unsigned int index, unsigned int value)
-{
-  counters[index].mode_ = value;
-  counters[index].count_ = 0;
-
+void RootCounterManager::WriteModeEx(unsigned int index, unsigned int value) {
+  counters[index].WriteMode(value, cycle_);
   if (index == 0) {   // pixel clock
     switch (value & 0x300) {
     case 0x100: // pixel clock
-      counters[index].rate = (counters[3].rate / 386) / 262; // seems ok
+      counters[index].rate_ = (counters[3].rate_ / 386) / 262; // seems ok
       break;
     default:
-      counters[index].rate = 1;
+      counters[index].rate_ = 1;
     }
   }
   else if (index == 1) {  // horizontal clock
     switch (value & 0x300) {
     case 0x100: // horizontal clock
-      counters[index].rate = (counters[3].rate) / 262; // seems ok
+      counters[index].rate_ = (counters[3].rate_) / 262; // seems ok
       break;
     default:
-      counters[index].rate = 1;
+      counters[index].rate_ = 1;
     }
   }
   else if (index == 2) {  // 1/8 system clock
     switch (value & 0x300) {
     case 0x200: // 1/8 * system clock
-      counters[index].rate = 8; // 1/8 speed
+      counters[index].rate_ = 8; // 1/8 speed
       break;
     default:
-      counters[index].rate = 1; // normal speed
+      counters[index].rate_ = 1; // normal speed
     }
   }
-
-  UpdateCycle(index);
-  SetNextCounter();
+  counters[index].UpdateCycle(0, cycle_);
 }
 
-
-void RootCounterManager::WriteTarget(unsigned int index, unsigned int value)
-{
-  counters[index].target_ = value;
-  UpdateCycle(index);
-  SetNextCounter();
+void RootCounterManager::WriteTargetEx(unsigned int index, unsigned int value) {
+  counters[index].WriteTarget(value, cycle_);
 }
 
-
-unsigned int RootCounterManager::ReadCount(unsigned int index) const
-{
-  unsigned int ret;
-
-  const_cast<RootCounterManager*>(this)->Update();
-  // if (counters[index].mode_ & RootCounter::kCountToTarget) {
-    ret = counters[index].count_ + BIAS*((cycle_ - counters[index].count_start_clk) / counters[index].rate);
-  // } else {
-  //   ret = counters[index].count_ + BIAS*(cycle_ / counters[index].rate);
-  // }
-
-  return ret & 0xffff;
-}
-
-
-int RootCounterManager::SPURun(SoundBlock* /*dest*/)
-{
-  // for debug
-/*
-  int sec = R3000ARegs().Cycle / (PSXCLK / 2);
-  int last_sec = last / (PSXCLK / 2);
-  if (last_sec < sec) {
-    wxMessageOutputDebug().Printf(wxT("%d second processed..."), sec);
-  }
-*/
-  uint32_t cycles;
-  if (cycle_ < last) {
-    cycles = 0xffffffff - last;
-    cycles += cycle_ + 1;
-  } else {
-    cycles = cycle_ - last;
-  }
-
-  const uint32_t clk_p_hz = PSXCLK / Spu().GetCurrentSamplingRate() / 2;
+int RootCounterManager::SPURun() {
+  uint32_t cycles = cycle_ - last_spusync_cycle_;
+  const uint32_t clk_p_hz = PSXCLK / Spu().GetCurrentSamplingRate();
   if (cycles >= clk_p_hz) {
     uint32_t step_count = cycles / clk_p_hz;
     uint32_t pool = cycles % clk_p_hz;
-    bool ret = Spu().Step(step_count);
-    last = cycle_ - pool;
+    bool ret = false;
+    if (last_spusync_cycle_ == 0) {
+      ret = Spu().Advance(step_count);
+    } else {
+      for (uint32_t i = 0; i < step_count; ++i) {
+        ret = Spu().GetAsync(nullptr);
+        if (ret == false) break;
+      }
+    }
+    last_spusync_cycle_ = cycle_ - pool;
     if (ret == false) {
       // wxMessageOutputDebug().Printf(wxT("RootCounter: counter = %d"), R3000ARegs().Cycle);
       return -1;
     }
     return 1;
   }
-
   return 0;
 }
 
@@ -253,9 +273,9 @@ void RootCounterManager::DeadLoopSkip()
   lmin = 0x7fffffff;
 
   for (int i = 0; i < 4; i++) {
-    if (counters[i].rest_of_count_clk != 0xffffffff) {
-      min = counters[i].rest_of_count_clk;
-      min -= cycle - counters[i].count_start_clk;
+    if (counters[i].cycle_ != 0xffffffff) {
+      min = counters[i].cycle_;
+      min -= cycle - counters[i].cycle_start_;
       // rennyAssert(min >= 0);
       if (min < lmin) {
         lmin = min;
@@ -268,41 +288,4 @@ void RootCounterManager::DeadLoopSkip()
   }
 }
 
-
-////////////////////////////////////////////////////////////////////////
-// NEW Root Counter Functions
-////////////////////////////////////////////////////////////////////////
-
-unsigned int RootCounterManager::ReadCountEx(unsigned int index) const {
-  return counters[index].count_;
-}
-
-unsigned int RootCounterManager::ReadModeEx(unsigned int index) const {
-  return counters[index].mode_;
-}
-
-unsigned int RootCounterManager::ReadTargetEx(unsigned int index) const {
-  return counters[index].target_;
-}
-
-
-void RootCounterManager::WriteCountEx(unsigned int index, unsigned int value) {
-  counters[index].count_ = value;
-}
-
-void RootCounterManager::WriteModeEx(unsigned int index, unsigned int value) {
-  counters[index].mode_ = value;
-}
-
-void RootCounterManager::WriteTargetEx(unsigned int index, unsigned int value) {
-  counters[index].target_ = value;
-}
-
-
-
-
-
-
-
-
-}   // namespace PSX
+}   // namespace psx

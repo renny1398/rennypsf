@@ -120,34 +120,34 @@ RennyDebug::RennyDebug(wxWindow* parent)
 }
 
 RennyDebug::~RennyDebug() {
-  if (instance_ != NULL) {
+  if (instance_ != nullptr) {
     delete instance_;
   }
 }
 
-RennyDebug* RennyDebug::instance_ = NULL;
+RennyDebug* RennyDebug::instance_ = nullptr;
 
 RennyDebug* RennyDebug::Instance() {
   return instance_;
 }
 
 void RennyDebug::CreateWindow(wxWindow* parent) {
-  if (instance_ == NULL) {
+  if (instance_ == nullptr) {
     instance_ = new RennyDebug(parent);
-  } else if (instance_->frame_ == NULL) {
+  } else if (instance_->frame_ == nullptr) {
     instance_->~RennyDebug();
     instance_ = new(instance_) RennyDebug(parent);
   }
 }
 
 void RennyDebug::DestroyWindow() {
-  if (instance_ != NULL && instance_->frame_ != NULL) {
+  if (instance_ != nullptr && instance_->frame_ != nullptr) {
     instance_->frame_->Destroy();
   }
 }
 
 bool RennyDebug::IsWindowCreated() const {
-  return frame_ != NULL;
+  return frame_ != nullptr;
 }
 
 void RennyDebug::ShowWindow() {
@@ -175,7 +175,7 @@ void RennyDebug::Log(LogLevel log_level, const wxString& instance_name, const wx
   rennyAssert(log_level < kLogLevelMax);
   const wxString& str_log_level = str_log_levels[log_level];
 
-  if (frame_ != NULL && list_ctrl_ != NULL) {
+  if (frame_ != nullptr && list_ctrl_ != nullptr) {
     list_ctrl_->Log(str_log_level, instance_name, msg, wxNow());
   } else {
     if (kLogLevelWarning <= log_level) {
@@ -234,7 +234,7 @@ void rennyLogError(const char* instance_name, const char* msg_format, ...) {
   va_end(arg);
 
   RennyDebug* instance = RennyDebug::Instance();
-  if (instance != NULL) {
+  if (instance != nullptr) {
     RennyDebug::Instance()->LogError(instance_name, msg);
   }
 }
@@ -247,7 +247,7 @@ void rennyLogWarning(const char* instance_name, const char* msg_format, ...) {
   va_end(arg);
 
   RennyDebug* instance = RennyDebug::Instance();
-  if (instance != NULL) {
+  if (instance != nullptr) {
     RennyDebug::Instance()->LogWarning(instance_name, msg);
   }
 }
@@ -260,7 +260,7 @@ void rennyLogInfo(const char* instance_name, const char* msg_format, ...) {
   va_end(arg);
 
   RennyDebug* instance = RennyDebug::Instance();
-  if (instance != NULL) {
+  if (instance != nullptr) {
     RennyDebug::Instance()->LogInfo(instance_name, msg);
   }
 }
@@ -274,7 +274,7 @@ void rennyLogDebug(const char* instance_name, const char* msg_format, ...) {
   va_end(arg);
 
   RennyDebug* instance = RennyDebug::Instance();
-  if (instance != NULL) {
+  if (instance != nullptr) {
     RennyDebug::Instance()->LogDebug(instance_name, msg);
   }
 }

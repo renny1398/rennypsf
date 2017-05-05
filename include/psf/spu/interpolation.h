@@ -14,104 +14,74 @@ enum InterpolationType {
 
 #include "spu.h"
 
-/*
-  memo:
-
-  Simple Interpolation:
-    SB[29]: current sample slot
-    SB[30]: next sample slot?
-    SB[31]: next+1 sample slot?
-    SB[32]: freq change flag
-
-  Gauss/Cublic Interpolation:
-    SB[28]: gpos?
-
-  interpolate if spos < 0x10000L ?
-*/
-
-namespace SPU
-{
+namespace SPU {
 
 class SPUVoice;
 
-class InterpolationBase
-{
+class InterpolationBase {
 public:
-    InterpolationBase();
-    virtual ~InterpolationBase() {}
+  virtual ~InterpolationBase() = default;
 
-    virtual void Start();
+  virtual void Start() = 0;
 
-    virtual InterpolationType GetInterpolationType() const = 0;
-    bool IsSimple() const { return GetInterpolationType() == SIMPLE_INTERPOLATION; }
-    bool IsGaussian() const { return GetInterpolationType() == GAUSS_INTERPOLATION; }
-    bool IsCubic() const { return GetInterpolationType() == CUBIC_INTERPOLATION; }
+  virtual InterpolationType GetInterpolationType() const = 0;
+  bool IsSimple() const { return GetInterpolationType() == SIMPLE_INTERPOLATION; }
+  bool IsGaussian() const { return GetInterpolationType() == GAUSS_INTERPOLATION; }
+  bool IsCubic() const { return GetInterpolationType() == CUBIC_INTERPOLATION; }
 
-    uint32_t GetSinc() const;
-    void SetSinc(uint32_t pitch);
+  void SetSinc(uint32_t pitch);
 
-    void StoreValue(int fa);
-    int GetValue();
+  uint32_t GetSincPosition() const;
+  uint32_t AddSincPosition(uint32_t dspos);
+  uint32_t SubSincPosition(uint32_t dspos);
+  uint32_t AdvanceSincPosition();
+
+  void StoreValue(int fa);
+  virtual int GetValue() const = 0;
 
 protected:
-    virtual void storeVal(int fa) = 0;
-    virtual int getVal() const = 0;
+  uint32_t GetSinc() const;
+  virtual void storeVal(int fa) = 0;
 
-public:
-    uint32_t spos;
+  uint32_t spos;
 
-protected:
-    uint32_t sinc;
-    int currSample; // used only for FM
-//    uint32_t nextSample;
-//    uint32_t next2Sample;
+private:
+  uint32_t sinc;
+  // int currSample; // used only for FM
 };
 
-
-inline uint32_t InterpolationBase::GetSinc() const { return sinc; }
-
-
-
-class GaussianInterpolation: public InterpolationBase
-{
+class GaussianInterpolation: public InterpolationBase {
 public:
   GaussianInterpolation() : gpos(0) {
     samples[0] = samples[1] = samples[2] = samples[3] = 0;
   }
-    void Start();
+  void Start();
 
-    InterpolationType GetInterpolationType() const { return GAUSS_INTERPOLATION; }
+  InterpolationType GetInterpolationType() const { return GAUSS_INTERPOLATION; }
 
-private:
-    void storeVal(int fa);
-    int getVal() const;
-
-public:
-    uint32_t gpos;
+protected:
+  void storeVal(int fa);
+  int GetValue() const;
 
 private:
-    int samples[4];
+  int samples[4];
+  uint32_t gpos;
 };
 
-
-
-class CubicInterpolation: public InterpolationBase
-{
+class CubicInterpolation: public InterpolationBase {
 public:
-    CubicInterpolation() {}
-    void Start();
+  CubicInterpolation() = default;
+  void Start();
 
-    InterpolationType GetInterpolationType() const { return CUBIC_INTERPOLATION; }
+  InterpolationType GetInterpolationType() const { return CUBIC_INTERPOLATION; }
+
+protected:
+  void storeVal(int fa);
+  int GetValue() const;
 
 private:
-    void storeVal(int fa);
-    int getVal() const;
-
-public:
-    uint32_t gpos;
-
-private:
-    int samples[4];
+  int samples[4];
+  uint32_t gpos;
 };
 
 }   // namespace SPU

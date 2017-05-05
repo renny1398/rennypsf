@@ -91,7 +91,7 @@ void MuteButton::onLeave(wxMouseEvent& WXUNUSED(event))
 void MuteButton::onClick(wxMouseEvent &)
 {
   wxSharedPtr<SoundData> sf = wxGetApp().GetPlayingSound();
-  if (sf == NULL) return;
+  if (sf == nullptr) return;
   muted_ = !muted_;
   if (muted_) {
     // sf->Ch(channel_number_).Mute();
@@ -373,7 +373,7 @@ void KeyboardWidget::PaintPressedKeys(const IntSet& WXUNUSED(keys), wxPaintDC* p
     pressedKeys_.insert(key_index);
   }
 
-  if (paint_dc == NULL) {
+  if (paint_dc == nullptr) {
     delete dc;
   }
 }
@@ -404,7 +404,7 @@ void KeyboardWidget::PaintReleasedKeys(wxPaintDC* paint_dc)
     pressedKeys_.erase(key_index);
   }
 
-  if (paint_dc == NULL) {
+  if (paint_dc == nullptr) {
     delete dc;
   }
 }

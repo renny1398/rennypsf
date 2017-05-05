@@ -1,6 +1,5 @@
 #include "psf/psx/interpreter.h"
 #include "psf/psx/memory.h"
-#include "psf/psx/rcnt.h"
 #include "psf/psx/bios.h"
 #include "psf/psx/iop.h"
 
@@ -9,15 +8,15 @@
 #include "common/SoundFormat.h"
 #include "common/debug.h"
 
-namespace PSX {
-namespace R3000A {
+namespace psx {
+namespace mips {
 
-Interpreter::Interpreter(Composite* psx, Processor* cpu, BIOS* bios, IOP* iop)
+Interpreter::Interpreter(PSX* psx, Processor* cpu, BIOS* bios, IOP* iop)
   : RegisterAccessor(psx), UserMemoryAccessor(psx),
     cpu_(*cpu), bios_(*bios), iop_(*iop) {
-  rennyAssert(&cpu_ != NULL);
-  rennyAssert(&bios_ != NULL);
-  rennyAssert(&iop_ != NULL);
+  // rennyAssert(&cpu_ != nullptr);
+  // rennyAssert(&bios_ != nullptr);
+  // rennyAssert(&iop_ != nullptr);
 }
 
 ////////////////////////////////////////////////////////////////
@@ -349,7 +348,7 @@ void Interpreter::doBranch(u32 branch_pc)
   u32 code(psxMu32val(pc));
   pc += 4;
   SetGPR(GPR_PC, pc);
-  Cycle++;
+  cpu_.IncreaseCycle(); // Cycle++;
 
   const u32 op = Opcode(code);
   switch (op) {
@@ -375,7 +374,7 @@ void Interpreter::doBranch(u32 branch_pc)
 
   // branch itself & nop
   if (GPR(GPR_PC) - 8 == branch_pc && !op) {
-    rcnt_->DeadLoopSkip();
+    cpu_.DeadLoopSkip();
   }
   cpu_.LeaveDelaySlot();
   SetGPR(GPR_PC, branch_pc);
@@ -950,19 +949,15 @@ void (Interpreter::*const Interpreter::BCONDS[24])(u32) = {
 };
 
 
-void Interpreter::Init(RootCounterManager* rcnt) {
-  rcnt_ = rcnt;
-}
-
 void Interpreter::ExecuteOnce()
 {
   u32 pc = GPR(GPR_PC);
   u32 code(psxMu32val(pc));
   pc += 4;
-  cpu_.Cycle++;
   SetGPR(GPR_PC, pc);
 
   ExecuteOpcode(code);
+  cpu_.IncreaseCycle();
 }
 
 // called from BIOS::Softcall()
@@ -973,18 +968,17 @@ void Interpreter::ExecuteBlock() {
   } while (!cpu_.doingBranch);
 }
 
+// deprecated
 uint32_t Interpreter::Execute(uint32_t cycles) {
-  const uint32_t& cycle = cpu_.Cycle;
-  const uint32_t cycle_start = cycle;
-  const uint32_t cycle_end = cycle + cycles;
-
-  while (cycle < cycle_end) {
+  const uint32_t cycle_start = cpu_.cycle32();
+  const uint64_t cycle_end = static_cast<uint64_t>(cpu_.cycle32()) + cycles;
+  while (cpu_.cycle32() < cycle_end) {
     ExecuteOnce();
   }
-  return cycle - cycle_start;
+  return cpu_.cycle32() - cycle_start;
 }
 
 void Interpreter::Shutdown() {}
 
-}   // namespace R3000A
-}   // namespace PSX
+}   // namespace mips
+}   // namespace psx

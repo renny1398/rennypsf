@@ -3,8 +3,8 @@
 #include "psf/psx/rcnt.h"
 #include "psf/psx/interpreter.h"
 
-using namespace PSX;
-using namespace PSX::R3000A;
+using namespace psx;
+using namespace psx::mips;
 
 ////////////////////////////////////////////////////////////////////////
 /// \brief The Interpreter Test class
@@ -44,12 +44,12 @@ class InterpreterTest : public CPPUNIT_NS::TestFixture {
   CPPUNIT_TEST(SLTU_test);
   CPPUNIT_TEST_SUITE_END();
 
-  static const PSX::PSXAddr kBaseAddr = 0x80010000;
+  static const psx::PSXAddr kBaseAddr = 0x80010000;
 
 protected:
-  PSX::Composite psx;
+  psx::PSX psx;
   // PSX::R3000A::Interpreter interp;
-  PSX::UserMemoryAccessor psxM;
+  psx::UserMemoryAccessor psxM;
   GeneralPurposeRegisters& GPR;
   u32& PC;
 
@@ -63,7 +63,7 @@ public:
   InterpreterTest()
     : psx(), psxM(&psx.Mem()),
       GPR(psx.R3000a().Regs.GPR),
-      PC(GPR(PSX::GPR_PC)) {}
+      PC(GPR(psx::GPR_PC)) {}
 
   void setUp() {}
   void tearDown() {}
@@ -472,11 +472,12 @@ class RcntTest : public CPPUNIT_NS::TestFixture {
   CPPUNIT_TEST(init_test);
   CPPUNIT_TEST(count_test);
   CPPUNIT_TEST(target_test);
+  CPPUNIT_TEST(overflow_test);
   CPPUNIT_TEST_SUITE_END();
 
 protected:
-  PSX::Composite psx;
-  PSX::RootCounterManager& rcnt;
+  psx::PSX psx;
+  psx::RootCounterManager& rcnt;
 
 public:
   RcntTest() : psx(), rcnt(psx.RCnt()) {}
@@ -495,31 +496,126 @@ protected:
   }
 
   void count_test() {
-    psx.R3000ARegs().sysclock = 12345;
-    rcnt.WriteCount(0, 0);
-    CPPUNIT_ASSERT_EQUAL((uint32_t)0, rcnt.ReadCount(0));
-    rcnt.WriteCount(0, 65535);
-    CPPUNIT_ASSERT_EQUAL((uint32_t)65535, rcnt.ReadCount(0));
-    rcnt.WriteCount(0, 65536);
-    CPPUNIT_ASSERT_EQUAL((uint32_t)0, rcnt.ReadCount(0));
-    rcnt.WriteCount(0, 65536 + 54321);
-    CPPUNIT_ASSERT_EQUAL((uint32_t)54321, rcnt.ReadCount(0));
+    rcnt.cycle_ = 12345;
+    rcnt.WriteCountEx(0, 0);
+    CPPUNIT_ASSERT_EQUAL((uint32_t)0, rcnt.ReadCountEx(0));
+    CPPUNIT_ASSERT_EQUAL((uint32_t)0, rcnt.ReadModeEx(0));
+    rcnt.WriteCountEx(0, 0xffff - 1);
+    CPPUNIT_ASSERT_EQUAL((uint32_t)0xffff - 1, rcnt.ReadCountEx(0));
+    CPPUNIT_ASSERT_EQUAL((uint32_t)0, rcnt.ReadModeEx(0));
+    rcnt.WriteCountEx(0, 0xffff);
+    CPPUNIT_ASSERT_EQUAL((uint32_t)0, rcnt.ReadCountEx(0));
+    CPPUNIT_ASSERT_EQUAL((uint32_t)RootCounter::kIrqRequest | (uint32_t)RootCounter::kOverflow, rcnt.ReadModeEx(0));
+    rcnt.WriteModeEx(0, 0);
+    rcnt.WriteCountEx(0, 0x10000 + 54321);
+    CPPUNIT_ASSERT_EQUAL((uint32_t)54321, rcnt.ReadCountEx(0));
+    CPPUNIT_ASSERT_EQUAL((uint32_t)0, rcnt.ReadModeEx(0));
 
-    psx.R3000ARegs().sysclock = 0;
-    rcnt.WriteCount(0, 0);
-    psx.R3000ARegs().sysclock = 12345;
-    CPPUNIT_ASSERT_EQUAL((uint32_t)12345*2, rcnt.ReadCount(0));
+    rcnt.cycle_ = 0;
+    rcnt.WriteCountEx(0, 0);
+    rcnt.cycle_ = 12345;
+    CPPUNIT_ASSERT_EQUAL((uint32_t)12345, rcnt.ReadCountEx(0));
+    CPPUNIT_ASSERT_EQUAL((uint32_t)0, rcnt.ReadModeEx(0));
+    rcnt.cycle_ = 10000;
+    rcnt.WriteCountEx(0, 0);
+    rcnt.cycle_ = 12345;
+    CPPUNIT_ASSERT_EQUAL((uint32_t)2345, rcnt.ReadCountEx(0));
+    CPPUNIT_ASSERT_EQUAL((uint32_t)0, rcnt.ReadModeEx(0));
   }
 
   void target_test() {
-    psx.R3000ARegs().sysclock = 0;
-    rcnt.WriteTarget(0, 12000);
-    rcnt.WriteMode(0, PSX::RootCounter::kCountToTarget);
-    rcnt.WriteCount(0, 0);
-    psx.R3000ARegs().sysclock = 6000;
-    CPPUNIT_ASSERT_EQUAL((uint32_t)12000, rcnt.ReadCount(0));
-    psx.R3000ARegs().sysclock = 6001;
-    CPPUNIT_ASSERT_EQUAL((uint32_t)12002, rcnt.ReadCount(0));
+    rcnt.cycle_ = 0;
+    rcnt.WriteTargetEx(0, 600);
+    rcnt.WriteModeEx(0, psx::RootCounter::kCountToTarget);
+    rcnt.WriteCountEx(0, 0);
+    rcnt.cycle_ = 599;
+    CPPUNIT_ASSERT_EQUAL((uint32_t)599, rcnt.ReadCountEx(0));
+
+    rcnt.cycle_ = 0;
+    rcnt.WriteModeEx(0, 0);
+    rcnt.cycle_ = 600;
+    CPPUNIT_ASSERT_EQUAL((uint32_t)600, rcnt.ReadCountEx(0));
+    CPPUNIT_ASSERT_EQUAL(RootCounter::kIrqRequest | (uint32_t)RootCounter::kCountEqTarget, rcnt.ReadModeEx(0));
+    rcnt.cycle_ = 0;
+    rcnt.WriteModeEx(0, 0);
+    rcnt.cycle_ = 601;
+    CPPUNIT_ASSERT_EQUAL((uint32_t)601, rcnt.ReadCountEx(0));
+    CPPUNIT_ASSERT_EQUAL(RootCounter::kIrqRequest | (uint32_t)RootCounter::kCountEqTarget, rcnt.ReadModeEx(0));
+
+    rcnt.cycle_ = 0;
+    rcnt.WriteModeEx(0, psx::RootCounter::kCountToTarget);
+    rcnt.cycle_ = 600;
+    CPPUNIT_ASSERT_EQUAL((uint32_t)0, rcnt.ReadCountEx(0));
+    CPPUNIT_ASSERT_EQUAL(RootCounter::kCountToTarget | RootCounter::kIrqRequest | (uint32_t)RootCounter::kCountEqTarget, rcnt.ReadModeEx(0));
+    rcnt.cycle_ = 0;
+    rcnt.WriteModeEx(0, psx::RootCounter::kCountToTarget);
+    rcnt.cycle_ = 601;
+    CPPUNIT_ASSERT_EQUAL((uint32_t)1, rcnt.ReadCountEx(0));
+    CPPUNIT_ASSERT_EQUAL(RootCounter::kCountToTarget | RootCounter::kIrqRequest | (uint32_t)RootCounter::kCountEqTarget, rcnt.ReadModeEx(0));
+
+    HardwareRegisterAccessor hw_regs(&psx.HwRegs());
+    rcnt.cycle_ = 0;
+    rcnt.WriteModeEx(0, RootCounter::kCountToTarget | RootCounter::kIrqOnTarget);
+    rcnt.cycle_ = 900;
+    CPPUNIT_ASSERT_EQUAL((uint32_t)300, rcnt.ReadCountEx(0));
+    CPPUNIT_ASSERT_EQUAL(RootCounter::kCountToTarget | RootCounter::kIrqOnTarget | RootCounter::kIrqRequest | RootCounter::kCountEqTarget, rcnt.ReadModeEx(0));
+    rcnt.Update();
+    CPPUNIT_ASSERT_EQUAL((uint32_t)rcnt.interrupt(0), psx.HwRegs().irq_data());
+    hw_regs.psxHu32ref(0x1070) = 0;
+    rcnt.cycle_ = 1300;
+    CPPUNIT_ASSERT_EQUAL((uint32_t)100, rcnt.ReadCountEx(0));
+    CPPUNIT_ASSERT_EQUAL(RootCounter::kCountToTarget | RootCounter::kIrqOnTarget | RootCounter::kIrqRequest | RootCounter::kCountEqTarget, rcnt.ReadModeEx(0));
+    rcnt.Update();
+    CPPUNIT_ASSERT_EQUAL((uint32_t)0, psx.HwRegs().irq_data());
+    hw_regs.psxHu32ref(0x1070) = 0;
+
+    rcnt.cycle_ = 0;
+    rcnt.WriteModeEx(0, RootCounter::kCountToTarget | RootCounter::kIrqOnTarget | RootCounter::kIrqRegenerate);
+    rcnt.cycle_ = 900;
+    CPPUNIT_ASSERT_EQUAL((uint32_t)300, rcnt.ReadCountEx(0));
+    CPPUNIT_ASSERT_EQUAL(RootCounter::kCountToTarget | RootCounter::kIrqOnTarget | RootCounter::kIrqRegenerate | RootCounter::kIrqRequest | RootCounter::kCountEqTarget, rcnt.ReadModeEx(0));
+    rcnt.Update();
+    CPPUNIT_ASSERT_EQUAL((uint32_t)rcnt.interrupt(0), psx.HwRegs().irq_data());
+    hw_regs.psxHu32ref(0x1070) = 0;
+    rcnt.cycle_ = 1300;
+    CPPUNIT_ASSERT_EQUAL((uint32_t)100, rcnt.ReadCountEx(0));
+    CPPUNIT_ASSERT_EQUAL(RootCounter::kCountToTarget | RootCounter::kIrqOnTarget | RootCounter::kIrqRegenerate | RootCounter::kIrqRequest | RootCounter::kCountEqTarget, rcnt.ReadModeEx(0));
+    rcnt.Update();
+    CPPUNIT_ASSERT_EQUAL((uint32_t)rcnt.interrupt(0), psx.HwRegs().irq_data());
+    hw_regs.psxHu32ref(0x1070) = 0;
+  }
+
+  void overflow_test() {
+    HardwareRegisterAccessor hw_regs(&psx.HwRegs());
+    rcnt.cycle_ = 0;
+    rcnt.WriteModeEx(0, RootCounter::kIrqOnOverflow);
+    rcnt.cycle_ = 0xffff + 2;
+    CPPUNIT_ASSERT_EQUAL((uint32_t)2, rcnt.ReadCountEx(0));
+    CPPUNIT_ASSERT_EQUAL(RootCounter::kIrqOnOverflow | RootCounter::kIrqRequest | RootCounter::kOverflow, rcnt.ReadModeEx(0));
+    rcnt.Update();
+    CPPUNIT_ASSERT_EQUAL((uint32_t)rcnt.interrupt(0), psx.HwRegs().irq_data());
+    hw_regs.psxHu32ref(0x1070) = 0;
+    rcnt.cycle_ = 0xffff*2 + 3;
+    CPPUNIT_ASSERT_EQUAL((uint32_t)3, rcnt.ReadCountEx(0));
+    CPPUNIT_ASSERT_EQUAL(RootCounter::kIrqOnOverflow | RootCounter::kIrqRequest | RootCounter::kOverflow, rcnt.ReadModeEx(0));
+    rcnt.Update();
+    CPPUNIT_ASSERT_EQUAL((uint32_t)0, psx.HwRegs().irq_data());
+    hw_regs.psxHu32ref(0x1070) = 0;
+
+    rcnt.cycle_ = 0;
+    rcnt.WriteModeEx(0, RootCounter::kIrqOnOverflow | RootCounter::kIrqRegenerate);
+    rcnt.cycle_ = 0xffff + 2;
+    CPPUNIT_ASSERT_EQUAL((uint32_t)2, rcnt.ReadCountEx(0));
+    CPPUNIT_ASSERT_EQUAL(RootCounter::kIrqOnOverflow | RootCounter::kIrqRegenerate | RootCounter::kIrqRequest | RootCounter::kOverflow, rcnt.ReadModeEx(0));
+    rcnt.Update();
+    CPPUNIT_ASSERT_EQUAL((uint32_t)rcnt.interrupt(0), psx.HwRegs().irq_data());
+    hw_regs.psxHu32ref(0x1070) = 0;
+    rcnt.cycle_ = 0xffff*2 + 3;
+    CPPUNIT_ASSERT_EQUAL((uint32_t)3, rcnt.ReadCountEx(0));
+    CPPUNIT_ASSERT_EQUAL(RootCounter::kIrqOnOverflow | RootCounter::kIrqRegenerate | RootCounter::kIrqRequest | RootCounter::kOverflow, rcnt.ReadModeEx(0));
+    rcnt.Update();
+    CPPUNIT_ASSERT_EQUAL((uint32_t)rcnt.interrupt(0), psx.HwRegs().irq_data());
+    hw_regs.psxHu32ref(0x1070) = 0;
   }
 };
 

@@ -8,20 +8,23 @@
 #include <cstring>
 #include <cstdlib>
 
-
-using namespace PSX::R3000A;
-
-
-namespace PSX {
+namespace {
 
 
-BIOS::BIOS(Composite* psx)
+
+}
+
+using namespace psx::mips;
+
+namespace psx {
+
+BIOS::BIOS(PSX* psx)
   : Component(psx),
-    R3000A::RegisterAccessor(psx),
+    /*mips::RegisterAccessor(psx),*/
     UserMemoryAccessor(psx),
-    IRQAccessor(psx)/*,
+    IRQAccessor(psx),
     // psx_(psx),
-    GPR(psx->R3000ARegs().GPR), CP0(psx->R3000ARegs().CP0),
+    GPR(psx->R3000ARegs().GPR), CP0(psx->R3000ARegs().CP0)/*,
     GPR(GPR_PC)(GPR.GPR(GPR_PC)),
     GPR(GPR_A0)(GPR.GPR(GPR_A0)), GPR(GPR_A1)(GPR.GPR(GPR_A1)), GPR(GPR_A2)(GPR.GPR(GPR_A2)), GPR(GPR_A3)(GPR.GPR(GPR_A3)),
     Return(GPR.Return),
@@ -29,46 +32,38 @@ BIOS::BIOS(Composite* psx)
 
 
 inline void BIOS::Return() {
-  MoveGPR(GPR_PC, GPR_RA);
+  GPR.PC = GPR.RA;
 }
 
 inline void BIOS::Return(u32 return_code) {
-  SetGPR(GPR_V0, return_code);
-  MoveGPR(GPR_PC, GPR_RA);
+  GPR.V0 = return_code;
+  GPR.PC = GPR.RA;
 }
 
 void BIOS::SoftCall(u32 pc) {
   rennyAssert(pc != 0x80001000);
-  SetGPR(GPR_PC, pc);
-  SetGPR(GPR_RA, 0x80001000);
+  GPR.PC = pc;
+  GPR.RA = 0x80001000;
   do {
-    Interp().ExecuteBlock();
-  } while (GPR(GPR_PC) != 0x80001000);
-}
-
-void BIOS::SoftCall2(u32 pc) {
-  u32 saved_ra = GPR(GPR_RA);
-  SetGPR(GPR_PC, pc);
-  SetGPR(GPR_RA, 0x80001000);
-  do {
-    Interp().ExecuteBlock();
-  } while (GPR(GPR_PC) != 0x80001000);
-  SetGPR(GPR_RA, saved_ra);
+    // Interp().ExecuteBlock();
+    R3000a().Execute(&Interp(), true);
+  } while (GPR.PC != 0x80001000);
 }
 
 void BIOS::DeliverEventEx(u32 ev, u32 spec) {
-  rennyAssert(Event != 0);
+  rennyAssert(events_base_ != 0);
 
-  if (Event[ev][spec].status != BFLIP32(EVENT_STATUS_ACTIVE)) return;
+  if (events_base_[ev][spec].status != BFLIP32(EVENT_STATUS_ACTIVE)) return;
 
-  if (Event[ev][spec].mode == BFLIP32(EVENT_MODE_INTERRUPT)) {
-    SoftCall2(BFLIP32(Event[ev][spec].fhandler));
+  if (events_base_[ev][spec].mode == BFLIP32(EVENT_MODE_INTERRUPT)) {
+    // SoftCall2(BFLIP32(Event[ev][spec].fhandler));
+    u32 saved_ra = GPR.RA;
+    SoftCall(BFLIP32(events_base_[ev][spec].fhandler));
+    GPR.RA = saved_ra;
     return;
   }
-  Event[ev][spec].status = BFLIP32(EVENT_STATUS_ALREADY);
+  events_base_[ev][spec].status = BFLIP32(EVENT_STATUS_ALREADY);
 }
-
-
 
 ////////////////////////////////////////////////////////////////
 // BIOS function
@@ -77,17 +72,13 @@ void BIOS::DeliverEventEx(u32 ev, u32 spec) {
 // returns: v0
 ////////////////////////////////////////////////////////////////
 
-
-void BIOS::nop()
-{
+void BIOS::nop() {
   rennyLogDebug("PSXBIOS", "NOP (PC = 0x%08x)", GPR(GPR_PC));
   Return();
 }
 
-
-void BIOS::abs()   // BIOSA0:0e
-{
-  int32_t a0 = static_cast<int32_t>(GPR(GPR_A0));
+void BIOS::abs() {
+  const int32_t a0 = static_cast<int32_t>(GPR.A0);
   if (a0 < 0) {
     Return(-a0);
   } else {
@@ -95,106 +86,77 @@ void BIOS::abs()   // BIOSA0:0e
   }
 }
 
-// BIOSA0:0f
 void BIOS::labs() {
   BIOS::abs();
 }
 
-void BIOS::atoi()  // BIOSA0:10
-{
-  Return( ::atoi(psxMs8ptr( GPR(GPR_A0)) ) );
+void BIOS::atoi() {
+  Return( ::atoi(psxMs8ptr(GPR.A0) ) );
 }
 
-// BIOSA0:11
 void BIOS::atol() {
   BIOS::atoi();
 }
 
-void BIOS::setjmp()    // BIOSA0:13
-{
-  u32 *jmp_buf = psxMu32ptr(GPR(GPR_A0));
-
-  jmp_buf[0] = BFLIP32(GPR(GPR_RA));
-  jmp_buf[1] = BFLIP32(GPR(GPR_SP));
-  jmp_buf[2] = BFLIP32(GPR(GPR_FP));
-  for (int i = 0; i < 8; i++) {
-    jmp_buf[3+i] = BFLIP32(GPR(GPR_S0+i));
-  }
-  jmp_buf[11] = BFLIP32(GPR(GPR_GP));
+void BIOS::setjmp() {
+  JumpBuffer* jmp_buf = reinterpret_cast<JumpBuffer*>(psxMptr(GPR.A0));
+  jmp_buf->Set(GPR);
   Return(0);
 }
 
-void BIOS::longjmp()   // BIOSA0:14
-{
-  u32 *jmp_buf = psxMu32ptr(GPR(GPR_A0));
-
-  SetGPR(GPR_RA, BFLIP32(jmp_buf[0]));
-  SetGPR(GPR_SP, BFLIP32(jmp_buf[1]));
-  SetGPR(GPR_FP, BFLIP32(jmp_buf[2]));
-  for (int i = 0; i < 8; i++) {
-    SetGPR(GPR_S0+i, BFLIP32(jmp_buf[3+i]));
-  }
-  Return(GPR(GPR_A1));
+void BIOS::longjmp() {
+  const JumpBuffer* jmp_buf = reinterpret_cast<JumpBuffer*>(psxMptr(GPR.A0));
+  const u32 gp = GPR.GP;
+  jmp_buf->Get(&GPR);
+  GPR.GP = gp;
+  Return(GPR.A1);
 }
 
-void BIOS::strcat()    // BIOSA0:15
-{
-  u32 a0 = GPR(GPR_A0);
+void BIOS::strcat() {
+  const u32 a0 = GPR.A0;
   char *dest = psxMs8ptr(a0);
-  const char *src = psxMs8ptr(GPR(GPR_A1));
-
+  const char *src = psxMs8ptr(GPR.A1);
   ::strcat(dest, src);
-
   Return(a0);
 }
 
-void BIOS::strncat()   // BIOSA0:16
-{
-  u32 a0 = GPR(GPR_A0);
+void BIOS::strncat() {
+  const u32 a0 = GPR.A0;
   char *dest = psxMs8ptr(a0);
-  const char *src = psxMs8ptr(GPR(GPR_A1));
-  const u32 count = psxMu32val(GPR(GPR_A2));
-
+  const char *src = psxMs8ptr(GPR.A1);
+  const u32 count = psxMu32val(GPR.A2);
   ::strncat(dest, src, count);
-
   Return(a0);
 }
 
-void BIOS::strcmp()    // BIOSA0:17
-{
-  Return( ::strcmp( psxMs8ptr(GPR(GPR_A0)), psxMs8ptr(GPR(GPR_A1)) ) );
-  Return();
+void BIOS::strcmp() {
+  Return( ::strcmp(psxMs8ptr(GPR.A0), psxMs8ptr(GPR.A1)) );
 }
 
-void BIOS::strncmp()    // BIOSA0:18
-{
-  Return( ::strncmp(psxMs8ptr( GPR(GPR_A0)), psxMs8ptr(GPR(GPR_A1)), psxMu32val(GPR(GPR_A2)) ) );
+void BIOS::strncmp() {
+  Return( ::strncmp(psxMs8ptr(GPR.A0), psxMs8ptr(GPR.A1), psxMu32val(GPR.A2) ) );
 }
 
-void BIOS::strcpy()    // BIOSA0:19
-{
-  u32 a0 = GPR(GPR_A0);
-  ::strcpy(psxMs8ptr(a0), psxMs8ptr(GPR(GPR_A1)));
+void BIOS::strcpy() {
+  const u32 a0 = GPR.A0;
+  ::strcpy(psxMs8ptr(a0), psxMs8ptr(GPR.A1));
   Return(a0);
 }
 
-void BIOS::strncpy()   // BIOSA0:1a
-{
-  u32 a0 = GPR(GPR_A0);
-  ::strncpy(psxMs8ptr(a0), psxMs8ptr(GPR(GPR_A1)), psxMu32val(GPR(GPR_A2)));
+void BIOS::strncpy() {
+  const u32 a0 = GPR.A0;
+  ::strncpy(psxMs8ptr(a0), psxMs8ptr(GPR.A1), psxMu32val(GPR.A2));
   Return(a0);
 }
 
-void BIOS::strlen()    // BIOSA0:1b
-{
-  Return( ::strlen( psxMs8ptr(GPR(GPR_A0)) ) );
+void BIOS::strlen() {
+  Return( ::strlen(psxMs8ptr(GPR.A0)) );
 }
 
-void BIOS::index()     // BIOSA0:1c
-{
-  u32 a0 = GPR(GPR_A0);
+void BIOS::index() {
+  const u32 a0 = GPR.A0;
   const char *src = psxMs8ptr(a0);
-  const char *ret = ::strchr(src, GPR(GPR_A1));
+  const char *ret = ::strchr(src, GPR.A1);
   if (ret) {
     Return(a0 + (ret - src));
   } else {
@@ -202,11 +164,10 @@ void BIOS::index()     // BIOSA0:1c
   }
 }
 
-void BIOS::rindex()    // BIOSA0:1d
-{
-  u32 a0 = GPR(GPR_A0);
+void BIOS::rindex() {
+  const u32 a0 = GPR.A0;
   const char *src = psxMs8ptr(a0);
-  const char *ret = ::strrchr(src, GPR(GPR_A1));
+  const char *ret = ::strchr(src, GPR.A1);
   if (ret) {
     Return(a0 + (ret - src));
   } else {
@@ -214,21 +175,18 @@ void BIOS::rindex()    // BIOSA0:1d
   }
 }
 
-// BIOSA0:1e
 void BIOS::strchr() {
   BIOS::index();
 }
 
-// BIOSA0:1f
 void BIOS::strrchr() {
   BIOS::rindex();
 }
 
-void BIOS::strpbrk()   // BIOSA0:20
-{
-  u32 a0 = GPR(GPR_A0);
+void BIOS::strpbrk() {
+  const u32 a0 = GPR.A0;
   const char *src = psxMs8ptr(a0);
-  const char *ret = ::strpbrk(src, psxMs8ptr(GPR(GPR_A1)));
+  const char *ret = ::strpbrk(src, psxMs8ptr(GPR.A1));
   if (ret) {
     Return(a0 + (ret - src));
   } else {
@@ -236,21 +194,18 @@ void BIOS::strpbrk()   // BIOSA0:20
   }
 }
 
-void BIOS::strspn()    // BIOSA0:21
-{
-  Return( ::strspn( psxMs8ptr(GPR(GPR_A0)), psxMs8ptr(GPR(GPR_A1)) ) );
+void BIOS::strspn() {
+  Return( ::strspn(psxMs8ptr(GPR.A0), psxMs8ptr(GPR.A1)) );
 }
 
-void BIOS::strcspn()   // BIOSA0:22
-{
-  Return( ::strcspn( psxMs8ptr(GPR(GPR_A0)), psxMs8ptr(GPR(GPR_A1)) ) );
+void BIOS::strcspn() {
+  Return( ::strcspn(psxMs8ptr(GPR.A0), psxMs8ptr(GPR.A1)) );
 }
 
-void BIOS::strtok()    // BIOSA0:23
-{
-  u32 a0 = GPR(GPR_A0);
+void BIOS::strtok() {
+  const u32 a0 = GPR.A0;
   char *src = psxMs8ptr(a0);
-  char *ret = ::strtok(src, psxMs8ptr(GPR(GPR_A1)));
+  char *ret = ::strtok(src, psxMs8ptr(GPR.A1));
   if (ret) {
     Return(a0 + (ret - src));
   } else {
@@ -258,11 +213,10 @@ void BIOS::strtok()    // BIOSA0:23
   }
 }
 
-void BIOS::strstr()    // BIOSA0:24
-{
-  u32 a0 = GPR(GPR_A0);
+void BIOS::strstr() {
+  const u32 a0 = GPR.A0;
   const char *src = psxMs8ptr(a0);
-  const char *ret = ::strstr(src, psxMs8ptr(GPR(GPR_A1)));
+  const char *ret = ::strstr(src, psxMs8ptr(GPR.A1));
   if (ret) {
     Return(a0 + (ret - src));
   } else {
@@ -270,68 +224,58 @@ void BIOS::strstr()    // BIOSA0:24
   }
 }
 
-void BIOS::toupper()   // BIOSA0:25
-{
-  Return( ::toupper(GPR(GPR_A0)) );
+void BIOS::toupper() {
+  Return(::toupper(GPR.A0));
 }
 
-void BIOS::tolower()   // BIOSA0:26
-{
-  Return( ::tolower(GPR(GPR_A0)) );
+void BIOS::tolower() {
+  Return(::tolower(GPR.A0));
 }
 
-void BIOS::bcopy() // BIOSA0:27
-{
-  u32 a1 = GPR(GPR_A1);
-  ::memcpy(psxMu8ptr(a1), psxMu8ptr(GPR(GPR_A0)), GPR(GPR_A2));
+void BIOS::bcopy() {
+  const u32 a1 = GPR.A1;
+  ::memcpy(psxMu8ptr(a1), psxMu8ptr(GPR.A0), GPR.A2);
   // Return(a1);
   Return();
 }
 
-void BIOS::bzero() // BIOSA0:28
-{
-  u32 a0 = GPR(GPR_A0);
-  ::memset(psxMu8ptr(a0), 0, GPR(GPR_A1));
+void BIOS::bzero() {
+  const u32 a0 = GPR.A0;
+  ::memset(psxMu8ptr(a0), 0, GPR.A1);
   // Return(a0);
   Return();
 }
 
-void BIOS::bcmp()  // BIOSA0:29
-{
-  Return( ::memcmp( psxMu8ptr(GPR(GPR_A0)), psxMu8ptr(GPR(GPR_A1)), GPR(GPR_A2) ) );
+void BIOS::bcmp() {
+  Return( ::memcmp(psxMu8ptr(GPR.A0), psxMu8ptr(GPR.A1), GPR.A2) );
 }
 
-void BIOS::memcpy()    // BIOSA0:2A
-{
-  u32 a0 = GPR(GPR_A0);
-  ::memcpy(psxMu8ptr(a0), psxMu8ptr(GPR(GPR_A1)), GPR(GPR_A2));
+void BIOS::memcpy() {
+  const u32 a0 = GPR.A0;
+  ::memcpy(psxMu8ptr(a0), psxMu8ptr(GPR.A1), GPR.A2);
   Return(a0);
 }
 
-void BIOS::memset()    // BIOSA0:2b
-{
-  u32 a0 = GPR(GPR_A0);
-  ::memset(psxMu8ptr(a0), GPR(GPR_A1), GPR(GPR_A2));
+void BIOS::memset() {
+  const u32 a0 = GPR.A0;
+  ::memset(psxMu8ptr(a0), GPR.A1, GPR.A2);
   Return(a0);
 }
 
-void BIOS::memmove()    // BIOSA0:2c
-{
-  u32 a0 = GPR(GPR_A0);
-  ::memmove(psxMu8ptr(a0), psxMu8ptr(GPR(GPR_A1)), GPR(GPR_A2));
+void BIOS::memmove() {
+  const u32 a0 = GPR.A0;
+  ::memmove(psxMu8ptr(a0), psxMu8ptr(GPR.A1), GPR.A2);
   Return(a0);
 }
 
-void BIOS::memcmp()    // BIOSA0:2d
-{
-  Return( ::memcmp( psxMu8ptr(GPR(GPR_A0)), psxMu8ptr(GPR(GPR_A1)), GPR(GPR_A2) ) );
+void BIOS::memcmp() {
+  Return( ::memcmp( psxMu8ptr(GPR.A0), psxMu8ptr(GPR.A1), GPR.A2) );
 }
 
-void BIOS::memchr()    // BIOSA0:2e
-{
-  u32 a0 = GPR(GPR_A0);
-  const char *src = psxMs8ptr(a0);
-  const char *ret = static_cast<const char*>(::memchr(src, GPR(GPR_A1), GPR(GPR_A2)));
+void BIOS::memchr() {
+  const u32 a0 = GPR.A0;
+  const char* src = psxMs8ptr(a0);
+  const char* ret = static_cast<const char*>(::memchr(src, GPR.A1, GPR.A2));
   if (ret) {
     Return(a0 + (ret - src));
   } else {
@@ -339,32 +283,29 @@ void BIOS::memchr()    // BIOSA0:2e
   }
 }
 
-void BIOS::rand()  // BIOSA0:2f
-{
+void BIOS::rand() {
   Return( 1 + static_cast<int>(32767.0 * ::rand() / (RAND_MAX + 1.0)) );
 }
 
-void BIOS::srand() // BIOSA0:30
-{
-  ::srand(GPR(GPR_A0));
+void BIOS::srand() {
+  ::srand(GPR.A0);
   Return();
 }
 
-void BIOS::malloc()    // BIOSA0:33
-{
+void BIOS::malloc() {
   u32 chunk = heap_addr;
-  malloc_chunk *pChunk = reinterpret_cast<malloc_chunk*>(psxMu8ptr(chunk));
-  u32 a0 = GPR(GPR_A0);
+  malloc_chunk *pChunk = reinterpret_cast<malloc_chunk*>(psxMptr(chunk));
+  const u32 a0 = GPR.A0;
 
   // search for first chunk that is large enough and not currently being used
   while ( a0 > BFLIP32(pChunk->size) || BFLIP32(pChunk->stat) == 1/*INUSE*/ ) {
     chunk = pChunk->fd;
-    pChunk = reinterpret_cast<malloc_chunk*>(psxMu8ptr(chunk));
+    pChunk = reinterpret_cast<malloc_chunk*>(psxMptr(chunk));
   }
 
   // split free chunk
   u32 fd = chunk + sizeof(malloc_chunk) + a0;
-  malloc_chunk *pFd = reinterpret_cast<malloc_chunk*>(psxMu8ptr(fd));
+  malloc_chunk *pFd = reinterpret_cast<malloc_chunk*>(psxMptr(fd));
   pFd->stat = pChunk->stat;
   pFd->size = BFLIP32( BFLIP32(pChunk->size) - a0 );
   pFd->fd = pChunk->fd;
@@ -378,13 +319,12 @@ void BIOS::malloc()    // BIOSA0:33
   Return( (chunk + sizeof(malloc_chunk)) | 0x80000000 );
 }
 
-void BIOS::InitHeap()  // BIOSA0:39
-{
-  u32 a0 = GPR(GPR_A0);
-  u32 a1 = GPR(GPR_A1);
+void BIOS::InitHeap() {
+  const u32 a0 = GPR.A0;
+  const u32 a1 = GPR.A1;
   heap_addr = a0;
 
-  malloc_chunk *chunk = reinterpret_cast<malloc_chunk*>(psxMu8ptr(a0));
+  malloc_chunk *chunk = reinterpret_cast<malloc_chunk*>(psxMptr(a0));
   chunk->stat = 0;
   if ( (a0 & 0x1fffff) + a1 >= 0x200000 ) {
     chunk->size = BFLIP32( 0x1ffffc - (a0 & 0x1fffff) );
@@ -396,41 +336,33 @@ void BIOS::InitHeap()  // BIOSA0:39
   Return();
 }
 
-// BIOSA0:44
 void BIOS::FlushCache() {
   BIOS::nop();
 }
 
-void BIOS::_bu_init()      // BIOSA0:70
-{
+void BIOS::_bu_init() {
   DeliverEventEx(0x11, 0x2);    // 0xf0000011, 0x0004
   DeliverEventEx(0x81, 0x2);    // 0xf4000001, 0x0004
   Return();
 }
 
-// BIOSA0:71
 void BIOS::_96_init() {
   BIOS::nop();
 }
 
-// BIOSA0:72
 void BIOS::_96_remove() {
   BIOS::nop();
 }
 
 
-
-void BIOS::SetRCnt()   // B0:02
-{
-  u32 a0 = GPR(GPR_A0);
-  u32 a1 = GPR(GPR_A1);
-  u32 a2 = GPR(GPR_A2);
-
-  a0 &= 0x3;
-  SetGPR(GPR_A0, a0);
+void BIOS::SetRCnt() {
+  const u32 a0 = GPR.A0 & 0x3;
+  const u32 a1 = GPR.A1;
+  const u32 a2 = GPR.A2;
+  GPR.A0 = a0;
   if (a0 != 3) {
     u32 mode = 0;
-    RCnt().WriteTarget(a0, a1);
+    RCnt().WriteTargetEx(a0, a1);
     if (a2 & 0x1000) mode |= 0x050; // Interrupt Mode
     if (a2 & 0x0100) mode |= 0x008; // Count to 0xffff
     if (a2 & 0x0010) mode |= 0x001; // Timer stop mode
@@ -439,27 +371,23 @@ void BIOS::SetRCnt()   // B0:02
     } else {
       if (a2 & 0x0001) mode |= 0x100; // System Clock mode
     }
-    RCnt().WriteMode(a0, mode);
+    RCnt().WriteModeEx(a0, mode);
   }
   Return();
 }
 
-void BIOS::GetRCnt()   // B0:03
-{
-  u32 a0 = GPR(GPR_A0);
-  a0 &= 0x3;
-  SetGPR(GPR_A0,  a0);
+void BIOS::GetRCnt() {
+  const u32 a0 = GPR.A0 & 0x3;
+  GPR.A0 = a0;
   if (a0 != 3) {
-    Return(RCnt().ReadCount(a0));
+    Return(RCnt().ReadCountEx(a0));
   } else {
     Return(0);
   }
 }
 
-void BIOS::StartRCnt() // B0:04
-{
-  u32 a0 = GPR(GPR_A0);
-  a0 &= 0x3;
+void BIOS::StartRCnt() {
+  const u32 a0 = GPR.A0 & 0x3;
   if (a0 != 3) {
     set_irq_mask( irq_mask() | BFLIP32(1<<(a0+4)) );
   } else {
@@ -469,10 +397,8 @@ void BIOS::StartRCnt() // B0:04
   Return(1);
 }
 
-void BIOS::StopRCnt()  // B0:05
-{
-  u32 a0 = GPR(GPR_A0);
-  a0 &= 0x3;
+void BIOS::StopRCnt() {
+  const u32 a0 = GPR.A0 & 0x3;
   if (a0 != 3) {
     set_irq_mask( irq_mask() & BFLIP32( ~(1<<(a0+4)) ) );
   } else {
@@ -482,21 +408,18 @@ void BIOS::StopRCnt()  // B0:05
   Return(1);
 }
 
-void BIOS::ResetRCnt() // B0:06
-{
-  u32 a0 = GPR(GPR_A0);
-  a0 &= 0x3;
+void BIOS::ResetRCnt() {
+  const u32 a0 = GPR.A0 & 0x3;
   if (a0 != 3) {
-    RCnt().WriteMode(a0, 0);
-    RCnt().WriteTarget(a0, 0);
-    RCnt().WriteCount(a0, 0);
+    RCnt().WriteModeEx(a0, 0);
+    RCnt().WriteTargetEx(a0, 0);
+    RCnt().WriteCountEx(a0, 0);
   }
   // SetGPR(GPR_A0, a0);
   Return();
 }
 
-int BIOS::GetEv(int a0)
-{
+int BIOS::GetEv(int a0) {
   int ev;
   ev = (a0 >> 24) & 0xf;
   if (ev == 0xf) ev = 0x5;
@@ -505,8 +428,7 @@ int BIOS::GetEv(int a0)
   return ev;
 }
 
-int BIOS::GetSpec(int a1)
-{
+int BIOS::GetSpec(int a1) {
   switch (a1) {
   case 0x0301:
     return 16;
@@ -521,76 +443,68 @@ int BIOS::GetSpec(int a1)
   return 0;
 }
 
-void BIOS::DeliverEvent()  // B0:07
-{
-  int ev = GetEv(GPR(GPR_A0));
-  int spec = GetSpec(GPR(GPR_A1));
+void BIOS::DeliverEvent() {
+  const int ev = GetEv(GPR.A0);
+  const int spec = GetSpec(GPR.A1);
   DeliverEventEx(ev, spec);
   Return();
 }
 
-void BIOS::OpenEvent() // B0:08
-{
-  int ev = GetEv(GPR(GPR_A0));
-  int spec = GetSpec(GPR(GPR_A1));
-  Event[ev][spec].status = BFLIP32(EVENT_STATUS_WAIT);
-  Event[ev][spec].mode = BFLIP32(GPR(GPR_A2));
-  Event[ev][spec].fhandler = BFLIP32(GPR(GPR_A3));
+void BIOS::OpenEvent() {
+  const int ev = GetEv(GPR.A0);
+  const int spec = GetSpec(GPR.A1);
+  events_base_[ev][spec].status = BFLIP32(EVENT_STATUS_WAIT);
+  events_base_[ev][spec].mode = BFLIP32(GPR.A2);
+  events_base_[ev][spec].fhandler = BFLIP32(GPR.A3);
   Return(ev | (spec << 8));
 }
 
-void BIOS::CloseEvent()    // B0:09
-{
-  u32 a0 = GPR(GPR_A0);
-  int ev = a0 & 0xff;
-  int spec = (a0 >> 8) & 0xff;
-  Event[ev][spec].status = BFLIP32(EVENT_STATUS_UNUSED);
+void BIOS::CloseEvent() {
+  const u32 a0 = GPR.A0;
+  const int ev = a0 & 0xff;
+  const int spec = (a0 >> 8) & 0xff;
+  events_base_[ev][spec].status = BFLIP32(EVENT_STATUS_UNUSED);
   Return(1);
 }
 
-void BIOS::WaitEvent() // B0:0a
-{
+void BIOS::WaitEvent() {
   // same as EnableEvent??
-  u32 a0 = GPR(GPR_A0);
-  int ev = a0 & 0xff;
-  int spec = (a0 >> 8) & 0xff;
-  Event[ev][spec].status = BFLIP32(EVENT_STATUS_ACTIVE);
+  const u32 a0 = GPR.A0;
+  const int ev = a0 & 0xff;
+  const int spec = (a0 >> 8) & 0xff;
+  events_base_[ev][spec].status = BFLIP32(EVENT_STATUS_UNUSED);
   Return(1);
 }
 
-void BIOS::TestEvent() // B0:0b
-{
-  u32 a0 = GPR(GPR_A0);
-  int ev = a0 & 0xff;
-  int spec = (a0 >> 8) & 0xff;
-  if (Event[ev][spec].status == BFLIP32(EVENT_STATUS_ALREADY)) {
-    Event[ev][spec].status = BFLIP32(EVENT_STATUS_ACTIVE);
+void BIOS::TestEvent() {
+  const u32 a0 = GPR.A0;
+  const int ev = a0 & 0xff;
+  const int spec = (a0 >> 8) & 0xff;
+  if (events_base_[ev][spec].status == BFLIP32(EVENT_STATUS_ALREADY)) {
+    events_base_[ev][spec].status = BFLIP32(EVENT_STATUS_ACTIVE);
     Return(1);
   } else {
     Return(0);
   }
 }
 
-void BIOS::EnableEvent()   // B0:0c
-{
-  u32 a0 = GPR(GPR_A0);
-  int ev = a0 & 0xff;
-  int spec = (a0 >> 8) & 0xff;
-  Event[ev][spec].status = BFLIP32(EVENT_STATUS_ACTIVE);
+void BIOS::EnableEvent() {
+  const u32 a0 = GPR.A0;
+  const int ev = a0 & 0xff;
+  const int spec = (a0 >> 8) & 0xff;
+  events_base_[ev][spec].status = BFLIP32(EVENT_STATUS_ACTIVE);
   Return(1);
 }
 
-void BIOS::DisableEvent()  // B0:0d
-{
-  u32 a0 = GPR(GPR_A0);
-  int ev = a0 & 0xff;
-  int spec = (a0 >> 8) & 0xff;
-  Event[ev][spec].status = BFLIP32(EVENT_STATUS_WAIT);
+void BIOS::DisableEvent() {
+  const u32 a0 = GPR.A0;
+  const int ev = a0 & 0xff;
+  const int spec = (a0 >> 8) & 0xff;
+  events_base_[ev][spec].status = BFLIP32(EVENT_STATUS_WAIT);
   Return(1);
 }
 
-void BIOS::OpenTh()    // B0:0e
-{
+void BIOS::OpenTh() {
   u32 th;
   for (th = 1; th < 8; th++) {
     if (Thread[th].status == 0) {
@@ -599,15 +513,14 @@ void BIOS::OpenTh()    // B0:0e
     }
   }
   Thread[th].status = BFLIP32(1);
-  Thread[th].func = BFLIP32(GPR(GPR_A0));
-  Thread[th].reg.SP = BFLIP32(GPR(GPR_A1));
-  Thread[th].reg.GP = BFLIP32(GPR(GPR_A2));
+  Thread[th].func = BFLIP32(GPR.A0);
+  Thread[th].reg.SP = BFLIP32(GPR.A1);
+  Thread[th].reg.GP = BFLIP32(GPR.A2);
   Return(th);
 }
 
-void BIOS::CloseTh()   // B0:0f
-{
-  u32 th = GPR(GPR_A0) & 0xff;
+void BIOS::CloseTh() {
+  const u32 th = GPR.A0 & 0xff;
   if (Thread[th].status == 0) {
     Return(0);
   } else {
@@ -616,92 +529,82 @@ void BIOS::CloseTh()   // B0:0f
   }
 }
 
-void BIOS::ChangeTh()  // B0:10
-{
-  u32 th = GPR(GPR_A0) & 0xff;
+void BIOS::ChangeTh() {
+  const u32 th = GPR.A0 & 0xff;
   if (Thread[th].status == 0 || CurThread == th) {
     Return(0);
     return;
   }
   if (Thread[CurThread].status == BFLIP32(2)) {
     Thread[CurThread].status = BFLIP32(1);
-    Thread[CurThread].func = BFLIP32(GPR(GPR_RA));
+    Thread[CurThread].func = BFLIP32(GPR.RA);
     // WARNING: thread.HI and thread.LO are destroyed.
-    Thread[CurThread].reg.Set(GPR());
+    Thread[CurThread].reg.Set(GPR);
   }
   // WARNING: HI and LO are destroyed.
-  SetGPR(Thread[CurThread].reg);
-  SetGPR(GPR_PC, BFLIP32(Thread[th].func));
+  GPR.Set(Thread[CurThread].reg);
+  GPR.PC = BFLIP32(Thread[th].func);
   Thread[th].status = BFLIP32(2);
   CurThread = th;
   Return(1);
 }
 
-void BIOS::ReturnFromException()   // B0:17
-{
+void BIOS::ReturnFromException() {
   //    ::memcpy(GPR.R, regs, 32*sizeof(u32));
   //    GPR.LO = regs[32];
   //    GPR.HI = regs[33];
-  SetGPR(savedGPR);
-  u32 pc = CP0(COP0_EPC);
-  if (CP0(COP0_CAUSE) & 0x80000000) {
+  GPR.Set(savedGPR);
+  u32 pc = CP0.EPC;
+  if (CP0.CAUSE & 0x80000000) {
     pc += 4;
   }
-  SetGPR(GPR_PC, pc);
-  u32 status = CP0(COP0_SR);
-  SetCP0(COP0_SR, (status & 0xfffffff0) | ((status & 0x3c) >> 2) );
+  GPR.PC = pc;
+  u32 status = CP0.SR;
+  CP0.SR = (status & 0xfffffff0) | ((status & 0x3c) >> 2);
 }
 
-void BIOS::ResetEntryInt() // B0:18
-{
-  jmp_int = 0;
+void BIOS::ResetEntryInt() {
+  jmp_int = nullptr;
   Return();
 }
 
-void BIOS::HookEntryInt()  // B0:19
-{
-  jmp_int = psxMu32ptr(GPR(GPR_A0));
+void BIOS::HookEntryInt() {
+  jmp_int = reinterpret_cast<JumpBuffer*>(psxMu32ptr(GPR.A0));
   Return();
 }
 
-void BIOS::UnDeliverEvent()    // B0:20
-{
-  int ev = GetEv(GPR(GPR_A0));
-  int spec = GetSpec(GPR(GPR_A1));
-  if (Event[ev][spec].status == BFLIP32(EVENT_STATUS_ALREADY) && Event[ev][spec].mode == BFLIP32(EVENT_MODE_NO_INTERRUPT)) {
-    Event[ev][spec].status = BFLIP32(EVENT_STATUS_ACTIVE);
+void BIOS::UnDeliverEvent() {
+  const int ev = GetEv(GPR.A0);
+  const int spec = GetSpec(GPR.A1);
+  if (events_base_[ev][spec].status == BFLIP32(EVENT_STATUS_ALREADY) && events_base_[ev][spec].mode == BFLIP32(EVENT_MODE_NO_INTERRUPT)) {
+    events_base_[ev][spec].status = BFLIP32(EVENT_STATUS_ACTIVE);
   }
   Return();
 }
 
-void BIOS::GetC0Table()    // B0:56
-{
+void BIOS::GetC0Table() {
   Return(0x674);
 }
 
-void BIOS::GetB0Table()    // B0:57
-{
+void BIOS::GetB0Table() {
   Return(0x874);
 }
 
 
-void BIOS::SysEnqIntRP()   // C0:02
-{
-  SysIntRP[GPR(GPR_A0)] = GPR(GPR_A1);
+void BIOS::SysEnqIntRP() {
+  SysIntRP[GPR.A0] = GPR.A1;
   Return(0);
 }
 
-void BIOS::SysDeqIntRP()   // C0:03
-{
-  SysIntRP[GPR(GPR_A0)] = 0;
+void BIOS::SysDeqIntRP() {
+  SysIntRP[GPR.A0] = 0;
   Return(0);
 }
 
-void BIOS::ChangeClearRCnt()   // C0:0a
-{
-  u32 *ptr = psxMu32ptr((GPR(GPR_A0) << 2) + 0x8600);
+void BIOS::ChangeClearRCnt() {
+  u32 *ptr = psxMu32ptr((GPR.A0 << 2) + 0x8600);
   Return(BFLIP32(*ptr));
-  *ptr = BFLIP32(GPR(GPR_A1));
+  *ptr = BFLIP32(GPR.A1);
 }
 
 
@@ -714,18 +617,15 @@ void (*biosC0[256])();
 // PSXBIOS public functions
 ////////////////////////////////////////////////////////////////
 
-
-
 void (BIOS::*BIOS::biosA0[256])() = {};
 void (BIOS::*BIOS::biosB0[256])() = {};
 void (BIOS::*BIOS::biosC0[256])() = {};
-
 
 void BIOS::Init()
 {
   heap_addr = 0;
   CurThread = 0;
-  jmp_int = 0;
+  jmp_int = nullptr;
 
   for (int i = 0; i < 256; i++) {
     biosA0[i] = &BIOS::nop;
@@ -802,10 +702,11 @@ void BIOS::Init()
 
   u32 base = 0x1000;
   u32 size = sizeof(EvCB) * 32;
-  Event = static_cast<EvCB*>(psxRptr(base));
+  events_base_ = static_cast<EvCB*>(psxRptr(base));
   base += size*6;
-  ::memset(Event, 0, size*6);
-  RcEV = Event + 32*2;
+  ::memset(events_base_, 0, size*6);
+  // f0+2: root counter event
+  rcnt_event_ = events_base_ + 32*2;
 
   // set b0 table
   u32 *ptr = psxMu32ptr(0x0874);
@@ -824,7 +725,7 @@ void BIOS::Init()
   psxMu32ref(0x0160) = BFLIP32(0x248);
   ::strcpy(psxMs8ptr(0x248), "bu");
 
-  // OGPR(GPR_PC)ODE HLE!!
+  // OPCODE HLE!!
   psxRu32ref(0x0000) = BFLIP32((OPCODE_HLECALL << 26) | 4);
   psxMu32ref(0x0000) = BFLIP32((OPCODE_HLECALL << 26) | 0);
   psxMu32ref(0x00a0) = BFLIP32((OPCODE_HLECALL << 26) | 1);
@@ -838,21 +739,20 @@ void BIOS::Init()
 
   if (Psx().version() == 2) {
     psxMu32ref(4) = BFLIP32(0x80000008);
-    // psx_->Mu32ref(0) = BFLIP32(PSX::R3000A::OGPR(GPR_PC)ODE_HLECALL);
+    // psx_->Mu32ref(0) = BFLIP32(PSX::R3000A::OPCODE_HLECALL);
     ::strcpy(psxMs8ptr(8), "psf2:/");
   }
 }
 
-
 void BIOS::Shutdown() {}
-
 
 void BIOS::Interrupt()
 {
+  /*
   // for Root Counter 3 (interrupt = 1)
   if ( BFLIP32(irq_data()) & 1 ) {
-    if (RcEV[3][1].status == BFLIP32(EVENT_STATUS_ACTIVE)) {
-      SoftCall(BFLIP32(RcEV[3][1].fhandler));
+    if (rcnt_event_[3][1].status == BFLIP32(EVENT_STATUS_ACTIVE)) {
+      SoftCall(BFLIP32(rcnt_event_[3][1].fhandler));
     }
   }
 
@@ -860,69 +760,72 @@ void BIOS::Interrupt()
   if ( BFLIP32(irq_data()) & 0x70 ) {
     for (int i = 0; i < 3; i++) {
       if (BFLIP32(irq_data()) & (1 << (i+4))) {
-        if (RcEV[i][1].status == BFLIP32(EVENT_STATUS_ACTIVE)) {
-          SoftCall(BFLIP32(RcEV[i][1].fhandler));
+        if (rcnt_event_[i][1].status == BFLIP32(EVENT_STATUS_ACTIVE)) {
+          SoftCall(BFLIP32(rcnt_event_[i][1].fhandler));
           HwRegs().Write32(0x1f801070, ~(1 << (i+4)));
         }
       }
     } 
   }
+  */
+  // for RootCounter
+  for (int i = 0; i < 4; i++) {
+    const auto interrupt = RCnt().interrupt(i);
+    const auto& ev = rcnt_event_[i][1];
+    if ((BFLIP32(irq_data()) & interrupt) &&
+        ev.status == BFLIP32(EVENT_STATUS_ACTIVE)) {
+      SoftCall(BFLIP32(ev.fhandler));
+      HwRegs().set_irq32(~interrupt);
+    }
+  }
 }
-
 
 void BIOS::Exception()
 {
   u32 status;
 
-  switch (CP0(COP0_CAUSE) & 0x3c) {
+  switch (CP0.CAUSE & 0x3c) {
   case 0x00:  // Interrupt
-    savedGPR.Set(GPR());
+    savedGPR.Set(GPR);
     Interrupt();
     for (int i = 0; i < 8; i++) {
       if (SysIntRP[i]) {
         u32 *queue = psxMu32ptr(SysIntRP[i]);
-        SetGPR(GPR_S0, BFLIP32(queue[2]));
+        GPR.S0 = BFLIP32(queue[2]);
         SoftCall(BFLIP32(queue[1]));
       }
     }
     if (jmp_int) {
-      HwRegs().Write32(0x1f801070, 0xffffffff);
-      SetGPR(GPR_RA, BFLIP32(jmp_int[0]));
-      SetGPR(GPR_SP, BFLIP32(jmp_int[1]));
-      SetGPR(GPR_FP, BFLIP32(jmp_int[2]));
-      for (int i = 0; i < 8; i++) {
-        SetGPR(GPR_S0+i, BFLIP32(jmp_int[3+i]));
-      }
-      SetGPR(GPR_GP, BFLIP32(jmp_int[11]));
+      HwRegs().set_irq32(0xffffffff);
+      jmp_int->Get(&GPR);
       Return(1);
       return;
     }
     HwRegs().Write16(0x1f801070, 0);
     break;
   case 0x20:  // SYSCALL
-    status = CP0(COP0_SR);
-    switch (GPR(GPR_A0)) {
+    status = CP0.SR;
+    switch (GPR.A0) {
     case 1: // EnterCritical (disable IRQs)
       status &= ~0x404;
       break;
     case 2: // LeaveCritical (enable IRQs)
       status |= 0x404;
     }
-    SetGPR(GPR_PC, CP0(COP0_EPC) + 4);
-    SetCP0(COP0_SR, (status & 0xfffffff0) | ((status & 0x3c) >> 2) );
+    GPR.PC = CP0.EPC + 4;
+    CP0.SR = (status & 0xfffffff0) | ((status & 0x3c) >> 2);
     return;
   default:
     rennyLogWarning("PSXBIOS", "Unknown BIOS Exception (0x%02x)", CP0(COP0_CAUSE) & 0x3c);
   }
 
-  u32 pc = CP0(COP0_EPC);
-  if (CP0(COP0_CAUSE) & 0x80000000) {
+  u32 pc = CP0.EPC;
+  if (CP0.CAUSE & 0x80000000) {
     pc += 4;
   }
-  SetGPR(GPR_PC, pc);
-  status = CP0(COP0_SR);
-  SetCP0(COP0_SR, (status & 0xfffffff0) | ((status & 0x3c) >> 2) );
+  GPR.PC = pc;
+  status = CP0.SR;
+  CP0.SR = (status & 0xfffffff0) | ((status & 0x3c) >> 2);
 }
-
 
 }   // namespace PSX

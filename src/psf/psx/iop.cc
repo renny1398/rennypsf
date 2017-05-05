@@ -8,16 +8,16 @@
 // for debug
 #include "psf/psx/disassembler.h"
 
-namespace PSX {
+namespace psx {
 
 
-IOP::IOP(Composite* psx) :
-  Component(psx), UserMemoryAccessor(psx), root_(NULL), load_addr_(0x23f00) {}
+IOP::IOP(PSX* psx) :
+  Component(psx), UserMemoryAccessor(psx), root_(nullptr), load_addr_(0x23f00) {}
 
 IOP::~IOP() {
   if (root_) {
     delete root_;
-    root_ = NULL;
+    root_ = nullptr;
   }
 }
 
@@ -38,7 +38,7 @@ void IOP::SetRootDirectory(const PSF2Directory *root) {
 
 unsigned int IOP::LoadELF(PSF2File* psf2irx) {
 
-  if (psf2irx == NULL) {
+  if (psf2irx == nullptr) {
     return 0xffffffff;
   }
   const unsigned char* data = psf2irx->GetData();
@@ -326,7 +326,7 @@ bool IOP::modload(uint32_t call_num) {
         load_addr_ = new_alloc_addr + 2048;
 
         PSF2Entry* module_entry = (const_cast<PSF2Directory*>(root_)->Find(module_name));
-        if (module_entry != NULL) {
+        if (module_entry != nullptr) {
 
           PSF2File* module = module_entry->file();
           uint32_t start = LoadELF(module);
@@ -383,7 +383,7 @@ bool IOP::ioman(uint32_t call_num) {
     {
       int handle = -1;
       for (int i = 0; files_.begin() + i != files_.end(); i++) {
-        if (files_[i].file == NULL) {
+        if (files_[i].file == nullptr) {
           handle = i;
           break;
         }
@@ -397,7 +397,7 @@ bool IOP::ioman(uint32_t call_num) {
       filename = filename.Mid(filename.find_first_of(":/") + 2, wxString::npos);
       PSF2File* file = dynamic_cast<PSF2File*>(const_cast<PSF2Directory*>(root_)->Find(filename));
 
-      if (file == NULL) {
+      if (file == nullptr) {
         rennyLogError("IOP::ioman(open)", "Cannot open a file '%s'", static_cast<const char*>(filename));
         R3000ARegs().GPR.V0 = 0xffffffff;
         return false;
@@ -418,7 +418,7 @@ bool IOP::ioman(uint32_t call_num) {
         files_.pop_back();
         return true;
       }
-      files_[a0].file = NULL;
+      files_[a0].file = nullptr;
       files_[a0].pos = 0;
     }
     return true;
@@ -431,7 +431,7 @@ bool IOP::ioman(uint32_t call_num) {
         return false;
       }
       PSF2File* file = files_[a0].file;
-      if (file == NULL) {
+      if (file == nullptr) {
         R3000ARegs().GPR.V0 = 0;
         return false;
       }
@@ -523,4 +523,4 @@ bool IOP::Call(PSXAddr pc, uint32_t call_num) {
   return ret;
 }
 
-} // namespace PSX
+} // namespace psx

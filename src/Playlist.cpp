@@ -150,7 +150,7 @@ bool PSFPlaylistItem::LoadSound(const wxString &path, const wxString &ext)
         }
         */
       loader = SoundLoader::Instance(path);
-      if (loader == NULL) {
+      if (loader == nullptr) {
         return false;
       }
     }

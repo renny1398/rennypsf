@@ -11,13 +11,13 @@
 
 
 PSF::PSF(uint32_t version)
-  : psx_(new PSX::Composite(version)) {
+  : psx_(new psx::PSX(version)) {
 }
 
 
 PSF::~PSF()
 {
-  if (psx_ != NULL) {
+  if (psx_ != nullptr) {
     delete psx_;
   }
 }
@@ -63,12 +63,14 @@ bool PSF::Open(SoundBlock* block) {
   psx_->Bios().Init();
   block->ChangeChannelCount(24); // TODO: 24 or 48
   block->EnableReverb();
+  /*
   block->ReverbCh(0).set_volume_max(0x4000);
   block->ReverbCh(0).set_volume(0x4000, 0);
   block->ReverbCh(1).set_volume_max(0x4000);
   block->ReverbCh(1).set_volume(0, 0x4000);
-
+*/
   // Advance SPU
+  /*
   const uint32_t cycles = 33868800 / psx_->Spu().GetCurrentSamplingRate() / 2;
   unprocessed_cycles_ = 0;
   do {
@@ -77,6 +79,12 @@ bool PSF::Open(SoundBlock* block) {
   } while (unprocessed_cycles_ < cycles);
   psx_->Spu().Step(1);
   unprocessed_cycles_ -= cycles;
+*/
+  // psx_->R3000a().SetSPUOutput(&psx_->Spu(), block);
+  psx_->Spu().set_output(block);
+  do {
+    psx_->R3000a().Execute(&psx_->Interp(), false);
+  } while (psx_->RCnt().cycle32() < (psx::PSXCLK / psx_->Spu().GetCurrentSamplingRate()));
   return true;
 }
 
@@ -88,6 +96,7 @@ bool PSF::Close() {
 }
 
 bool PSF::DoAdvance(SoundBlock *dest) {
+  psx_->Spu().set_output(dest);
 /*
   do {
     int ret = psx_->Interp().RCnt().SPURun(dest);
@@ -98,6 +107,7 @@ bool PSF::DoAdvance(SoundBlock *dest) {
     psx_->Interp().ExecuteOnce();
   } while (true);
 */
+  /*
   const uint32_t cycles = 33868800 / psx_->Spu().GetCurrentSamplingRate() / 2;
   while (unprocessed_cycles_ < cycles) {
     uint32_t ret = psx_->Interp().Execute(cycles - unprocessed_cycles_);
@@ -105,10 +115,16 @@ bool PSF::DoAdvance(SoundBlock *dest) {
   }
   unprocessed_cycles_ -= cycles;
   return psx_->Spu().GetAsync(dest);
+  */
+  // psx_->R3000a().SetSPUOutput(&psx_->Spu(), dest);
+  do {
+    psx_->R3000a().Execute(&psx_->Interp(), false);
+  } while (dest->sample_length() == 0);
+  return true;
 }
 
 bool PSF::ChangeOutputSamplingRate(uint32_t rate) {
-  if (psx_ == NULL) {
+  if (psx_ == nullptr) {
     return false;
   }
   psx_->ChangeOutputSamplingRate(rate);
@@ -116,7 +132,7 @@ bool PSF::ChangeOutputSamplingRate(uint32_t rate) {
 }
 
 
-using namespace PSX;
+using namespace psx;
 
 PSF1::PSF1(uint32_t pc0, uint32_t gp0, uint32_t sp0) : PSF(1) {
   psx_->R3000a().SetGPR(GPR_PC, pc0);

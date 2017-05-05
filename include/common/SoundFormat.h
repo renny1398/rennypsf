@@ -117,6 +117,61 @@ private:
 };
 
 
+////////////////////////////////////////////////////////////////////////
+// SoundSequence class
+////////////////////////////////////////////////////////////////////////
+
+class SampleSequence {
+public:
+  SampleSequence();
+  ~SampleSequence() = default;
+
+  void ClearData();
+
+  size_t sample_length() const {
+    return samples_.size();
+  }
+
+  void volume(int seq_no, float* left, float* right) const;
+  void set_volume(float left, float right);
+  void set_volume(int seq_no, float left, float right);
+
+  bool enables_env() const { return enables_env_; }
+  int env_max() const {
+    if (enables_env_) return env_max_;
+    else              return 0;
+  }
+  void set_env_max(int new_env_max) {
+    env_max_ = new_env_max;
+    enables_env_ = true;
+  }
+
+  void Pushf(float sample, int env = 0);
+  void Push16i(int sample, int env = 0);
+
+  void Getf(int seq_no, float* left, float* right) const;
+  void Get16i(int seq_no, int* left, int* right) const;
+  int GetEnv(int seq_no) const;
+
+  void Mute() { muted_ = true; }
+  void Unmute() { muted_ = false; }
+  bool IsMuted() const { return muted_; }
+
+private:
+  struct SampleEx {
+    float sample_;
+    float vol_left_;
+    float vol_right_;
+    int env_;
+  };
+
+  wxVector<SampleEx> samples_;
+  float vol_left_;
+  float vol_right_;
+  bool muted_;
+  bool enables_env_;
+  int env_max_;
+};
 
 
 ////////////////////////////////////////////////////////////////////////
@@ -140,9 +195,11 @@ public:
   unsigned int block_size() const {
     return samples_.size() * sizeof(short);
   }
+  size_t sample_length() const;
 
   void ChangeChannelCount(int new_channel_count);
 
+  /*
   Sample& Ch(int ch) {
     return samples_.at(ch);
   }
@@ -156,6 +213,21 @@ public:
   const Sample& ReverbCh(int ch) const {
     return rvb_sample_[ch];
   }
+*/
+  SampleSequence& Ch(int ch) {
+    return samples_.at(ch);
+  }
+  const SampleSequence& Ch(int ch) const {
+    return samples_.at(ch);
+  }
+
+  SampleSequence& ReverbCh(int ch) {
+    return rvb_sample_[ch];
+  }
+  const SampleSequence& ReverbCh(int ch) const {
+    return rvb_sample_[ch];
+  }
+
 
   bool ReverbIsEnabled() const {
     return rvb_is_enabled_;
@@ -167,7 +239,7 @@ public:
   // virtual void GetStereo16(int* l, int* r) const = 0;
   // virtual void GetStereo24(int* l, int* r) const = 0;
 
-  void GetStereo16(short*) const;
+  void GetStereo16(int seq_no, short*) const;
 
   void Clear();
   void Reset();
@@ -178,12 +250,13 @@ public:
   bool NotifyDevice();
 
 private:
-  wxVector<Sample16> samples_;  // TODO: support changing sample type
-  Sample16 rvb_sample_[2];
+  // wxVector<Sample16> samples_;  // TODO: support changing sample type
+  wxVector<SampleSequence> samples_;  // TODO: support changing sample type
+  // Sample16 rvb_sample_[2];
+  SampleSequence rvb_sample_[2];
   bool rvb_is_enabled_;
   wxWeakRef<SoundDevice> output_;
 };
-
 
 
 #include "note.h"

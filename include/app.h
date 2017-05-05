@@ -54,17 +54,17 @@ private:
 class RennypsfApp: public wxApp
 {
 public:
-  virtual bool OnInit();
-  virtual int OnExit();
+  virtual bool OnInit() override;
+  virtual int OnExit() override;
 
-  void Exit(int code);
+  void Exit() override;
 
 #ifndef USE_GUI
   // virtual int OnRun();
-  void ExitMainLoop();
+  void ExitMainLoop() override;
   void ProcessExitEvent(wxThreadEvent&);
 #ifdef __APPLE__
-  virtual bool OSXIsGUIApplication() { return false; }
+  bool OSXIsGUIApplication() override { return false; }
 #endif  // __APPLE__
 #endif  // USE_GUI
 

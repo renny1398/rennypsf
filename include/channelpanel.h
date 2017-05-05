@@ -86,8 +86,8 @@ protected:
   void render(wxDC& dc);
 
   void CalcKeyRect(int key, wxRect* rect);
-  void PaintPressedKeys(const IntSet& keys, wxPaintDC *paint_dc = NULL);
-  void PaintReleasedKeys(wxPaintDC *paint_dc = NULL);
+  void PaintPressedKeys(const IntSet& keys, wxPaintDC *paint_dc = nullptr);
+  void PaintReleasedKeys(wxPaintDC *paint_dc = nullptr);
 
 protected:
   int calcKeyboardWidth();

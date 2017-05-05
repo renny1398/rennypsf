@@ -756,13 +756,13 @@ void makect(int nc, int *ip, double *c)
 #include <stdlib.h>
 #define cdft_thread_t pthread_t
 #define cdft_thread_create(thp,func,argp) { \
-    if (pthread_create(thp, NULL, func, (void *) argp) != 0) { \
+    if (pthread_create(thp, nullptr, func, (void *) argp) != 0) { \
         fprintf(stderr, "cdft thread error\n"); \
         exit(1); \
     } \
 }
 #define cdft_thread_wait(th) { \
-    if (pthread_join(th, NULL) != 0) { \
+    if (pthread_join(th, nullptr) != 0) { \
         fprintf(stderr, "cdft thread error\n"); \
         exit(1); \
     } \
@@ -784,7 +784,7 @@ void makect(int nc, int *ip, double *c)
 #define cdft_thread_t HANDLE
 #define cdft_thread_create(thp,func,argp) { \
     DWORD thid; \
-    *(thp) = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE) func, (LPVOID) argp, 0, &thid); \
+    *(thp) = CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE) func, (LPVOID) argp, 0, &thid); \
     if (*(thp) == 0) { \
         fprintf(stderr, "cdft thread error\n"); \
         exit(1); \

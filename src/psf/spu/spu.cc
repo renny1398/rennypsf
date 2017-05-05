@@ -89,7 +89,7 @@ void SPUStepRequest::Execute(SPUBase* p_spu) const {
 const SPURequest* SPUNoteOnRequest::CreateRequest(int ch) {
   if (24 <= ch) {
     rennyLogWarning("SPUNoteOnReguest", "Invalid channel number %d.", ch);
-    return NULL;
+    return nullptr;
   }
 
   static RequestMap pool(1);
@@ -105,7 +105,7 @@ const SPURequest* SPUNoteOnRequest::CreateRequest(int ch) {
 
 void SPUNoteOnRequest::Execute(SPUBase* p_spu) const {
   // p_spu->Voice(ch_).tone->ConvertData();
-  p_spu->Voice(ch_).Step();
+  p_spu->Voice(ch_).Advance();
 }
 
 
@@ -122,7 +122,7 @@ const SPURequest* SPUNoteOffRequest::CreateRequest(int ch) {
 
 
 void SPUNoteOffRequest::Execute(SPUBase* p_spu) const {
-   p_spu->Voice(ch_).Step();
+   p_spu->Voice(ch_).Advance();
 }
 
 
@@ -158,9 +158,9 @@ void SPUCore::Step() {
 ////////////////////////////////////////////////////////////////////////
 
 
-SPUBase::SPUBase(PSX::Composite* composite)
+SPUBase::SPUBase(psx::PSX* composite)
   : Component(composite), UserMemoryAccessor(composite),
-    Get(&SPUBase::GetSync), soundbank_(), reverb_(this) {
+    Get(&SPUBase::GetAsync), soundbank_(), reverb_(this) {
 
   uint32_t core_num = composite->version();
   rennyAssert(core_num == 1 || core_num == 2);
@@ -247,7 +247,7 @@ void SPUBase::ChangeProcessState(ProcessState state, int ch) {
 */
 
 
-bool SPUBase::Step(int step_count) {
+bool SPUBase::Advance(int step_count) {
 
   const SPURequest* req = SPUStepRequest::CreateRequest(step_count);
   thread_->PutRequest(req);
@@ -272,10 +272,10 @@ void SPUBase::ResetStepStatus() {
 
 
 bool SPUBase::IsAsync() const {
-  return thread_ != NULL;
+  return thread_ != nullptr;
 }
 
-
+/*
 bool SPUBase::GetSync(SoundBlock* dest) {
 
   const wxVector<SPUCore>::iterator core_it_end = cores_.end();
@@ -303,31 +303,24 @@ bool SPUBase::GetSync(SoundBlock* dest) {
 
   return true;
 }
-
+*/
 
 bool SPUBase::GetAsync(SoundBlock* dest) {
-
   if (thread_ == 0 || thread_->IsRunning() == false) return false;
-
+  if (dest == nullptr) { dest = out_; }
   // thread_->WaitForLastStep();
-
-  const wxVector<SPUCore>::iterator core_it_end = cores_.end();
-  for (wxVector<SPUCore>::iterator core_it = cores_.begin(); core_it != core_it_end; ++core_it) {
-
+  for (auto& core : cores_) {
     for (unsigned int i = 0; i < 24; i++) {
-      SPUVoice& ch = core_it->Voice(i);
+      SPUVoice& ch = core.Voice(i);
       ch.Get(&dest->Ch(i));
     }
-
-    Sample& rvb_left = dest->ReverbCh(0);
-    Sample& rvb_right = dest->ReverbCh(1);
-    rvb_left.Set16(Reverb().GetLeft());
-    rvb_right.Set16(Reverb().GetRight());
-
+    SampleSequence& rvb_left = dest->ReverbCh(0);
+    SampleSequence& rvb_right = dest->ReverbCh(1);
+    rvb_left.Push16i(Reverb().GetLeft());
+    rvb_right.Push16i(Reverb().GetRight());
     const SPURequest* req = SPUStepRequest::CreateRequest(1);
     thread_->PutRequest(req);
   }
-
   return true;
 }
 
@@ -404,7 +397,7 @@ void SPUBase::RemoveStreams()
 
 
 void SPUBase::PutRequest(const SPURequest *req) {
-  if (thread_ == NULL) return;
+  if (thread_ == nullptr) return;
   thread_->PutRequest(req);
 }
 
@@ -454,7 +447,7 @@ wxThread::ExitCode SPUThread::Entry()
     queue_mutex_.Unlock();
 
     const SPURequest* const p_req = req_queue_.front();
-    if (p_req == NULL) {
+    if (p_req == nullptr) {
       queue_mutex_.Lock();
       req_queue_.pop_front();
       queue_cond_.Broadcast();
@@ -513,7 +506,7 @@ void SPUBase::Open()
 void SPUBase::Close()
 {
   if (thread_ != 0 && thread_->IsRunning()) {
-    thread_->PutRequest(NULL);
+    thread_->PutRequest(nullptr);
     thread_->Wait();
     delete thread_;
     thread_ = 0;
@@ -538,7 +531,7 @@ bool SPUBase::IsRunning() const {
 
 
 
-SPU2::SPU2(PSX::Composite *composite)
+SPU2::SPU2(psx::PSX *composite)
   : SPUBase(composite) {}
 
 

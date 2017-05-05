@@ -9,18 +9,13 @@ namespace {
   InstanceFuncMap instance_funcs_;
 }
 
-
-
-
 bool SoundLoader::RegisterInstanceFunc(InstanceFunc func, const char *signature) {
   instance_funcs_[wxString(signature)] = func;
   return true;
 }
 
-
 #include "psf/psfloader.h"
 #include "vorbis/vorbis.h"
-
 
 SoundLoader* SoundLoader::Instance(const wxString &filename) {
 
@@ -36,7 +31,7 @@ SoundLoader* SoundLoader::Instance(const wxString &filename) {
 
   wxFile file(filename, wxFile::read);
   if (file.IsOpened() == false) {
-    return NULL;
+    return nullptr;
   }
 
   char buff[4];
@@ -46,13 +41,12 @@ SoundLoader* SoundLoader::Instance(const wxString &filename) {
   if (it == instance_funcs_.end()) {
     rennyLogError("SoundLoader", "Failed to generate a loader. (signature = %s)", static_cast<const char*>(signature));
     file.Close();
-    return NULL;
+    return nullptr;
   }
 
   int fd = file.Detach();
   return it->second(fd, filename);
 }
-
 
 SoundLoader::SoundLoader() {
 }

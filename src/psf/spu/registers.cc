@@ -331,7 +331,7 @@ void write1xx4(SPUVoice& channelInfo, uint16_t val)
   NP = sampling_rate * NP / 0x1000;
   if (NP < 1) NP = 1;
   channelInfo.iActFreq = NP;
-  if (channelInfo.tone != NULL) {
+  if (channelInfo.tone != nullptr) {
     const double freq = channelInfo.tone->freq();
     if (1.0 <= freq) {
       channelInfo.Pitch = (freq * channelInfo.iRawPitch) / 0x1000;

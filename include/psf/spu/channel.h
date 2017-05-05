@@ -8,7 +8,8 @@
 #include "psf/spu/soundbank.h"
 
 
-class Sample;
+// class Sample;
+class SampleSequence;
 
 namespace SPU {
 
@@ -171,8 +172,8 @@ public:
   static void InitADSR();
   int AdvanceEnvelope();
 
-  void Step();
-  bool Get(Sample* dest) const;
+  void Advance();
+  bool Get(SampleSequence* dest) const;
 
   SPUBase& Spu() { return *p_spu_; }
   const SPUBase& Spu() const { return *p_spu_; }
@@ -188,13 +189,8 @@ public:
   const int ch;
 
   // for REVERB
-  // wxSharedArray<short> lpcm_buffer_l;
-  // wxSharedArray<short> lpcm_buffer_r;
   wxVector<short> lpcm_buffer_l;
   wxVector<short> lpcm_buffer_r;
-
-  // bool            bNew;                               // start flag
-  // bool            isUpdating;
 
   int             iSBPos;                             // mixing stuff
   InterpolationPtr  pInterpolation;
@@ -205,32 +201,29 @@ public:
   SPUAddr addr;
 
   // bool            is_muted;
-  bool            hasReverb;                            // can we do reverb on this channel? must have ctrl register bit, to get active
-  int             iActFreq;                           // current psx pitch
-  int             iUsedFreq;                          // current pc pitch
-  double          Pitch;
-  int             iLeftVolume;                        // left volume (s15)
-  bool            isLeftSweep;
-  bool            isLeftExpSlope;
-  bool            isLeftDecreased;
-  //int             iLeftVolRaw;                        // left psx volume value
-  SPUAddr    addrExternalLoop;
-  bool            useExternalLoop;                        // ignore loop bit, if an external loop address is used
-  // int             iMute;                              // mute mode
-  int             iRightVolume;                       // right volume (s15)
-  //int             iRightVolRaw;                       // right psx volume value
-  bool            isRightSweep;
-  bool            isRightExpSlope;
-  bool            isRightDecreased;
-  int             iRawPitch;                          // raw pitch (0x0000 - 0x3fff)
-  // int             iIrqDone;                           // debug irq done flag
-  bool            bRVBActive;                         // reverb active flag
-  int             iRVBOffset;                         // reverb offset
-  int             iRVBRepeat;                         // reverb repeat
-  bool            bNoise;                             // noise active flag
-  int            bFMod;                              // freq mod (0=off, 1=sound channel, 2=freq channel)
-  int             iRVBNum;                            // another reverb helper
-  int             iOldNoise;                          // old noise val for this channel
+  bool    hasReverb;                            // can we do reverb on this channel? must have ctrl register bit, to get active
+  int     iActFreq;                           // current psx pitch
+  int     iUsedFreq;                          // current pc pitch
+  double  Pitch;
+  int     iLeftVolume;                        // left volume (s15)
+  bool    isLeftSweep;
+  bool    isLeftExpSlope;
+  bool    isLeftDecreased;
+  SPUAddr addrExternalLoop;
+  bool    useExternalLoop;                        // ignore loop bit, if an external loop address is used
+  int     iRightVolume;                       // right volume (s15)
+  bool    isRightSweep;
+  bool    isRightExpSlope;
+  bool    isRightDecreased;
+  int     iRawPitch;                          // raw pitch (0x0000 - 0x3fff)
+  // int     iIrqDone;                           // debug irq done flag
+  bool    bRVBActive;                         // reverb active flag
+  int     iRVBOffset;                         // reverb offset
+  int     iRVBRepeat;                         // reverb repeat
+  bool    bNoise;                             // noise active flag
+  int     bFMod;                              // freq mod (0=off, 1=sound channel, 2=freq channel)
+  int     iRVBNum;                            // another reverb helper
+  int     iOldNoise;                          // old noise val for this channel
   EnvelopeActive        ADSR;                               // active ADSR settings
   EnvelopePassive      ADSRX;                              // next ADSR settings (will be moved to active on sample start)
 
@@ -286,7 +279,7 @@ public:
     return channel_count_ * sizeof(float);
   }
 
-  Sample& Ch(int ch);
+  SampleSequence& Ch(int ch);
 
 private:
   SPUBase* const pSPU_;

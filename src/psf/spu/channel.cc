@@ -18,7 +18,7 @@ namespace SPU {
 
 
 SPUVoice::SPUVoice()
-  : p_spu_(NULL), ch(0xffffffff), iUsedFreq(0), iRawPitch(0),
+  : p_spu_(nullptr), ch(0xffffffff), iUsedFreq(0), iRawPitch(0),
     is_ready_(false), ready_cond_(ready_mutex_)
 {}
 
@@ -28,7 +28,7 @@ SPUVoice::SPUVoice(SPUBase *pSPU, int ch)
     lpcm_buffer_l(pSPU->NSSIZE), lpcm_buffer_r(pSPU->NSSIZE),
     pInterpolation(new GaussianInterpolation),
     is_ready_(false), ready_cond_(ready_mutex_) {
-  tone = NULL;
+  tone = nullptr;
   is_on_ = false;
 }
 
@@ -38,7 +38,7 @@ SPUVoice::SPUVoice(const SPUVoice &info)
     lpcm_buffer_l(p_spu_->NSSIZE), lpcm_buffer_r(p_spu_->NSSIZE),
     pInterpolation(new GaussianInterpolation),
     is_ready_(false), ready_cond_(ready_mutex_) {
-  tone = NULL;
+  tone = nullptr;
   is_on_ = false;
 }
 
@@ -168,7 +168,7 @@ void SPUVoice::VoiceChangeFrequency()
 // FModChangeFrequency
 
 
-void SPUVoice::Step() {
+void SPUVoice::Advance() {
 
   if (is_ready_) return;
   set_envelope(0);
@@ -184,7 +184,7 @@ void SPUVoice::Step() {
   }
 
   int fa;
-  while (pInterpolation->spos >= 0x10000) {
+  while (pInterpolation->GetSincPosition() >= 0x10000) {
     if (itrTone.HasNext() == false) {
       VoiceOffAndStop();
       SetReady();
@@ -196,7 +196,7 @@ void SPUVoice::Step() {
       if ( ( p_spu_->core(0).ctrl_ & 0x4000 ) == 0 ) fa = 0;
       pInterpolation->StoreValue(fa);
     }
-    pInterpolation->spos -= 0x10000;
+    pInterpolation->SubSincPosition(0x10000);
   }
 
   if (bNoise) {
@@ -222,14 +222,14 @@ void SPUVoice::Step() {
     lpcm_buffer_l[p_spu_->ns] = CLIP(left);
     lpcm_buffer_r[p_spu_->ns] = CLIP(right);
   }
-  pInterpolation->spos += pInterpolation->GetSinc();
+  pInterpolation->AdvanceSincPosition();
   // wxMessageOutputDebug().Printf("spos = 0x%08x", pInterpolation->spos);
   SetReady();
 }
 
 
-bool SPUVoice::Get(Sample *dest) const {
-  if (dest == NULL) return false;
+bool SPUVoice::Get(SampleSequence* dest) const {
+  if (dest == nullptr) return false;
 
   ready_mutex_.Lock();
   while (is_ready_ == false) {
@@ -241,23 +241,24 @@ bool SPUVoice::Get(Sample *dest) const {
   }
   ready_mutex_.Unlock();
 
-  dest->set_envelope(ADSR.envelope_volume());
-  dest->Set16(sval);
-  dest->set_volume(iLeftVolume, iRightVolume);
-  dest->set_volume_max(0x4000);
+  const float fvol_left  = static_cast<float>(iLeftVolume) / 0x4000;
+  const float fvol_right = static_cast<float>(iRightVolume) / 0x4000;
+
+  dest->set_volume(fvol_left, fvol_right);
+  dest->Push16i(sval, ADSR.envelope_volume());
 
   SetUnready();
   return true;
 }
 
 
-SPUVoiceManager::SPUVoiceManager() : pSPU_(NULL) {}
+SPUVoiceManager::SPUVoiceManager() : pSPU_(nullptr) {}
 
 
 SPUVoiceManager::SPUVoiceManager(SPUBase *pSPU, int channelNumber)
   : pSPU_(pSPU), channels_(channelNumber, SPUVoice())
 {
-  rennyAssert(pSPU != NULL);
+  rennyAssert(pSPU != nullptr);
   for (int i = 0; i < channelNumber; i++) {
     SPUVoice* p_voice = &channels_.at(i);
     new(p_voice) SPUVoice(pSPU, i);
@@ -299,22 +300,13 @@ void SPUVoiceManager::VoiceOff(uint32_t flags, int start)
 
 
 void SPUVoiceManager::StepForAll() {
-  const wxVector<SPUVoice>::iterator itr_end = channels_.end();
-  for (wxVector<SPUVoice>::iterator itr = channels_.begin(); itr != itr_end; ++itr) {
-    if (itr->ch >= 24) break;
-    itr->Step();
+  for (auto& v : channels_) {
+    if (v.ch >= 24) break;
+    v.Advance();
   }
 }
-
 
 // deprecated
-void SPUVoiceManager::ResetStepStatus() {
-  const wxVector<SPUVoice>::iterator itr_end = channels_.end();
-  for (wxVector<SPUVoice>::iterator itr = channels_.begin(); itr != itr_end; ++itr) {
-    // itr->Unready();
-  }
-}
-
-
+void SPUVoiceManager::ResetStepStatus() {}
 
 } // namespace SPU

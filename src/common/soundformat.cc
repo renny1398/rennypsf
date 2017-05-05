@@ -99,7 +99,7 @@ void Sample::set_envelope_max(int env) {
 
 
 void Sample::GetStereo16(int* l, int* r) const {
-  rennyAssert(l != NULL && r != NULL);
+  rennyAssert(l != nullptr && r != nullptr);
   const int a = GetRaw16();
   *l = static_cast<long>(a) * volume_left_ / volume_max_;
   *r = static_cast<long>(a) * volume_right_ / volume_max_;
@@ -107,7 +107,7 @@ void Sample::GetStereo16(int* l, int* r) const {
 
 
 void Sample::GetStereo16(short* dest) const {
-  rennyAssert(dest != NULL);
+  rennyAssert(dest != nullptr);
   int l, r;
   GetStereo16(&l, &r);
   dest[0] = CLIP16(l);
@@ -169,26 +169,74 @@ void Sample16::Set24(int s) {
 }
 
 
+////////////////////////////////////////////////////////////////////////
+// SoundSequence class functions
+////////////////////////////////////////////////////////////////////////
 
+SampleSequence::SampleSequence()
+  : vol_left_(1.0f), vol_right_(1.0f),
+    muted_(false), enables_env_(false), env_max_(0)
+{}
 
-/*
-class Sample24 : public Sample {
-public:
-  Sample24() : sample_(0) {}
-  Sample24(int s) : sample_(s) {}
-  unsigned int bit_number() const { return 24; }
+void SampleSequence::ClearData() {
+  samples_.clear();
+}
 
-  unsigned char GetRaw8() const { return Word24ToByte(sample_); }
-  int GetRaw16() const { return Word24ToWord(sample_); }
-  int GetRaw24() const { return sample_; }
-  void Set8(unsigned char s) { sample_ = ByteToWord24(s); }
-  void Set16(int s) { sample_ = WordToWord24(s); }
-  void Set24(int s) { sample_ = s; }
+void SampleSequence::volume(int seq_no, float* left, float* right) const {
+  rennyAssert(seq_no < static_cast<int>(samples_.size()));
+  const SampleEx& sample = samples_.at(seq_no);
+  if (left)  *left  = sample.vol_left_;
+  if (right) *right = sample.vol_right_;
+}
 
-private:
-  int sample_;
-};
-*/
+void SampleSequence::set_volume(float left, float right) {
+  vol_left_  = left;
+  vol_right_ = right;
+}
+
+void SampleSequence::set_volume(int seq_no, float left, float right) {
+  rennyAssert(seq_no < static_cast<int>(samples_.size()));
+  SampleEx& sample = samples_.at(seq_no);
+  sample.vol_left_  = left;
+  sample.vol_right_ = right;
+}
+
+void SampleSequence::Pushf(float sample, int env) {
+  SampleEx s;
+  s.sample_ = sample;
+  s.vol_left_  = vol_left_;
+  s.vol_right_ = vol_right_;
+  s.env_ = env;
+  samples_.push_back(s);
+}
+
+void SampleSequence::Push16i(int sample, int env) {
+  SampleEx s;
+  s.sample_ = static_cast<float>(sample) / 32768.0f;
+  s.vol_left_  = vol_left_;
+  s.vol_right_ = vol_right_;
+  s.env_ = env;
+  samples_.push_back(s);
+}
+
+void SampleSequence::Getf(int seq_no, float* left, float* right) const {
+  rennyAssert(seq_no < static_cast<int>(samples_.size()));
+  const SampleEx& sample = samples_.at(seq_no);
+  if (left)  *left  = sample.sample_ * sample.vol_left_;
+  if (right) *right = sample.sample_ * sample.vol_right_;
+}
+
+void SampleSequence::Get16i(int seq_no, int* left, int* right) const {
+  rennyAssert(seq_no < static_cast<int>(samples_.size()));
+  const SampleEx& sample = samples_.at(seq_no);
+  if (left)  *left  = static_cast<int>(sample.sample_ * sample.vol_left_  * 32768.0f);
+  if (right) *right = static_cast<int>(sample.sample_ * sample.vol_right_ * 32768.0f);
+}
+
+int SampleSequence::GetEnv(int seq_no) const {
+  rennyAssert(seq_no < static_cast<int>(samples_.size()));
+  return enables_env_ ? samples_.at(seq_no).env_ : 0;
+}
 
 
 ////////////////////////////////////////////////////////////////////////
@@ -199,54 +247,65 @@ private:
 SoundBlock::SoundBlock(int channel_number) : samples_(channel_number), rvb_is_enabled_(false) {}
 SoundBlock::~SoundBlock() {}
 
+size_t SoundBlock::sample_length() const {
+  size_t ret = 0;
+  for (const auto& ch : samples_) {
+    auto l = ch.sample_length();
+    if (ret < l) ret = l;
+  }
+  return ret;
+}
 
 void SoundBlock::ChangeChannelCount(int new_channel_count) {
   if (new_channel_count != static_cast<int>(samples_.size())) {
-    samples_.assign(new_channel_count, Sample16());
+    samples_.assign(new_channel_count, SampleSequence());
   }
 }
 
-
-void SoundBlock::GetStereo16(short* dest) const {
-  int l = 0, r = 0;
-  int tmp_l, tmp_r;
+void SoundBlock::GetStereo16(int seq_no, short* dest) const {
+  float l = 0.0f, r = 0.0f;
+  float tmp_l, tmp_r;
   const unsigned int ch_count = channel_count();
   for (unsigned int i = 0; i < ch_count; ++i) {
-    Ch(i).GetStereo16(&tmp_l, &tmp_r);
+    Ch(i).Getf(seq_no, &tmp_l, &tmp_r);
     l += tmp_l;
     r += tmp_r;
   }
 
   if (ReverbIsEnabled()) {
-    ReverbCh(0).GetStereo16(&tmp_l, &tmp_r);
+    ReverbCh(0).Getf(seq_no, &tmp_l, &tmp_r);
     l += tmp_l;
     r += tmp_r;
-    ReverbCh(1).GetStereo16(&tmp_l, &tmp_r);
+    ReverbCh(1).Getf(seq_no, &tmp_l, &tmp_r);
     l += tmp_l;
     r += tmp_r;
   }
 
-  dest[0] = CLIP16(l);
-  dest[1] = CLIP16(r);
+  dest[0] = CLIP16(l*32768);
+  dest[1] = CLIP16(r*32768);
 }
-
 
 void SoundBlock::Clear() {
   const unsigned int ch_count = channel_count();
   for (unsigned int i = 0; i < ch_count; ++i) {
-    Ch(i).Set16(0);
+    // Ch(i).Set16(0);
+    Ch(i).ClearData();
   }
+  rvb_sample_[0].ClearData();
+  rvb_sample_[1].ClearData();
 }
 
 void SoundBlock::Reset() {
-  output_ = NULL;
+  output_ = nullptr;
   const unsigned int ch_count = channel_count();
   for (unsigned int i = 0; i < ch_count; ++i) {
-    Sample& s = Ch(i);
-    s.Set16(0);
-    s.set_volume(32767);
-    s.set_volume_max(32767);
+    SampleSequence& s = Ch(i);
+    // s.Set16(0);
+    s.ClearData();
+    s.set_volume(1.0f, 1.0f);
   }
+  rvb_sample_[0].ClearData();
+  rvb_sample_[1].ClearData();
 }
 
 
@@ -262,7 +321,7 @@ void SoundBlock::set_output(SoundDevice* output) {
 
 
 bool SoundBlock::NotifyDevice() {
-  if (output_ == NULL) return false;
+  if (output_ == nullptr) return false;
   output_->OnUpdate(this);
   return true;
 }
@@ -319,8 +378,8 @@ void SoundInfo::set_tags(const Tag &tags) {
 
 
 bool SoundData::Advance(SoundBlock *dest) {
-  if (dest == NULL) return false;
-  // dest->Clear();
+  if (dest == nullptr) return false;
+  dest->Clear();
   bool ret = DoAdvance(dest);
   if (ret) {
     pos_++;

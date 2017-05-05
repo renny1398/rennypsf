@@ -8,16 +8,16 @@
 
 class wxOutputStream;
 
-namespace PSX {
-namespace R3000A {
+namespace psx {
+namespace mips {
 
 class Disassembler : private UserMemoryAccessor
 {
 public:
-  Disassembler(Composite *composite);
+  Disassembler(PSX *composite);
 
   bool Parse(u32 code);
-  void PrintCode(wxOutputStream* out = NULL);
+  void PrintCode(wxOutputStream* out = nullptr);
   void PrintChangedRegisters();
 
   void StartOutputToFile();
@@ -70,6 +70,6 @@ protected:
 
 }   // namespace R3000A
 
-extern R3000A::Disassembler& Disasm;
+extern mips::Disassembler& Disasm;
 
 }   // namespace PSX

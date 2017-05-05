@@ -16,17 +16,17 @@
 class PSF2Entry;
 class PSF2Directory;
 
-namespace PSX {
+namespace psx {
 
 class Component;
 
-// Mediator rather than Composite
-class Composite {
+// Mediator rather than PSX
+class PSX {
 
   friend class Component;
 
 public:
-  Composite(u32 version = 1);
+  PSX(u32 version = 1);
 
   void Init(bool enable_spu2 = false);
   void Reset();
@@ -36,14 +36,14 @@ public:
   void Terminate();
 
   Memory& Mem();
-  R3000A::Processor& R3000a();
-  R3000A::Interpreter& Interp();
+  mips::Processor& R3000a();
+  mips::Interpreter& Interp();
   RootCounterManager& RCnt();
   const RootCounterManager& RCnt() const;
 
-  R3000A::Disassembler& Disasm();
+  mips::Disassembler& Disasm();
 
-  R3000A::Registers& R3000ARegs();
+  mips::Registers& R3000ARegs();
   HardwareRegisters& HwRegs();
   DMA& Dma();
   BIOS& Bios();
@@ -83,21 +83,21 @@ private:
   HardwareRegisters hw_regs_;
   Memory mem_;
   DMA dma_;
-  R3000A::Processor r3000a_;
   RootCounterManager rcnt_;
+  mips::Processor r3000a_;
   BIOS bios_;
   IOP iop_;
 
-  R3000A::Interpreter interp_;
-  R3000A::Disassembler disasm_;
+  mips::Interpreter interp_;
+  mips::Disassembler disasm_;
 
   SPU::SPUBase spu_;
 };
 
 // BIOS Accessor Definitions (Reference)
-inline u32& Composite::Ru32ref(PSXAddr addr) { return mem_.Rref<u32>(addr); }
+inline u32& PSX::Ru32ref(PSXAddr addr) { return mem_.Rref<u32>(addr); }
 
 // BIOS Accessor Definitions (Pointer)
-inline void* Composite::Rvptr(PSXAddr addr) { return mem_.Rvptr(addr); }
+inline void* PSX::Rvptr(PSXAddr addr) { return mem_.Rvptr(addr); }
 
 }   // namespace PSX

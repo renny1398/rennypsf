@@ -32,7 +32,7 @@ wxEND_EVENT_TABLE()
 
 
 MainFrame::MainFrame(const wxString& title, const wxPoint& pos, const wxSize& size)
-	: wxFrame(NULL, wxID_ANY, title, pos, size)
+	: wxFrame(nullptr, wxID_ANY, title, pos, size)
 {
     wxMenu *menuFile = new wxMenu;
 	menuFile->Append(ID_OPEN, _("&Open"), _("Open a PSF file."));
@@ -139,7 +139,7 @@ void MainFrame::OnPlay(wxCommandEvent& WXUNUSED(event))
     if (item == 0) return;
 
     SoundData *sound = item->GetSound();
-    rennyAssert(sound != NULL);
+    rennyAssert(sound != nullptr);
     //if (sound->Load() == false) return;
 
     wxGetApp().Play(sound);

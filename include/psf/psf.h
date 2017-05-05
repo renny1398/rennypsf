@@ -33,7 +33,7 @@ public:
   friend class PSFLoader;
 
 protected:
-  PSX::Composite* psx_;
+  psx::PSX* psx_;
 
 private:
   uint32_t unprocessed_cycles_;
@@ -49,7 +49,7 @@ public:
   friend class PSF1Loader;
 
 protected:
-  void PSXMemCpy(PSX::PSXAddr dest, void* src, int length);
+  void PSXMemCpy(psx::PSXAddr dest, void* src, int length);
 };
 
 
@@ -98,7 +98,7 @@ public:
   virtual bool IsDirectory() const { return false; }
 
   PSF2File* file() { return this; }
-  PSF2Directory* directory() { return NULL; }
+  PSF2Directory* directory() { return nullptr; }
 
   const unsigned char* GetData() const;
   size_t GetSize() const;
@@ -117,7 +117,7 @@ public:
   virtual bool IsFile() const { return false; }
   virtual bool IsDirectory() const { return true; }
 
-  PSF2File* file() { return NULL; }
+  PSF2File* file() { return nullptr; }
   PSF2Directory* directory() { return this; }
 
   void AddEntry(PSF2Entry* entry);

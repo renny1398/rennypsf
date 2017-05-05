@@ -4,12 +4,15 @@
 #include "psf/psx/bios.h"
 #include "psf/psx/rcnt.h"
 #include "psf/psx/disassembler.h"
+#include "psf/psx/interpreter.h"
+#include "psf/spu/spu.h"
+#include "common/SoundFormat.h"
 
 #include "common/debug.h"
 #include <cstring>
 
 
-namespace PSX {
+namespace psx {
 
 const char *strGPR[35] = {
   "ZR", "AT", "V0", "V1", "A0", "A1", "A2", "A3",
@@ -20,7 +23,7 @@ const char *strGPR[35] = {
 };
 
 
-namespace R3000A {
+namespace mips {
 
 // for delay_load
 //  uint32_t delayed_load_target;
@@ -94,21 +97,20 @@ u32& Cop0Registers::operator()(u32 i) {
 void Registers::Reset() {
   GPR.Reset();
   CP0.Reset();
-  sysclock = 0;
   Interrupt = 0;
 }
 
 
 RegisterAccessor::RegisterAccessor(Registers &regs)
   : regs_(regs), HI(regs.GPR.HI), LO(regs.GPR.LO), PC(regs.GPR.PC),
-    Cycle(regs.sysclock), Interrupt(regs.Interrupt) {
-  rennyAssert(&regs_ != NULL);
+    Interrupt(regs.Interrupt) {
+  // rennyAssert(&regs_ != nullptr);
 }
 
-RegisterAccessor::RegisterAccessor(Composite *psx)
+RegisterAccessor::RegisterAccessor(PSX *psx)
   : regs_(psx->R3000ARegs()), HI(regs_.GPR.HI), LO(regs_.GPR.LO), PC(regs_.GPR.PC),
-    Cycle(regs_.sysclock), Interrupt(regs_.Interrupt) {
-  rennyAssert(&regs_ != NULL);
+    Interrupt(regs_.Interrupt) {
+  // rennyAssert(&regs_ != nullptr);
 }
 
 void RegisterAccessor::ResetRegisters() {
@@ -116,13 +118,16 @@ void RegisterAccessor::ResetRegisters() {
 }
 
 
-Processor::Processor(Composite* psx)
+Processor::Processor(PSX* psx, RootCounterManager* rcnt)
   : Component(psx),
     RegisterAccessor(Regs),
     MemoryAccessor(psx),
     IRQAccessor(psx),
-    Regs(), GPR(Regs.GPR)
+    Regs(), GPR(Regs.GPR),
+    rcnt_(rcnt)
 {
+  rennyAssert(rcnt != nullptr);
+
   inDelaySlot = false;
   doingBranch = false;
 
@@ -171,6 +176,14 @@ void Processor::Reset()
   //    delayed_load_value = 0;
 
   rennyLogDebug("PSXProcessor", "R3000A processor is reset.");
+}
+
+unsigned int Processor::cycle32() const {
+  return rcnt_->cycle32();
+}
+
+void Processor::IncreaseCycle() {
+  rcnt_->IncreaseCycle();
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -366,11 +379,44 @@ void Processor::DivUnsigned(u32 rs_enum, u32 rt_enum) {
 }
 
 ////////////////////////////////////////////////////////////////////////
+// Execute Function
+////////////////////////////////////////////////////////////////////////
+
+void Processor::Execute(Interpreter* interp, bool in_softcall) {
+  rennyAssert(interp != nullptr);
+  // const uint32_t spusync_cycle_unit = 33868800 / spu_->GetCurrentSamplingRate();
+  if (in_softcall) {
+    doingBranch = false;
+  }
+  do {
+    interp->ExecuteOnce();
+    /*
+    uint32_t spusync_cycles = rcnt_->cycle32() - last_spusync_cycle_;
+    if (spusync_cycle_unit <= spusync_cycles) {
+      if (last_spusync_cycle_ == 0) {
+        spu_->Advance(1);
+        spusync_cycles -= spusync_cycle_unit;
+        last_spusync_cycle_ += spusync_cycle_unit;
+      }
+      for (; spusync_cycle_unit <= spusync_cycles; spusync_cycles -= spusync_cycle_unit) {
+        spu_->GetAsync(spu_out_);
+        last_spusync_cycle_ += spusync_cycle_unit;
+      }
+
+      // printf("Cycle = %d (in softcall: %d)\n", Cycle, in_softcall ? 1 : 0);
+      if (in_softcall == false || doingBranch) return;
+    } else if (in_softcall && doingBranch) {
+      return;
+    }*/
+  } while (in_softcall && doingBranch == false);
+}
+
+
+////////////////////////////////////////////////////////////////////////
 // Exception (TODO: divide into ThrowException and ProcessException)
 ////////////////////////////////////////////////////////////////////////
 
-void Processor::Exception(u32 code, bool branch_delay)
-{
+void Processor::Exception(u32 code, bool branch_delay) {
   SetCP0(COP0_CAUSE, code);
 
   u32& pc_ = Regs.PC;
@@ -393,16 +439,17 @@ void Processor::Exception(u32 code, bool branch_delay)
   Bios().Exception();
 }
 
-
-void Processor::BranchTest()
-{
-  RCnt().Update();
+void Processor::BranchTest() {
+  rcnt_->Update();
   if (irq() && (CP0(COP0_SR) & 0x401) == 0x401) {
     Exception(0x400, false);
   }
 }
 
+void Processor::DeadLoopSkip() {
+  rcnt_->DeadLoopSkip();
+}
 
-}   // namespace R3000A
+}   // namespace mips
 
-}   // namespace PSX
+}   // namespace psx

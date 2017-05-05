@@ -99,19 +99,17 @@ bool Vorbis::Open(SoundBlock* block) {
   block->ChangeChannelCount(vi->channels);
 
   if (vi->channels == 1) {
-    Sample& sample = block->Ch(0);
-    sample.set_volume_max(32767);
-    sample.set_volume(32767, 32767);
+    SampleSequence& sample_seq = block->Ch(0);
+    sample_seq.set_volume(1.0f, 1.0f);
     return true;
   }
 
   for (int i = 0; i < vi->channels; i++) {
-    Sample& sample = block->Ch(i);
-    sample.set_volume_max(32767);
+    SampleSequence& sample_seq = block->Ch(i);
     if (i & 1) {
-      sample.set_volume(0, 32767);
+      sample_seq.set_volume(0, 1.0f);
     } else {
-      sample.set_volume(32767, 0);
+      sample_seq.set_volume(1.0f, 0);
     }
   }
   return true;
@@ -138,8 +136,8 @@ bool Vorbis::DoAdvance(SoundBlock* dest) {
   buffer_pos_ += 4;
   pos_++;
   
-  dest->Ch(0).Set16(l);
-  dest->Ch(1).Set16(r);
+  dest->Ch(0).Push16i(l);
+  dest->Ch(1).Push16i(r);
 
   // NotifyDevice();
   

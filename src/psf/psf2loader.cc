@@ -14,7 +14,7 @@ PSF2Entry::PSF2Entry(PSF2Directory *parent, const char *name)
 
 
 bool PSF2Entry::IsRoot() const {
-  return parent_ == NULL;
+  return parent_ == nullptr;
 }
 
 PSF2Directory* PSF2Entry::Parent() {
@@ -38,14 +38,14 @@ PSF2Entry* PSF2Entry::Find(const wxString &path) {
 
   if (IsFile() == true) {
     if (curr != name_) {
-      return NULL;
+      return nullptr;
     }
     return this;
   }
 
   if (IsRoot() == false) {
     if (curr != name_) {
-      return NULL;
+      return nullptr;
     }
     if (next.empty() == false) {
       return this;
@@ -53,8 +53,8 @@ PSF2Entry* PSF2Entry::Find(const wxString &path) {
   }
 
   PSF2Directory* dir = this->directory();
-  if (dir == NULL) {
-    return NULL;
+  if (dir == nullptr) {
+    return nullptr;
   }
 
   wxVector<PSF2Entry*>::iterator itr = dir->children_.begin();
@@ -67,12 +67,12 @@ PSF2Entry* PSF2Entry::Find(const wxString &path) {
     } else {
       ret = (*itr)->Find(next);
     }
-    if (ret != NULL) {
+    if (ret != nullptr) {
       return ret;
     }
     ++itr;
   }
-  return NULL;
+  return nullptr;
 }
 
 
@@ -156,7 +156,7 @@ bool PSF2Directory::LoadFile(wxFileInputStream *stream, const char *filename, in
 
 bool PSF2Directory::LoadEntries(wxFileInputStream *stream, wxFileOffset offset) {
 
-  rennyAssert(stream != NULL);
+  rennyAssert(stream != nullptr);
   const wxFileOffset base_offset = stream->TellI();
   stream->SeekI(offset, wxFromCurrent);
 
@@ -230,14 +230,14 @@ bool PSF2Loader::LoadPSF2Entries(PSF2Directory *root) {
 PSF2* PSF2Loader::LoadDataEx() {
 
   LoadInfo();
-  if (ref_data_ != NULL) {
+  if (ref_data_ != nullptr) {
     // TODO: support reload
     return ref_data_;
   }
 
-  PSF2Directory* root = new PSF2Directory(NULL, "/");
+  PSF2Directory* root = new PSF2Directory(nullptr, "/");
   if (LoadPSF2Entries(root) == false) {
-    return NULL;
+    return nullptr;
   }
 
   LoadLibraries();
@@ -246,27 +246,27 @@ PSF2* PSF2Loader::LoadDataEx() {
   const wxVector<PSFLoader*>::const_iterator it_end = psflib_end();
   for (; it != it_end; ++it) {
     PSF2Loader* const loader = dynamic_cast<PSF2Loader*>(*it);
-    if (loader != NULL) {
+    if (loader != nullptr) {
       loader->LoadInfo();
       loader->LoadPSF2Entries(root);
     }
   }
 
   PSF2Entry* irx_entry = root->Find(wxT("psf2.irx"));
-  if (irx_entry == NULL) {
+  if (irx_entry == nullptr) {
     rennyLogError("PSF2Loader", "psf2.irx is not found.");
-    return NULL;
+    return nullptr;
   }
   PSF2File* psf2irx = irx_entry->file();
-  if (psf2irx == NULL) {
+  if (psf2irx == nullptr) {
     rennyLogError("PSF2Loader", "psf2.irx is not a file.");
-    return NULL;
+    return nullptr;
   }
 
   PSF2* p_psf = new PSF2(psf2irx);
   if (p_psf->IsOk() == false) {
     delete p_psf;
-    return NULL;
+    return nullptr;
   }
 
   ref_data_ = p_psf;

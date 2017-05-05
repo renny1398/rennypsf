@@ -45,14 +45,14 @@ inline u32 BFLIP32(u32 x) {
 // Prototype Definitions
 ////////////////////////////////////////////////////////////////////////
 
-namespace PSX {
+namespace psx {
 typedef u32 PSXAddr;
 typedef u32 PSXOffset;
 
-class Composite;
+class PSX;
 class Component;
 
-namespace R3000A {
+namespace mips {
 class Processor;
 class Interpreter;
 class Recompiler;
@@ -77,14 +77,14 @@ class SPU2;
 // PSX::Component Definitions
 ////////////////////////////////////////////////////////////////////////
 
-namespace PSX {
+namespace psx {
 
 class Component {
 
 public:
-  explicit Component(Composite* composite);
+  explicit Component(PSX* composite);
 
-  Composite& Psx() { return psx_; }
+  PSX& Psx() { return psx_; }
 
   u8 ReadMemory8(PSXAddr addr);
   u16 ReadMemory16(PSXAddr addr);
@@ -94,14 +94,14 @@ public:
   void WriteMemory16(PSXAddr addr, u16 value);
   void WriteMemory32(PSXAddr addr, u32 value);
 
-  R3000A::Processor& R3000a();
-  R3000A::Interpreter& Interp();
+  mips::Processor& R3000a();
+  mips::Interpreter& Interp();
   RootCounterManager& RCnt();
   const RootCounterManager& RCnt() const;
 
-  R3000A::Disassembler& Disasm();
+  mips::Disassembler& Disasm();
 
-  R3000A::Registers& R3000ARegs();
+  mips::Registers& R3000ARegs();
   HardwareRegisters& HwRegs();
   DMA& Dma();
   BIOS& Bios();
@@ -121,7 +121,7 @@ protected:
   void* psxRptr(PSXAddr addr);
 
 private:
-  Composite& psx_;
+  PSX& psx_;
 };
 
 }   // namespace PSX

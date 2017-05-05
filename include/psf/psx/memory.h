@@ -3,7 +3,7 @@
 #include "common.h"
 #include "hardware.h"
 
-namespace PSX {
+namespace psx {
 
 ////////////////////////////////////////////////////////////////
 // Memory Class Declaration
@@ -74,7 +74,7 @@ class UserMemoryAccessor {
 
 public:
   UserMemoryAccessor(Memory* mem);
-  UserMemoryAccessor(Composite* psx);
+  UserMemoryAccessor(PSX* psx);
 
   void* psxMptr(PSXAddr addr) {
     return mem_ + (addr & 0x1fffff);
@@ -135,7 +135,7 @@ private:
 class MemoryAccessor {
 public:
   MemoryAccessor(Memory* mem);
-  MemoryAccessor(Composite* psx);
+  MemoryAccessor(PSX* psx);
 
   s8 ReadMemory8s(PSXAddr addr) const {
     return static_cast<s8>(mem_.Read8(addr));

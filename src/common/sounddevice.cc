@@ -38,7 +38,7 @@ SoundDevice::~SoundDevice() {
 
 
 const short* SoundDevice::buffer(int* size) const {
-  rennyAssert(size != NULL);
+  rennyAssert(size != nullptr);
   *size = bufferSize_;
   return buffer_.get();
 }
@@ -82,14 +82,16 @@ bool SoundDevice::IsPlaying() const {
 }
 
 
-void SoundDevice::OnUpdate(const SoundBlock* block)
-{
-  block->GetStereo16(&buffer_[bufferIndex_*2]);
-  bufferIndex_++;
-  IncrementCounter();
-  if (bufferIndex_ >= bufferSize_) {
-    WriteToDevice();
-    bufferIndex_ = 0;
+void SoundDevice::OnUpdate(const SoundBlock* block) {
+  auto length = block->sample_length();
+  for (auto i = 0; i < length; ++i) {
+    block->GetStereo16(i, &buffer_[bufferIndex_*2]);
+    bufferIndex_++;
+    IncrementCounter();
+    if (bufferIndex_ >= bufferSize_) {
+      WriteToDevice();
+      bufferIndex_ = 0;
+    }
   }
 }
 
@@ -196,10 +198,10 @@ wxThread::ExitCode WaveOutALThread::Entry() {
 ////////////////////////////////////////////////////////////////////////
 
 
-ALCdevice *WaveOutAL::device_ = NULL;
-ALCcontext *WaveOutAL::context_ = NULL;
+ALCdevice *WaveOutAL::device_ = nullptr;
+ALCcontext *WaveOutAL::context_ = nullptr;
 int WaveOutAL::source_number_ = 0;
-WaveOutALThread* WaveOutAL::thread_ = NULL;
+WaveOutALThread* WaveOutAL::thread_ = nullptr;
 
 
 WaveOutAL::WaveOutAL()
@@ -225,7 +227,7 @@ WaveOutAL::~WaveOutAL()
 //
 void WaveOutAL::ThisThreadInit()
 {
-  if (device_ == NULL) {
+  if (device_ == nullptr) {
     device_ = alcOpenDevice(0);
     context_ = alcCreateContext(device_, 0);
     alcMakeContextCurrent(context_);

@@ -40,15 +40,13 @@ const int dsp_gaussian_lut[512] = {
 
 }   // namespace
 
-
 namespace SPU {
 
-InterpolationBase::InterpolationBase() {}
+uint32_t InterpolationBase::GetSinc() const {
+  return sinc;
+}
 
-void InterpolationBase::Start() {}
-
-void InterpolationBase::SetSinc(uint32_t pitch)
-{
+void InterpolationBase::SetSinc(uint32_t pitch) {
   if (pitch >= 0x5000) {
     rennyLogWarning("SPUInterpolation", "The pitch '0x04x' is too large.", pitch);
   }
@@ -56,22 +54,29 @@ void InterpolationBase::SetSinc(uint32_t pitch)
   if (sinc == 0) sinc = 1;
 }
 
-void InterpolationBase::StoreValue(int fa)
-{
+uint32_t InterpolationBase::GetSincPosition() const {
+  return spos;
+}
+
+uint32_t InterpolationBase::AddSincPosition(uint32_t dspos) {
+  return (spos += dspos);
+}
+
+uint32_t InterpolationBase::SubSincPosition(uint32_t dspos) {
+  return (spos -= dspos);
+}
+
+uint32_t InterpolationBase::AdvanceSincPosition() {
+  return (spos += sinc);
+}
+
+void InterpolationBase::StoreValue(int fa) {
   if (fa > 32767) fa = 32767;
   if (fa < -32768) fa = -32768;
   storeVal(fa);
 }
 
-int InterpolationBase::GetValue()
-{
-  return getVal();
-}
-
-
-void GaussianInterpolation::Start()
-{
-  InterpolationBase::Start();
+void GaussianInterpolation::Start() {
   spos = 0x30000;
   gpos = 0;
   for (int i = 0; i < 4; i++) {
@@ -79,36 +84,29 @@ void GaussianInterpolation::Start()
   }
 }
 
-
-void GaussianInterpolation::storeVal(int fa)
-{
+void GaussianInterpolation::storeVal(int fa) {
   samples[gpos] = fa;
   gpos = (gpos+1) & 3;
 }
 
-
-int GaussianInterpolation::getVal() const
-{
-  const int gval0 = samples[gpos];
-  const int gval1 = samples[(gpos+1)&3];
-  const int gval2 = samples[(gpos+2)&3];
-  const int gval3 = samples[(gpos+3)&3];
+int GaussianInterpolation::GetValue() const {
+  const auto gval0 = samples[gpos];
+  const auto gval1 = samples[(gpos+1)&3];
+  const auto gval2 = samples[(gpos+2)&3];
+  const auto gval3 = samples[(gpos+3)&3];
 
   const int vl = spos >> 8;
   const int* const fwd = dsp_gaussian_lut + 255 - vl;
   const int* const rev = dsp_gaussian_lut + vl;
 
-  int vr = (fwd[  0] * gval0) +
-           (fwd[256] * gval1) +
-           (rev[256] * gval2) +
-           (rev[  0] * gval3);
-  return vr >> 11;
+  auto vr = (fwd[  0] * gval0) +
+            (fwd[256] * gval1) +
+            (rev[256] * gval2) +
+            (rev[  0] * gval3);
+  return vr / 2048;
 }
 
-
-void CubicInterpolation::Start()
-{
-  InterpolationBase::Start();
+void CubicInterpolation::Start() {
   spos = 0x30000;
   gpos = 0;
   for (int i = 0; i < 4; i++) {
@@ -116,23 +114,19 @@ void CubicInterpolation::Start()
   }
 }
 
-
-void CubicInterpolation::storeVal(int fa)
-{
+void CubicInterpolation::storeVal(int fa) {
   samples[gpos] = fa;
   gpos = (gpos+1) & 3;
 }
 
+int CubicInterpolation::GetValue() const {
+  const auto gval0 = samples[gpos];
+  const auto gval1 = samples[(gpos+1)&3];
+  const auto gval2 = samples[(gpos+2)&3];
+  const auto gval3 = samples[(gpos+3)&3];
+  const auto xd = (spos >> 1) + 1;
 
-int CubicInterpolation::getVal() const
-{
-  const int gval0 = samples[gpos];
-  const int gval1 = samples[(gpos+1)&3];
-  const int gval2 = samples[(gpos+2)&3];
-  const int gval3 = samples[(gpos+3)&3];
-  const int xd = (spos >> 1) + 1;
-
-  int fa = gval3 - 3*gval2 + 3*gval1 - gval0;
+  auto fa = gval3 - 3*gval2 + 3*gval1 - gval0;
   fa *= (xd - (2<<15)) / 6;
   fa >>= 15;
   fa += gval2 - 2*gval1 + gval0;
@@ -145,6 +139,5 @@ int CubicInterpolation::getVal() const
 
   return fa;
 }
-
 
 }   // namespace SPU

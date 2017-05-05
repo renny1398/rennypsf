@@ -1,7 +1,7 @@
 #pragma once
 #include "common.h"
 
-namespace PSX {
+namespace psx {
 
 ////////////////////////////////////////////////////////////////
 // IRQ(Interrupt Request) Accessor Definitions
@@ -13,7 +13,7 @@ class IRQAccessor {
 
 public:
   IRQAccessor(HardwareRegisters*);
-  IRQAccessor(Composite*);
+  IRQAccessor(PSX*);
   u32 irq() const { return irq_data_ & irq_mask_; }
   u32 irq_data() const { return irq_data_; }
   u32 irq_mask() const { return irq_mask_; }
@@ -33,10 +33,11 @@ private:
 // HardwareRegisters Class Definition
 ////////////////////////////////////////////////////////////////
 
-class HardwareRegisters : public Component, private IRQAccessor {
+// TODO: remove Component
+class HardwareRegisters : public Component, public IRQAccessor {
 
  public:
-  HardwareRegisters(Composite* composite);
+  HardwareRegisters(PSX* composite);
 
   // void Init() {}
   void Reset();
@@ -103,7 +104,7 @@ class HardwareRegisterAccessor {
 
 public:
   HardwareRegisterAccessor(HardwareRegisters* hw_regs);
-  HardwareRegisterAccessor(Composite* psx);
+  HardwareRegisterAccessor(PSX* psx);
 
   u8* psxHu8ptr(PSXAddr addr) {
     return regs_ + (addr & 0x3fff);

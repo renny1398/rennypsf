@@ -8,12 +8,12 @@
 class PSF2File;
 class PSF2Directory;
 
-namespace PSX {
+namespace psx {
 
 class IOP : Component, private UserMemoryAccessor {
 
 public:
-  IOP(Composite* psx);
+  IOP(PSX* psx);
   ~IOP();
 
   bool Call(PSXAddr pc, uint32_t call_num);

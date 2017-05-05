@@ -2,7 +2,7 @@
 #include "common.h"
 #include "hardware.h"
 
-namespace PSX {
+namespace psx {
 
   class DMA : public Component, private IRQAccessor, private HardwareRegisterAccessor {
 
@@ -15,7 +15,7 @@ namespace PSX {
     // 0x1f80_10e0: DMA6 GPU OTC
 
    public:
-    DMA(Composite* composite);
+    DMA(PSX* composite);
 
     bool DMAEnabled(u32 n);
 

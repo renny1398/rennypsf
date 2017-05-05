@@ -60,7 +60,7 @@ wxVector<PSFLoader*>::const_iterator PSFLoader::psflib_end() const {
 
 
 SoundInfo* PSFLoader::LoadInfo() {
-  if (ref_info_ != NULL) {
+  if (ref_info_ != nullptr) {
     return ref_info_;
   }
 
@@ -129,7 +129,7 @@ bool PSFLoader::LoadLibraries() {
     lib_filename.Append(it->second);
 
     PSFLoader* loader = dynamic_cast<PSFLoader*>(SoundLoader::Instance(lib_filename));
-    if (loader == NULL) continue;
+    if (loader == nullptr) continue;
 
     psflibs_.push_back(loader);
   }
@@ -152,7 +152,7 @@ bool PSF1Loader::GetInitRegs(uint32_t *pc0, uint32_t *gp0, uint32_t *sp0) const 
   const wxVector<PSFLoader*>::const_iterator it = psflib_begin();
   if (it != psflib_end()) {
     const PSF1Loader* const loader = dynamic_cast<PSF1Loader*>(*it);
-    if (loader != NULL) {
+    if (loader != nullptr) {
       return loader->GetInitRegs(pc0, gp0, sp0);
     }
   }
@@ -191,7 +191,7 @@ bool PSF1Loader::LoadEXE() {
   wxVector<PSFLoader*>::const_iterator lib_it_end = psflib_end();
   for (; lib_it != lib_it_end; ++lib_it) {
     PSF1Loader* loader = dynamic_cast<PSF1Loader*>(*lib_it);
-    if (loader != NULL) {
+    if (loader != nullptr) {
       loader->LoadInfo();
       loader->LoadEXE();
     }
@@ -202,13 +202,13 @@ bool PSF1Loader::LoadEXE() {
 
 
 bool PSF1Loader::LoadText(PSF1* p_psf) {
-  if (p_psf == NULL || header_ == NULL || text_ == NULL) {
+  if (p_psf == nullptr || header_ == nullptr || text_ == nullptr) {
     return false;
   }
 
   for (wxVector<PSFLoader*>::iterator it = psflib_begin(); it != psflib_end(); ++it) {
     PSF1Loader* const loader = dynamic_cast<PSF1Loader*>(*it);
-    rennyAssert(loader != NULL);
+    rennyAssert(loader != nullptr);
     loader->LoadText(p_psf);
   }
   p_psf->PSXMemCpy(header_->text_addr, text_.get(), header_->text_size);
@@ -219,7 +219,7 @@ bool PSF1Loader::LoadText(PSF1* p_psf) {
 PSF1* PSF1Loader::LoadDataEx() {
 
   LoadInfo();
-  if (ref_data_ != NULL) {
+  if (ref_data_ != nullptr) {
     // TODO: support reload
     return ref_data_;
   }

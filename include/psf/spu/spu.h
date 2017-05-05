@@ -155,10 +155,10 @@ private:
 
 
 
-class SPUBase : public PSX::Component, private PSX::UserMemoryAccessor
+class SPUBase : public psx::Component, private psx::UserMemoryAccessor
 {
 public:
-  SPUBase(PSX::Composite* composite);
+  SPUBase(psx::PSX* composite);
   virtual ~SPUBase() {}
 
   void Init();
@@ -167,8 +167,12 @@ public:
   void Shutdown();
   bool IsRunning() const;
 
-  bool Step(int step_count);
+  bool Advance(int step_count);
   void ResetStepStatus();
+
+  void set_output(SoundBlock* out) {
+    out_ = out;
+  }
 
   bool IsAsync() const;
   bool (SPUBase::*Get)(SoundBlock* dest);
@@ -253,10 +257,10 @@ public:
   void NotifyOnChangeTone(const SPUInstrument_New& tone) const;
   void NotifyOnRemoveTone(const SPUInstrument_New& tone) const;
 
-  void ReadDMA4Memory(PSX::PSXAddr addr, uint32_t size);
-  void WriteDMA4Memory(PSX::PSXAddr addr, uint32_t size);
-  void ReadDMA7Memory(PSX::PSXAddr addr, uint32_t size);
-  void WriteDMA7Memory(PSX::PSXAddr addr, uint32_t size);
+  void ReadDMA4Memory(psx::PSXAddr addr, uint32_t size);
+  void WriteDMA4Memory(psx::PSXAddr addr, uint32_t size);
+  void ReadDMA7Memory(psx::PSXAddr addr, uint32_t size);
+  void WriteDMA7Memory(psx::PSXAddr addr, uint32_t size);
 
   static const int kMemorySize = 0x100000;  // for PS1
 
@@ -264,8 +268,8 @@ protected:
   void SetupStreams();
   void RemoveStreams();
 
-  void ReadDMAMemoryEx(SPUCore* core, PSX::PSXAddr addr, uint32_t size);
-  void WriteDMAMemoryEx(SPUCore* core, PSX::PSXAddr addr, uint32_t size);
+  void ReadDMAMemoryEx(SPUCore* core, psx::PSXAddr addr, uint32_t size);
+  void WriteDMAMemoryEx(SPUCore* core, psx::PSXAddr addr, uint32_t size);
 
 public:
   unsigned char* m_pSpuIrq;
@@ -279,6 +283,7 @@ private:
 
   Soundbank soundbank_;
   NeilReverb reverb_;
+  SoundBlock* out_;
 
   wxScopedArray<uint8_t> mem8_;
   uint16_t* p_mem16_;
@@ -314,7 +319,7 @@ protected:
 class SPU: public SPUBase
 {
 public:
-  SPU(PSX::Composite* composite);
+  SPU(psx::PSX* composite);
 
   void SetLength(int stop, int fade);
   void Flush();
@@ -359,7 +364,7 @@ private:
 
 class SPU2 : public SPUBase {
 public:
-  SPU2(PSX::Composite*);
+  SPU2(psx::PSX*);
 
   uint32_t memory_size() const { return kMemorySize; }
 

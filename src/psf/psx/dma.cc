@@ -3,7 +3,7 @@
 #include "common/debug.h"
 
 
-namespace PSX {
+namespace psx {
 
 
 u32& DMA::D_MADR(u32 n)
@@ -68,7 +68,7 @@ void DMA::execPIO(u32, u32, u32) {}
 void DMA::execGPU_OTC(u32, u32, u32) {}
 
 
-DMA::DMA(Composite *composite)
+DMA::DMA(PSX* composite)
   : Component(composite),
     IRQAccessor(composite),
     HardwareRegisterAccessor(composite),

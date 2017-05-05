@@ -5,32 +5,32 @@
 #include "psf/psx/hardware.h"
 #include "common/debug.h"
 
-namespace PSX {
+namespace psx {
 
 UserMemoryAccessor::UserMemoryAccessor(Memory* mem)
   : mem_(mem->mem_user_) {
-  rennyAssert(mem_ != NULL);
+  rennyAssert(mem_ != nullptr);
 }
 
-UserMemoryAccessor::UserMemoryAccessor(Composite* psx)
+UserMemoryAccessor::UserMemoryAccessor(PSX* psx)
   : mem_(psx->Mem().mem_user_) {
-  rennyAssert(mem_ != NULL);
+  rennyAssert(mem_ != nullptr);
 }
 
 MemoryAccessor::MemoryAccessor(Memory *mem)
   : mem_(*mem) {
-  rennyAssert(&mem_ != NULL);
+  rennyAssert(mem != nullptr);
 }
 
-MemoryAccessor::MemoryAccessor(Composite *psx)
+MemoryAccessor::MemoryAccessor(PSX *psx)
   : mem_(psx->Mem()) {
-  rennyAssert(&mem_ != NULL);
+  rennyAssert(&mem_ != nullptr);
 }
 
 
 Memory::Memory(int version, HardwareRegisters* hw_regs)
   : version_(version), hw_regs_(*hw_regs), psxH_(hw_regs) {
-  rennyAssert(&hw_regs_ != NULL);
+  rennyAssert(&hw_regs_ != nullptr);
   ::memset(segment_LUT_, 0, 0x10000);
   ::memset(mem_user_, 0, 0x200000);
   ::memset(mem_parallel_port_, 0, 0x10000);
@@ -182,4 +182,4 @@ void Memory::Set(PSXAddr addr, int data, int length) {
   ::memset(reinterpret_cast<s8*>(&mem_user_[addr & 0x7fffff]), data, length);
 }
 
-}   // namespace PSX
+}   // namespace psx

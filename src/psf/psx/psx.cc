@@ -1,179 +1,177 @@
 #include "psf/psx/psx.h"
 
 
-namespace PSX {
+namespace psx {
 
 
-Composite::Composite(u32 version)
+PSX::PSX(u32 version)
   : version_(version),
     hw_regs_(this), mem_(version, &hw_regs_), dma_(this),
-    r3000a_(this), rcnt_(this, &r3000a_.Regs), bios_(this), iop_(this),
-    interp_(this, &r3000a_, &bios_, &iop_), disasm_(this), spu_(this) {
-  interp_.Init(&rcnt_);
+    rcnt_(this), r3000a_(this, &rcnt_), bios_(this), iop_(this),
+    interp_(this, &r3000a_, &bios_, &iop_), disasm_(this), spu_(this) {}
+
+
+void PSX::Init(bool /*enable_spu2*/) {
 }
 
 
-void Composite::Init(bool /*enable_spu2*/) {
-}
-
-
-void Composite::Reset() {
+void PSX::Reset() {
   // r3000a_.Init();
   rcnt_.Init();
   spu_.Open();
 }
 
 
-u32 Composite::version() const {
+u32 PSX::version() const {
   return version_;
 }
 
 /*
-R3000A::InterpreterThread* Composite::Run() {
+mips::InterpreterThread* PSX::Run() {
   Reset();
   bios_.Init();
   return interp_.Execute();
 }
 
-void Composite::Terminate() {
+void PSX::Terminate() {
   interp_.Shutdown();
   spu_.Shutdown();
   mem_.Reset();
 }
 */
 
-Memory& Composite::Mem() {
+Memory& PSX::Mem() {
   return mem_;
 }
 
-R3000A::Processor& Composite::R3000a() {
+mips::Processor& PSX::R3000a() {
   return r3000a_;
 }
 
-R3000A::Interpreter& Composite::Interp() {
+mips::Interpreter& PSX::Interp() {
   return interp_;
 }
 
-RootCounterManager& Composite::RCnt() {
+RootCounterManager& PSX::RCnt() {
   return rcnt_;
 }
 
-const RootCounterManager& Composite::RCnt() const {
+const RootCounterManager& PSX::RCnt() const {
   return rcnt_;
 }
 
-R3000A::Disassembler& Composite::Disasm() {
+mips::Disassembler& PSX::Disasm() {
   return disasm_;
 }
 
-R3000A::Registers& Composite::R3000ARegs() {
+mips::Registers& PSX::R3000ARegs() {
   return r3000a_.Regs;
 }
 
-HardwareRegisters& Composite::HwRegs() {
+HardwareRegisters& PSX::HwRegs() {
   return hw_regs_;
 }
 
-DMA& Composite::Dma() {
+DMA& PSX::Dma() {
   return dma_;
 }
 
-BIOS& Composite::Bios() {
+BIOS& PSX::Bios() {
   return bios_;
 }
 
-IOP& Composite::Iop() {
+IOP& PSX::Iop() {
   return iop_;
 }
 
-SPU::SPUBase& Composite::Spu() {
+SPU::SPUBase& PSX::Spu() {
   return spu_;
 }
 
-const SPU::SPUBase& Composite::Spu() const {
+const SPU::SPUBase& PSX::Spu() const {
   return spu_;
 }
 
 
-void Composite::InitMemory() {
+void PSX::InitMemory() {
   mem_.Init();
 }
 
 
-u8 Composite::ReadMemory8(PSXAddr addr) {
+u8 PSX::ReadMemory8(PSXAddr addr) {
   return mem_.Read8(addr);
 }
 
-u16 Composite::ReadMemory16(PSXAddr addr) {
+u16 PSX::ReadMemory16(PSXAddr addr) {
   return mem_.Read16(addr);
 }
 
-u32 Composite::ReadMemory32(PSXAddr addr) {
+u32 PSX::ReadMemory32(PSXAddr addr) {
   return mem_.Read32(addr);
 }
 
 
-void Composite::WriteMemory8(PSXAddr addr, u8 value) {
+void PSX::WriteMemory8(PSXAddr addr, u8 value) {
   mem_.Write8(addr, value);
 }
 
-void Composite::WriteMemory16(PSXAddr addr, u16 value) {
+void PSX::WriteMemory16(PSXAddr addr, u16 value) {
   mem_.Write16(addr, value);
 }
 
-void Composite::WriteMemory32(PSXAddr addr, u32 value) {
+void PSX::WriteMemory32(PSXAddr addr, u32 value) {
   mem_.Write32(addr, value);
 }
 
 
-void Composite::Memcpy(PSXAddr dest, const void *src, int length) {
+void PSX::Memcpy(PSXAddr dest, const void *src, int length) {
   mem_.Copy(dest, src, length);
 }
 
 
 /*
-  void Composite::Memcpy(void *dest, PSXAddr src, int length) const {
+  void PSX::Memcpy(void *dest, PSXAddr src, int length) const {
     mem_.Copy(dest, src, length);
   }
 */
 
-void Composite::Memset(PSXAddr dest, int data, int length) {
+void PSX::Memset(PSXAddr dest, int data, int length) {
   Mem().Set(dest, data, length);
 }
 
 
-uint32_t Composite::GetSamplingRate() const {
+uint32_t PSX::GetSamplingRate() const {
   return spu_.GetCurrentSamplingRate();
 }
 
-void Composite::ChangeOutputSamplingRate(uint32_t rate) {
+void PSX::ChangeOutputSamplingRate(uint32_t rate) {
   spu_.ChangeOutputSamplingRate(rate);
 }
 
 
-void Composite::SetRootDirectory(const PSF2Directory* root) {
+void PSX::SetRootDirectory(const PSF2Directory* root) {
   iop_.SetRootDirectory(root);
 }
 
 
-unsigned int Composite::LoadELF(PSF2File *psf2irx) {
+unsigned int PSX::LoadELF(PSF2File *psf2irx) {
   return iop_.LoadELF(psf2irx);
 }
 
 
 // Component
 
-Component::Component(Composite *composite)
+Component::Component(PSX *composite)
   : psx_(*composite) {}
 
-R3000A::Processor& Component::R3000a() { return psx_.R3000a(); }
-R3000A::Interpreter& Component::Interp() { return psx_.Interp(); }
+mips::Processor& Component::R3000a() { return psx_.R3000a(); }
+mips::Interpreter& Component::Interp() { return psx_.Interp(); }
 RootCounterManager& Component::RCnt() { return psx_.RCnt(); }
 const RootCounterManager& Component::RCnt() const { return psx_.RCnt(); }
 
-R3000A::Disassembler& Component::Disasm() { return psx_.Disasm(); }
+mips::Disassembler& Component::Disasm() { return psx_.Disasm(); }
 
-R3000A::Registers& Component::R3000ARegs() { return psx_.R3000ARegs(); }
+mips::Registers& Component::R3000ARegs() { return psx_.R3000ARegs(); }
 HardwareRegisters& Component::HwRegs() { return psx_.HwRegs(); }
 DMA& Component::Dma() { return psx_.Dma(); }
 BIOS& Component::Bios() { return psx_.Bios(); }
@@ -250,4 +248,4 @@ u32& Component::psxRu32ref(PSXAddr addr) { return psx_.Ru32ref(addr); }
 // BIOS Accessor Definitions (Pointer)
 void* Component::psxRptr(PSXAddr addr) { return psx_.Rvptr(addr); }
 
-}   // namespace PSX
+}   // namespace psx

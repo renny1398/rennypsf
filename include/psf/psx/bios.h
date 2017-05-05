@@ -4,11 +4,11 @@
 #include "memory.h"
 #include "hardware.h"
 
-namespace PSX {
-class BIOS : public Component, private R3000A::RegisterAccessor, private UserMemoryAccessor, private IRQAccessor {
+namespace psx {
+class BIOS : public Component, /*private mips::RegisterAccessor, */private UserMemoryAccessor, private IRQAccessor {
 
  public:
-  BIOS(Composite* psx);
+  BIOS(PSX* psx);
 
   void Init();
   void Shutdown();
@@ -101,9 +101,9 @@ class BIOS : public Component, private R3000A::RegisterAccessor, private UserMem
   void DeliverEventEx(u32 ev, u32 spec);
 
  private:
-  // Composite* const psx_;
-  // R3000A::GeneralPurposeRegisters& GPR;
-  // R3000A::Cop0Registers& CP0;
+  // PSX* const psx_;
+  mips::GeneralPurposeRegisters& GPR;
+  mips::Cop0Registers& CP0;
 
   /*
   u32& PC;
@@ -114,6 +114,44 @@ class BIOS : public Component, private R3000A::RegisterAccessor, private UserMem
   u32& FP;
   u32& RA;
   */
+
+  struct JumpBuffer {
+    JumpBuffer() = default;
+    void Get(mips::GeneralPurposeRegisters* gpr) const {
+      rennyAssert(gpr != nullptr);
+      (*gpr)(GPR_RA) = BFLIP32(RA);
+      (*gpr)(GPR_SP) = BFLIP32(SP);
+      (*gpr)(GPR_FP) = BFLIP32(FP);
+      (*gpr)(GPR_S0) = BFLIP32(S0);
+      (*gpr)(GPR_S1) = BFLIP32(S1);
+      (*gpr)(GPR_S2) = BFLIP32(S2);
+      (*gpr)(GPR_S3) = BFLIP32(S3);
+      (*gpr)(GPR_S4) = BFLIP32(S4);
+      (*gpr)(GPR_S5) = BFLIP32(S5);
+      (*gpr)(GPR_S6) = BFLIP32(S6);
+      (*gpr)(GPR_S7) = BFLIP32(S7);
+      (*gpr)(GPR_GP) = BFLIP32(GP);
+    }
+    void Set(const mips::GeneralPurposeRegisters& gpr) {
+      RA = BFLIP32(gpr(GPR_RA));
+      SP = BFLIP32(gpr(GPR_SP));
+      FP = BFLIP32(gpr(GPR_FP));
+      S0 = BFLIP32(gpr(GPR_S0));
+      S1 = BFLIP32(gpr(GPR_S1));
+      S2 = BFLIP32(gpr(GPR_S2));
+      S3 = BFLIP32(gpr(GPR_S3));
+      S4 = BFLIP32(gpr(GPR_S4));
+      S5 = BFLIP32(gpr(GPR_S5));
+      S6 = BFLIP32(gpr(GPR_S6));
+      S7 = BFLIP32(gpr(GPR_S7));
+      GP = BFLIP32(gpr(GPR_GP));
+    }
+    uint32_t RA;
+    uint32_t SP;
+    uint32_t FP;
+    uint32_t S0, S1, S2, S3, S4, S5, S6, S7;
+    uint32_t GP;
+  };
 
   struct malloc_chunk {
     u32 stat;
@@ -141,21 +179,21 @@ class BIOS : public Component, private R3000A::RegisterAccessor, private UserMem
     u32 status;
     u32 mode;
     // u32 reg[32];
-    R3000A::GeneralPurposeRegisters reg;
+    mips::GeneralPurposeRegisters reg;
     u32 func;
   };
 
-  u32 *jmp_int;
+  JumpBuffer* jmp_int;
 
-  R3000A::GeneralPurposeRegisters savedGPR;
-  EvCB *Event;
+  mips::GeneralPurposeRegisters savedGPR;
+  EvCB* events_base_;
 
-  //static EvCB *HwEV; // 0xf0
-  //static EvCB *EvEV; // 0xf1
-  EvCB *RcEV; // 0xf2
-  //static EvCB *UeEV; // 0xf3
-  //static EvCB *SwEV; // 0xf4
-  //static EvCB *ThEV; // 0xff
+  // EvCB *HwEV; // 0xf0
+  // EvCB *EvEV; // 0xf1
+  EvCB* rcnt_event_; // 0xf2
+  // EvCB *UeEV; // 0xf3
+  // EvCB *SwEV; // 0xf4
+  // EvCB *ThEV; // 0xff
 
   u32 heap_addr;
   u32 SysIntRP[8];
