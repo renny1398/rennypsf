@@ -1,6 +1,7 @@
 #pragma once
 #include "common.h"
 #include "memory.h"
+#include <set>
 
 #include <wx/string.h>
 #include <wx/vector.h>
@@ -11,24 +12,25 @@ class wxOutputStream;
 namespace psx {
 namespace mips {
 
-class Disassembler : private UserMemoryAccessor
-{
-public:
+class Disassembler : private UserMemoryAccessor {
+ public:
   Disassembler(PSX *composite);
 
   bool Parse(u32 code);
   void PrintCode(wxOutputStream* out = nullptr);
-  void PrintChangedRegisters();
+  void PrintChangedRegisters(wxOutputStream* out);
 
   void StartOutputToFile();
-  bool OutputToFile();
+  bool OutputCodeToFile();
+  bool OutputChangeRegistersToFile();
+  bool OutputStringToFile(const wxString&);
   void StopOutputToFile();
 
   void DumpRegisters();
 
   static Disassembler& GetInstance();
 
-private:
+ private:
   bool parseNop(u32);
   bool parseLoad(u32 code);
   bool parseStore(u32 code);
@@ -58,7 +60,7 @@ private:
   u32 code_;
   wxString opcodeName;
   wxVector<wxString> operands;
-  wxVector<wxString> changedRegisters;
+  /*wxVector*/std::set<wxString> changedRegisters;
   wxFile output_to_;
 
 protected:
@@ -68,8 +70,5 @@ protected:
   //static bool (*const COPz[64])(u32);
 };
 
-}   // namespace R3000A
-
-extern mips::Disassembler& Disasm;
-
-}   // namespace PSX
+}   // namespace mips
+}   // namespace psx

@@ -34,7 +34,7 @@ namespace SPU {
 
 
 namespace {
-WX_DECLARE_HASH_MAP(int, SPURequest*, wxIntegerHash, wxIntegerEqual, RequestMap);
+WX_DECLARE_HASH_MAP(long, SPURequest*, wxIntegerHash, wxIntegerEqual, RequestMap);
 }
 
 
@@ -57,7 +57,7 @@ void SPUStepRequest::Execute(SPUBase* p_spu) const {
     REVERBInfo& rvb = p_spu->Reverb();
     for (int i = 0; i < core_count; i++) {
       SPUCore& core = p_spu->core(i);
-      core.Step();
+      core.Advance();
 
       // rvb.ClearReverb();
       for (unsigned int j = 0; j < 24; j++) {
@@ -67,71 +67,54 @@ void SPUStepRequest::Execute(SPUBase* p_spu) const {
         }
       }
       rvb.Mix();
-
-/*
-      SPUVoiceManager& ch_mgr = core.Voices();
-      SPUVoice& rvb_left = ch_mgr.At(24);
-      SPUVoice& rvb_right = ch_mgr.At(25);
-      rvb_left.Set16(rvb.GetLeft());
-      rvb_left.set_volume_max(0x4000);
-      rvb_left.set_volume(0x4000, 0);
-      rvb_right.Set16(rvb.GetRight());
-      rvb_right.set_volume_max(0x4000);
-      rvb_right.set_volume(0, 0x4000);
-*/
     }
-    // p_spu->NotifyObservers();
-    p_spu->ResetStepStatus();
   }
 }
 
 
-const SPURequest* SPUNoteOnRequest::CreateRequest(int ch) {
-  if (24 <= ch) {
-    rennyLogWarning("SPUNoteOnReguest", "Invalid channel number %d.", ch);
-    return nullptr;
-  }
-
+const SPURequest* SPUNoteOnRequest::CreateRequest(SPUVoice* p_voice) {
   static RequestMap pool(1);
-  RequestMap::const_iterator itr = pool.find(ch);
+  int pool_index = reinterpret_cast<long>(p_voice);  // WARNING
+  RequestMap::const_iterator itr = pool.find(pool_index);
   if (itr == pool.end()) {
-    SPURequest* req = new SPUNoteOnRequest(ch);
-    pool.insert(RequestMap::value_type(ch, req));
+    SPURequest* req = new SPUNoteOnRequest(p_voice);
+    pool.insert(RequestMap::value_type(pool_index, req));
     return req;
   }
   return itr->second;
 }
 
 
-void SPUNoteOnRequest::Execute(SPUBase* p_spu) const {
+void SPUNoteOnRequest::Execute(SPUBase*) const {
   // p_spu->Voice(ch_).tone->ConvertData();
-  p_spu->Voice(ch_).Advance();
+  p_voice_->Advance();
 }
 
 
-const SPURequest* SPUNoteOffRequest::CreateRequest(int ch) {
+const SPURequest* SPUNoteOffRequest::CreateRequest(SPUVoice* p_voice) {
   static RequestMap pool(1);
-  RequestMap::const_iterator itr = pool.find(ch);
+  int pool_index = reinterpret_cast<long>(p_voice);  // WARNING
+  RequestMap::const_iterator itr = pool.find(pool_index);
   if (itr == pool.end()) {
-    SPURequest* req = new SPUNoteOffRequest(ch);
-    pool.insert(RequestMap::value_type(ch, req));
+    SPURequest* req = new SPUNoteOffRequest(p_voice);
+    pool.insert(RequestMap::value_type(pool_index, req));
     return req;
   }
   return itr->second;
 }
 
-
-void SPUNoteOffRequest::Execute(SPUBase* p_spu) const {
-   p_spu->Voice(ch_).Advance();
+void SPUNoteOffRequest::Execute(SPUBase*) const {
+  p_voice_->Advance();
 }
 
 
-const SPURequest* SPUSetOffsetRequest::CreateRequest(int ch) {
+const SPURequest* SPUSetOffsetRequest::CreateRequest(SPUVoice* p_voice) {
   static RequestMap pool(1);
-  RequestMap::const_iterator itr = pool.find(ch);
+  int pool_index = reinterpret_cast<long>(p_voice);  // WARNING
+  RequestMap::const_iterator itr = pool.find(pool_index);
   if (itr == pool.end()) {
-    SPURequest* req = new SPUSetOffsetRequest(ch);
-    pool.insert(RequestMap::value_type(ch, req));
+    SPURequest* req = new SPUSetOffsetRequest(p_voice);
+    pool.insert(RequestMap::value_type(pool_index, req));
     return req;
   }
   return itr->second;
@@ -147,9 +130,17 @@ void SPUSetOffsetRequest::Execute(SPUBase*) const {
 // SPU Core class implement
 ////////////////////////////////////////////////////////////////////////
 
+SPUCore::SPUCore()
+  : p_spu_(nullptr), voice_manager_(this, 0), dma_delay_(0) {}
 
-void SPUCore::Step() {
-  voice_manager_.StepForAll();
+SPUCore::SPUCore(SPUBase* spu)
+  : p_spu_(spu), voice_manager_(this, 24), dma_delay_(0) {
+  rennyAssert(spu != nullptr);
+}
+
+void SPUCore::Advance() {
+  DecreaseDMADelay();
+  voice_manager_.Advance();
 }
 
 
@@ -157,17 +148,23 @@ void SPUCore::Step() {
 // SPU class implement
 ////////////////////////////////////////////////////////////////////////
 
-
 SPUBase::SPUBase(psx::PSX* composite)
   : Component(composite), UserMemoryAccessor(composite),
-    Get(&SPUBase::GetAsync), soundbank_(), reverb_(this) {
+    Get(&SPUBase::GetAsync),
+    p_psx_(composite),
+    soundbank_(), reverb_(this),
+    cores_(composite->version(), SPUCore()),
+    voice_manager_(this) {
 
   uint32_t core_num = composite->version();
   rennyAssert(core_num == 1 || core_num == 2);
   // if (core_num < 1 || 2 < core_num) {
   //   core_num = 1;
   // }
-  cores_.assign(core_num, SPUCore(this));
+
+  for (uint32_t i = 0; i < core_num; ++i) {
+    new(&cores_.at(i)) SPUCore(this);
+  }
 
   switch (core_num) {
   case 2:
@@ -210,8 +207,8 @@ void SPUBase::NotifyOnUpdateStartAddress(int ch) const {
   pthread_cond_broadcast(&process_cond_);
   pthread_mutex_unlock(&process_mutex_);
 */
-  const SPURequest* req = SPUSetOffsetRequest::CreateRequest(ch);
-  thread_->PutRequest(req);
+  // const SPURequest* req = SPUSetOffsetRequest::CreateRequest(ch);
+  // thread_->PutRequest(req);
 }
 
 
@@ -248,7 +245,6 @@ void SPUBase::ChangeProcessState(ProcessState state, int ch) {
 
 
 bool SPUBase::Advance(int step_count) {
-
   const SPURequest* req = SPUStepRequest::CreateRequest(step_count);
   thread_->PutRequest(req);
   return true;
@@ -260,14 +256,6 @@ void SPUBase::NotifyObservers() {
   for (wxVector<SPUCore>::iterator itr = cores_.begin(); itr != itr_end; ++itr) {
     itr->Voices().NotifyDevice();
   }*/
-}
-
-
-void SPUBase::ResetStepStatus() {
-  const wxVector<SPUCore>::iterator itr_end = cores_.end();
-  for (wxVector<SPUCore>::iterator itr = cores_.begin(); itr != itr_end; ++itr) {
-    itr->Voices().ResetStepStatus();
-  }
 }
 
 
@@ -528,11 +516,9 @@ bool SPUBase::IsRunning() const {
   return isPlaying_;
 }
 
-
-
-
+/*
 SPU2::SPU2(psx::PSX *composite)
-  : SPUBase(composite) {}
-
+  : SPUBase(composite), cores_(this) {}
+*/
 
 }   // namespace SPU

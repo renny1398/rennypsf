@@ -16,37 +16,34 @@ inline int32_t CLIP(int32_t x) {
 
 namespace SPU {
 
-
+/*
 SPUVoice::SPUVoice()
-  : p_spu_(nullptr), ch(0xffffffff), iUsedFreq(0), iRawPitch(0),
+  : p_core_(nullptr),
+    pInterpolation(nullptr), iUsedFreq(0), iRawPitch(0),
     is_ready_(false), ready_cond_(ready_mutex_)
 {}
+*/
 
-
-SPUVoice::SPUVoice(SPUBase *pSPU, int ch)
-  : p_spu_(pSPU), ch(ch),
-    lpcm_buffer_l(pSPU->NSSIZE), lpcm_buffer_r(pSPU->NSSIZE),
+SPUVoice::SPUVoice(SPUCore* p_core)
+  : p_core_(p_core),
+    lpcm_buffer_l(45), lpcm_buffer_r(45),
     pInterpolation(new GaussianInterpolation),
     is_ready_(false), ready_cond_(ready_mutex_) {
   tone = nullptr;
   is_on_ = false;
 }
-
 
 SPUVoice::SPUVoice(const SPUVoice &info)
-  : p_spu_(info.p_spu_), ch(info.ch),
-    lpcm_buffer_l(p_spu_->NSSIZE), lpcm_buffer_r(p_spu_->NSSIZE),
-    pInterpolation(new GaussianInterpolation),
-    is_ready_(false), ready_cond_(ready_mutex_) {
-  tone = nullptr;
-  is_on_ = false;
+  : SPUVoice(info.p_core_) {}
+
+SPUVoice::~SPUVoice() {
+  if (pInterpolation) {
+    delete pInterpolation;
+  }
 }
 
-/*
-bool SPUVoice::IsReady() const {
-  return is_ready_;
-}
-*/
+SPUBase* SPUVoice::p_spu() { return p_core_->p_spu(); }
+const SPUBase* SPUVoice::p_spu() const { return p_core_->p_spu(); }
 
 void SPUVoice::SetReady() const {
   ready_mutex_.Lock();
@@ -126,10 +123,10 @@ void SPUVoice::StartSound()
 
   SPUInstrument_New* p_inst = tone;
   if (p_inst == 0 || addr != p_inst->addr() || 0x80000000 <= addr) {
-    p_inst = dynamic_cast<SPUInstrument_New*>(&Spu().soundbank().instrument(SPUInstrument_New::CalculateId(addr, useExternalLoop ? addrExternalLoop : 0xffffffff)));
+    p_inst = dynamic_cast<SPUInstrument_New*>(&p_spu()->soundbank().instrument(SPUInstrument_New::CalculateId(addr, useExternalLoop ? addrExternalLoop : 0xffffffff)));
     if (p_inst == 0) {
-      p_inst = new SPUInstrument_New(Spu(), addr, useExternalLoop ? addrExternalLoop : 0xffffffff);
-      Spu().soundbank().set_instrument(p_inst);
+      p_inst = new SPUInstrument_New(*p_spu(), addr, useExternalLoop ? addrExternalLoop : 0xffffffff);
+      p_spu()->soundbank().set_instrument(p_inst);
       rennyLogDebug("SPUInterument", "Created a new instrument. (id = 0x%08x, length = %d, loop = %d)",
                     p_inst->id(), p_inst->length(), p_inst->loop());
     }
@@ -142,15 +139,15 @@ void SPUVoice::StartSound()
   useExternalLoop = false;
 
   VoiceOn();
-  p_spu_->Reverb().StartReverb(this);
+  p_spu()->Reverb().StartReverb(this);
 
   // Spu().ChangeProcessState(SPU::STATE_NOTE_ON, ch);
-  const SPURequest* req = SPUNoteOnRequest::CreateRequest(ch);
+  const SPURequest* req = SPUNoteOnRequest::CreateRequest(this);
   if (req == 0) {
     VoiceOffAndStop();
     return;
   }
-  p_spu_->PutRequest(req);
+  p_spu()->PutRequest(req);
 
   NotifyOnNoteOn();
 
@@ -162,7 +159,7 @@ void SPUVoice::VoiceChangeFrequency()
 {
   rennyAssert(iActFreq != iUsedFreq);
   iUsedFreq = iActFreq;
-  pInterpolation->SetSinc(iRawPitch * Spu().GetDefaultSamplingRate() / Spu().GetCurrentSamplingRate());
+  pInterpolation->SetSinc(iRawPitch * p_spu()->GetDefaultSamplingRate() / p_spu()->GetCurrentSamplingRate());
 }
 
 // FModChangeFrequency
@@ -193,7 +190,7 @@ void SPUVoice::Advance() {
     fa = itrTone.Next();
 
     if (bFMod != 2) {
-      if ( ( p_spu_->core(0).ctrl_ & 0x4000 ) == 0 ) fa = 0;
+      if ( ( p_core_->ctrl_ & 0x4000 ) == 0 ) fa = 0;
       pInterpolation->StoreValue(fa);
     }
     pInterpolation->SubSincPosition(0x10000);
@@ -219,8 +216,8 @@ void SPUVoice::Advance() {
   } else {
     int left = (sval * iLeftVolume) / 0x4000;
     int right = (sval * iRightVolume) / 0x4000;
-    lpcm_buffer_l[p_spu_->ns] = CLIP(left);
-    lpcm_buffer_r[p_spu_->ns] = CLIP(right);
+    lpcm_buffer_l[p_spu()->ns] = CLIP(left);
+    lpcm_buffer_r[p_spu()->ns] = CLIP(right);
   }
   pInterpolation->AdvanceSincPosition();
   // wxMessageOutputDebug().Printf("spos = 0x%08x", pInterpolation->spos);
@@ -251,62 +248,120 @@ bool SPUVoice::Get(SampleSequence* dest) const {
   return true;
 }
 
+////////////////////////////////////////////////////////////////////////
+// SPUCore voice manager functions
+////////////////////////////////////////////////////////////////////////
 
-SPUVoiceManager::SPUVoiceManager() : pSPU_(nullptr) {}
+SPUCoreVoiceManager::SPUCoreVoiceManager(SPUCore* p_core, int voice_count)
+  : p_core_(p_core), voices_(voice_count, SPUVoice(p_core)), new_flags_(0) {
+  rennyAssert(p_core != nullptr);
+}
 
+SPUVoice& SPUCoreVoiceManager::VoiceRef(int ch) {
+  return voices_.at(ch);
+}
 
-SPUVoiceManager::SPUVoiceManager(SPUBase *pSPU, int channelNumber)
-  : pSPU_(pSPU), channels_(channelNumber, SPUVoice())
-{
-  rennyAssert(pSPU != nullptr);
-  for (int i = 0; i < channelNumber; i++) {
-    SPUVoice* p_voice = &channels_.at(i);
-    new(p_voice) SPUVoice(pSPU, i);
+unsigned int SPUCoreVoiceManager::GetVoiceCount() const {
+  return voices_.size();
+}
+
+int SPUCoreVoiceManager::GetVoiceIndex(SPUVoice* p_voice) const {
+  int i = 0;
+  for (const auto& v : voices_) {
+    if (&v == p_voice) {
+      return i;
+    }
+    ++i;
+  }
+  return -1;
+}
+
+bool SPUCoreVoiceManager::ExistsNew() const {
+  return (new_flags_ != 0);
+}
+
+void SPUCoreVoiceManager::SoundNew(uint32_t flags, int start) {
+  rennyAssert(start < 32);
+  new_flags_ |= flags << start;
+  for (int i = start; flags != 0; ++i, flags >>= 1) {
+    if ((flags & 1) == 0) continue;
+    VoiceRef(i).StartSound();
   }
 }
 
-
-bool SPUVoiceManager::ExistsNew() const {
-  return (flagNewChannels_ != 0);
-}
-
-
-void SPUVoiceManager::SoundNew(uint32_t flags, int start)
-{
-  rennyAssert(flags < 0x01000000); // WARNING: this is for PSX.
-  flagNewChannels_ |= flags << start;
+void SPUCoreVoiceManager::VoiceOff(uint32_t flags, int start) {
+  rennyAssert(start < 32);
   for (int i = start; flags != 0; i++, flags >>= 1) {
     if ((flags & 1) == 0) continue;
-    channels_.at(i).StartSound();
+    auto& ref_voice = VoiceRef(i);
+    ref_voice.VoiceOff();
+    const SPURequest* req = SPUNoteOffRequest::CreateRequest(&ref_voice);
+    p_core_->p_spu()->PutRequest(req);
   }
 }
 
-
-void SPUVoiceManager::VoiceOff(uint32_t flags, int start)
-{
-  rennyAssert(flags < 0x01000000); // WARNING: this is for PSX.
-  for (int i = start; flags != 0; i++, flags >>= 1) {
-    if ((flags & 1) == 0) continue;
-    SPUVoice& ch = channels_.at(i);
-    ch.VoiceOff();
-
-    // pSPU_->ChangeProcessState(SPUBase::STATE_NOTE_OFF, i);
-    const SPURequest* req = SPUNoteOffRequest::CreateRequest(i);
-    pSPU_->PutRequest(req);
-
-    // ch.NotifyOnNoteOff();
-  }
-}
-
-
-void SPUVoiceManager::StepForAll() {
-  for (auto& v : channels_) {
-    if (v.ch >= 24) break;
+void SPUCoreVoiceManager::Advance() {
+  for (auto& v : voices_) {
     v.Advance();
   }
 }
 
-// deprecated
-void SPUVoiceManager::ResetStepStatus() {}
+
+////////////////////////////////////////////////////////////////////////
+// SPU voice manager functions
+////////////////////////////////////////////////////////////////////////
+
+SPUVoiceManager::SPUVoiceManager() : p_spu_(nullptr) {}
+
+SPUVoiceManager::SPUVoiceManager(SPUBase *p_spu)
+  : p_spu_(p_spu) {
+  rennyAssert(p_spu != nullptr);
+}
+
+SPUVoice& SPUVoiceManager::VoiceRef(int ch) {
+  auto core_num = p_spu_->core_count();
+  for (decltype(core_num) i = 0; i < core_num; ++i) {
+    SPUCore& core = p_spu_->core(i);
+    if (ch < static_cast<int>(core.Voices().GetVoiceCount())) {
+      return core.Voice(ch);
+    }
+    ch -= core.Voices().GetVoiceCount();
+  }
+  throw std::out_of_range(nullptr);
+}
+
+unsigned int SPUVoiceManager::voice_count() const {
+  unsigned int ret = 0;
+  auto core_num = p_spu_->core_count();
+  for (decltype(core_num) i = 0; i < core_num; ++i) {
+    ret += p_spu_->core(i).Voices().GetVoiceCount();
+  }
+  return ret;
+}
+
+bool SPUVoiceManager::ExistsNew() const {
+  auto core_num = p_spu_->core_count();
+  for (decltype(core_num) i = 0; i < core_num; ++i) {
+    if (p_spu_->core(i).Voices().ExistsNew()) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/*
+void SPUVoiceManager::SoundNew(uint32_t flags, int start) {
+}
+
+void SPUVoiceManager::VoiceOff(uint32_t flags, int start) {
+}
+*/
+
+void SPUVoiceManager::Advance() {
+  auto core_num = p_spu_->core_count();
+  for (decltype(core_num) i = 0; i < core_num; ++i) {
+    p_spu_->core(i).Voices().Advance();
+  }
+}
 
 } // namespace SPU

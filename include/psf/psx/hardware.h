@@ -1,5 +1,6 @@
 #pragma once
 #include "common.h"
+#include "common/debug.h"
 
 namespace psx {
 
@@ -10,24 +11,37 @@ namespace psx {
 class HardwareRegisters;
 
 class IRQAccessor {
-
-public:
-  IRQAccessor(HardwareRegisters*);
+ public:
+  IRQAccessor(HardwareRegisters* p_hwregs);
   IRQAccessor(PSX*);
-  u32 irq() const { return irq_data_ & irq_mask_; }
-  u32 irq_data() const { return irq_data_; }
-  u32 irq_mask() const { return irq_mask_; }
-  void set_irq16(u16 irq) {
-    irq_data_ &= 0xffff0000 | BFLIP16(static_cast<u16>(irq_mask_) & irq);
-  }
-  void set_irq32(u32 irq) { irq_data_ &= BFLIP32(irq_mask_ & irq); }
-  void set_irq_data(u32 irq) { irq_data_ |= BFLIP32(irq); }
-  void set_irq_mask(u32 mask) { irq_mask_ = mask; }
-
-private:
-  u32& irq_data_;
-  u32& irq_mask_;
+  void SetReferent(HardwareRegisters* p_hwregs);
+  u32 irq() const { return *irq_data_ & *irq_mask_; }
+  u32 irq_data() const { return *irq_data_; }
+  u32 irq_mask() const { return *irq_mask_; }
+  template<typename T> void set_irq(T irq);
+  void set_irq16(u16 irq);
+  void set_irq32(u32 irq) { set_irq<u32>(irq); }
+  void set_irq_data(u32 irq) { *irq_data_ |= BFLIP32(irq); }
+  void set_irq_mask(u32 mask) { *irq_mask_ = mask; }
+ private:
+  u32* irq_data_;
+  u32* irq_mask_;
+  u32* irq_is_masked_;
 };
+
+template<typename T>
+inline void IRQAccessor::set_irq(T irq) {
+  *irq_data_ &= BFLIP32(static_cast<u32>(irq) & *irq_mask_);
+}
+
+template<>
+inline void IRQAccessor::set_irq(u16 irq) {
+  *irq_data_ &= BFLIP32(0xffff0000 | (irq & *irq_mask_));
+}
+
+inline void IRQAccessor::set_irq16(u16 irq) {
+  set_irq<u16>(irq);
+}
 
 ////////////////////////////////////////////////////////////////
 // HardwareRegisters Class Definition
@@ -35,7 +49,6 @@ private:
 
 // TODO: remove Component
 class HardwareRegisters : public Component, public IRQAccessor {
-
  public:
   HardwareRegisters(PSX* composite);
 
@@ -45,56 +58,29 @@ class HardwareRegisters : public Component, public IRQAccessor {
   template<typename T> T Read(PSXAddr addr) const;
   template<typename T> void Write(PSXAddr addr, T value);
 
-  u8 Read8(PSXAddr addr) const;
+  // common accessor
+  u8  Read8(PSXAddr addr) const;
   u16 Read16(PSXAddr addr) const;
   u32 Read32(PSXAddr addr) const;
-
   void Write8(PSXAddr addr, u8 value);
   void Write16(PSXAddr addr, u16 value);
   void Write32(PSXAddr addr, u32 value);
 
  private:
+  // Root Counter accessor
+  template<typename T> T ReadRcnt(int index, int offset) const;
+  template<typename T> void WriteRcnt(int index, int offset, T value);
+  // SPU accessor
+  template<typename T> T ReadSPURegister(PSXAddr addr) const;
+  template<typename T> void WriteSPURegister(PSXAddr addr, T value);
+
+ private:
   u8 hw_regs_[0x3000];
+  int version_;
 
   friend class IRQAccessor;
   friend class HardwareRegisterAccessor;
 };
-
-template<typename T>
-inline T HardwareRegisters::Read(PSXAddr) const {
-  // return H_ref<T>(addr);   // dummy
-  return 0;
-}
-template<typename T>
-inline void HardwareRegisters::Write(PSXAddr, T) {
-  // H_ref<T>(addr) = value;   // dummy
-}
-
-template<>
-inline u8 HardwareRegisters::Read(PSXAddr addr) const {
-  return Read8(addr);
-}
-template<>
-inline u16 HardwareRegisters::Read(PSXAddr addr) const {
-  return Read16(addr);
-}
-template<>
-inline u32 HardwareRegisters::Read(PSXAddr addr) const {
-  return Read32(addr);
-}
-
-template<>
-inline void HardwareRegisters::Write(PSXAddr addr, u8 value) {
-  Write8(addr, value);
-}
-template<>
-inline void HardwareRegisters::Write(PSXAddr addr, u16 value) {
-  Write16(addr, value);
-}
-template<>
-inline void HardwareRegisters::Write(PSXAddr addr, u32 value) {
-  Write32(addr, value);
-}
 
 ////////////////////////////////////////////////////////////////
 // HardwareRegisters Accessor Class Definition

@@ -12,7 +12,6 @@ namespace psx {
 class HardwareRegisters;
 
 class Memory {
-
  public:
   Memory(int version, HardwareRegisters* hw_regs);
 
@@ -36,7 +35,6 @@ class Memory {
   void Set(PSXAddr addr, int data, int length);
 
  public:
-
   template<typename T> T& Rref(PSXAddr addr);
   void* Rvptr(PSXAddr addr);
 
@@ -71,8 +69,7 @@ inline void* Memory::Rvptr(PSXAddr addr) {
 ////////////////////////////////////////////////////////////////
 
 class UserMemoryAccessor {
-
-public:
+ public:
   UserMemoryAccessor(Memory* mem);
   UserMemoryAccessor(PSX* psx);
 
@@ -128,55 +125,56 @@ public:
   // s32& psxMs32ref(PSXAddr addr) { return *psxMs32ptr(addr); }
   u32& psxMu32ref(PSXAddr addr) { return *psxMu32ptr(addr); }
 
-private:
+ private:
   u8* const mem_;
 };
 
+// deprecated
 class MemoryAccessor {
-public:
-  MemoryAccessor(Memory* mem);
+ public:
+  MemoryAccessor(Memory* p_mem);
   MemoryAccessor(PSX* psx);
 
   s8 ReadMemory8s(PSXAddr addr) const {
-    return static_cast<s8>(mem_.Read8(addr));
+    return static_cast<s8>(p_mem_->Read8(addr));
   }
   u8 ReadMemory8u(PSXAddr addr) const {
-    return mem_.Read8(addr);
+    return p_mem_->Read8(addr);
   }
   s16 ReadMemory16s(PSXAddr addr) const {
-    return static_cast<s16>(mem_.Read16(addr));
+    return static_cast<s16>(p_mem_->Read16(addr));
   }
   u16 ReadMemory16u(PSXAddr addr) const {
-    return mem_.Read16(addr);
+    return p_mem_->Read16(addr);
   }
   // s32 ReadMemory32s(PSXAddr addr) const {
   //   return static_cast<s32>(mem_.Read32(addr));
   // }
   u32 ReadMemory32u(PSXAddr addr) const {
-    return mem_.Read32(addr);
+    return p_mem_->Read32(addr);
   }
 
   // void WriteMemory8s(PSXAddr addr, s8 value) {
   //   mem_.Write8(addr, static_cast<u8>(value));
   // }
   void WriteMemory8u(PSXAddr addr, u8 value) {
-    mem_.Write8(addr, value);
+    p_mem_->Write8(addr, value);
   }
   // void WriteMemory16s(PSXAddr addr, s16 value) {
   //   mem_.Write16(addr, static_cast<u16>(value));
   // }
   void WriteMemory16u(PSXAddr addr, u16 value) {
-    mem_.Write16(addr, value);
+    p_mem_->Write16(addr, value);
   }
   // void WriteMemory32s(PSXAddr addr, s32 value) {
   //   mem_.Write32(addr, static_cast<u32>(value));
   // }
   void WriteMemory32u(PSXAddr addr, u32 value) {
-    mem_.Write32(addr, value);
+    p_mem_->Write32(addr, value);
   }
 
-private:
-  Memory& mem_;
+ private:
+  Memory* const p_mem_;
 };
 
 } // namespace PSX

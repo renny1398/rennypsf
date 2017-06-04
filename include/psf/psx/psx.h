@@ -88,8 +88,8 @@ private:
   BIOS bios_;
   IOP iop_;
 
-  mips::Interpreter interp_;
   mips::Disassembler disasm_;
+  mips::Interpreter interp_;
 
   SPU::SPUBase spu_;
 };

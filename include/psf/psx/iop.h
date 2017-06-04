@@ -41,6 +41,9 @@ public:
 
 private:
   const PSF2Directory* root_;
+#ifndef NDEBUG
+  mips::Disassembler* p_disasm_;  // for debug
+#endif
 
   struct File {
     PSF2File* file;

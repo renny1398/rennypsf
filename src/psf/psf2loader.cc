@@ -31,20 +31,30 @@ const wxString PSF2Entry::GetFullPath() const {
 }
 
 
-PSF2Entry* PSF2Entry::Find(const wxString &path) {
+PSF2Entry* PSF2Entry::Find(const wxString &path, bool case_insensitive) {
 
   wxString next;
   wxString curr = path.BeforeFirst('/', &next);
 
   if (IsFile() == true) {
-    if (curr != name_) {
+    if (case_insensitive) {
+      if (curr.CmpNoCase(name_)) {
+        return nullptr;
+      }
+      return this;
+    }
+    if (curr.Cmp(name_)) {
       return nullptr;
     }
     return this;
   }
 
   if (IsRoot() == false) {
-    if (curr != name_) {
+    if (case_insensitive) {
+      if (curr.CmpNoCase(name_)) {
+        return nullptr;
+      }
+    } else if (curr.Cmp(name_)) {
       return nullptr;
     }
     if (next.empty() == false) {
@@ -63,9 +73,9 @@ PSF2Entry* PSF2Entry::Find(const wxString &path) {
   while (itr != itrEnd) {
     PSF2Entry* ret;
     if (IsRoot()) {
-      ret = (*itr)->Find(curr);
+      ret = (*itr)->Find(curr, case_insensitive);
     } else {
-      ret = (*itr)->Find(next);
+      ret = (*itr)->Find(next, case_insensitive);
     }
     if (ret != nullptr) {
       return ret;

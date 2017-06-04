@@ -9,6 +9,7 @@ class BIOS : public Component, /*private mips::RegisterAccessor, */private UserM
 
  public:
   BIOS(PSX* psx);
+  void SetReferent(mips::Registers* p_regs_);
 
   void Init();
   void Shutdown();
@@ -102,8 +103,8 @@ class BIOS : public Component, /*private mips::RegisterAccessor, */private UserM
 
  private:
   // PSX* const psx_;
-  mips::GeneralPurposeRegisters& GPR;
-  mips::Cop0Registers& CP0;
+  mips::GeneralPurposeRegisters* p_gpr_;
+  mips::Cop0Registers* p_cp0_;
 
   /*
   u32& PC;

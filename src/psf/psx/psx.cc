@@ -7,8 +7,12 @@ namespace psx {
 PSX::PSX(u32 version)
   : version_(version),
     hw_regs_(this), mem_(version, &hw_regs_), dma_(this),
-    rcnt_(this), r3000a_(this, &rcnt_), bios_(this), iop_(this),
-    interp_(this, &r3000a_, &bios_, &iop_), disasm_(this), spu_(this) {}
+    rcnt_(this), r3000a_(this), bios_(this), iop_(this),
+    disasm_(this), interp_(this, &r3000a_, &bios_, &iop_, &disasm_),
+    spu_(this) {
+  r3000a_.SetRcntReferent(&rcnt_);
+  r3000a_.SetBIOSReferent(&bios_);
+}
 
 
 void PSX::Init(bool /*enable_spu2*/) {

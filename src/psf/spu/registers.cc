@@ -327,7 +327,7 @@ void write1xx4(SPUVoice& channelInfo, uint16_t val)
     channelInfo.iRawPitch = NP;
     channelInfo.NotifyOnChangePitch();
   }
-  const uint32_t sampling_rate = channelInfo.Spu().GetCurrentSamplingRate();
+  const uint32_t sampling_rate = channelInfo.p_spu()->GetCurrentSamplingRate();
   NP = sampling_rate * NP / 0x1000;
   if (NP < 1) NP = 1;
   channelInfo.iActFreq = NP;

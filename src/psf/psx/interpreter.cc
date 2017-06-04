@@ -11,9 +11,9 @@
 namespace psx {
 namespace mips {
 
-Interpreter::Interpreter(PSX* psx, Processor* cpu, BIOS* bios, IOP* iop)
+Interpreter::Interpreter(PSX* psx, Processor* cpu, BIOS* bios, IOP* iop, Disassembler* p_disasm)
   : RegisterAccessor(psx), UserMemoryAccessor(psx),
-    cpu_(*cpu), bios_(*bios), iop_(*iop) {
+    cpu_(*cpu), bios_(*bios), iop_(*iop), p_disasm_(p_disasm) {
   // rennyAssert(&cpu_ != nullptr);
   // rennyAssert(&bios_ != nullptr);
   // rennyAssert(&iop_ != nullptr);
@@ -377,8 +377,12 @@ void Interpreter::doBranch(u32 branch_pc)
     cpu_.DeadLoopSkip();
   }
   cpu_.LeaveDelaySlot();
-  SetGPR(GPR_PC, branch_pc);
-
+  // if call LoadStartModule then leave RA alone
+   if (cpu_.IsRAAlone()) {
+    cpu_.EnableEnteringRA();
+  } else {
+    SetGPR(GPR_PC, branch_pc);
+  }
   cpu_.BranchTest();
 }
 
@@ -507,6 +511,7 @@ void Interpreter::ADDI(u32 code) {
 // ADD Immediate Unsigned
 void Interpreter::ADDIU(u32 code) {
   if (Rt(code) == GPR_ZR) {
+    // "li $zr, imm" after "jr $ra"
     iop_.Call(GPR(GPR_PC) - 4, Imm(code));
   } else {
     cpu_.AddImmediate(Rt(code), Rs(code), Imm(code), false);
@@ -658,16 +663,16 @@ void Interpreter::MFLO(u32 code) {
 
 // Move To HI
 void Interpreter::MTHI(u32 code) {
-  u32 rd_enum = Rd(code);
+  u32 rs_enum = Rs(code);
   // CommitDelayedLoad();
-  MoveGPR(GPR_HI, rd_enum);
+  MoveGPR(GPR_HI, rs_enum);
 }
 
 // Move To LO
 void Interpreter::MTLO(u32 code) {
-  u32 rd_enum = Rd(code);
+  u32 rs_enum = Rs(code);
   // CommitDelayedLoad();
-  MoveGPR(GPR_LO, rd_enum);
+  MoveGPR(GPR_LO, rs_enum);
 }
 
 
@@ -677,13 +682,13 @@ void Interpreter::MTLO(u32 code) {
 
 // Jump
 void Interpreter::J(u32 code) {
-  doBranch((Target(code) << 2) | (GPR(GPR_PC) & 0xf0000000));
+  doBranch((Target(code) << 2) | (GPR(GPR_PC)/*+4*/ & 0xf0000000));
 }
 
 // Jump And Link
 void Interpreter::JAL(u32 code) {
   SetGPR(GPR_RA, GPR(GPR_PC) + 4);
-  doBranch((Target(code) << 2) | (GPR(GPR_PC) & 0xf0000000));
+  doBranch((Target(code) << 2) | (GPR(GPR_PC)/*+4*/ & 0xf0000000));
 }
 
 // Jump Register
@@ -722,7 +727,7 @@ void Interpreter::BLEZ(u32 code) {
   }
 }
 
-// Branch on Greate Than Zero
+// Branch on Greater Than Zero
 void Interpreter::BGTZ(u32 code) {
   if (static_cast<int32_t>(RsVal(GPR(), code)) > 0) {
     doBranch(GPR(GPR_PC) + (Imm(code) << 2));
@@ -765,8 +770,109 @@ void Interpreter::BGEZAL(u32 code) {
 void Interpreter::BCOND(u32 code) {
   (this->*BCONDS[Rt(code)])(code);
 }
+////////////////////////////////////////
+// Jump and Branch (PS2 only)
+////////////////////////////////////////
 
+// Branch on Less Than Zero Likely
+void Interpreter::BLTZL(u32 code) {
+  if (static_cast<int32_t>(RsVal(GPR(), code)) < 0) {
+    doBranch(GPR(GPR_PC) + (Imm(code) << 2));
+  } else {
+    SetGPR(GPR_PC, GPR(GPR_PC) + 4);
+  }
+}
 
+// Branch on Greater than or Equal Zero Likely
+void Interpreter::BGEZL(u32 code) {
+  if (static_cast<int32_t>(RsVal(GPR(), code)) >= 0) {
+    doBranch(GPR(GPR_PC) + (Imm(code) << 2));
+  } else {
+    SetGPR(GPR_PC, GPR(GPR_PC) + 4);
+  }
+}
+
+// Trap on Greater than or Equal Immediate
+void Interpreter::TGEI(u32 code) {
+  if (static_cast<int32_t>(RsVal(GPR(), code)) >= Imm(code)) {
+    SetGPR(GPR_PC, GPR(GPR_PC) - 4);
+    cpu_.Exception(0x34, cpu_.IsInDelaySlot());
+  }
+}
+
+// Trap on Greater than or Equal Immediate Unsigned
+void Interpreter::TGEIU(u32 code) {
+  if (RsVal(GPR(), code) >= ImmU(code)) {
+    SetGPR(GPR_PC, GPR(GPR_PC) - 4);
+    cpu_.Exception(0x34, cpu_.IsInDelaySlot());
+  }
+}
+
+// Trap on Less Than Immediate
+void Interpreter::TLTI(u32 code) {
+  if (static_cast<int32_t>(RsVal(GPR(), code)) < Imm(code)) {
+    SetGPR(GPR_PC, GPR(GPR_PC) - 4);
+    cpu_.Exception(0x34, cpu_.IsInDelaySlot());
+  }
+}
+
+// Trap on Less Than Immediate Unsigned
+void Interpreter::TLTIU(u32 code) {
+  if (RsVal(GPR(), code) < ImmU(code)) {
+    SetGPR(GPR_PC, GPR(GPR_PC) - 4);
+    cpu_.Exception(0x34, cpu_.IsInDelaySlot());
+  }
+}
+
+// Trap on EQual Immediate
+void Interpreter::TEQI(u32 code) {
+  if (static_cast<int32_t>(RsVal(GPR(), code)) == Imm(code)) {
+    SetGPR(GPR_PC, GPR(GPR_PC) - 4);
+    cpu_.Exception(0x34, cpu_.IsInDelaySlot());
+  }
+}
+
+// Trap on Not Equal Immediate
+void Interpreter::TNEI(u32 code) {
+  if (static_cast<int32_t>(RsVal(GPR(), code)) != Imm(code)) {
+    SetGPR(GPR_PC, GPR(GPR_PC) - 4);
+    cpu_.Exception(0x34, cpu_.IsInDelaySlot());
+  }
+}
+
+// Branch on Less Than Zero And Link Likely
+void Interpreter::BLTZALL(u32 code) {
+  if (static_cast<int32_t>(RsVal(GPR(), code)) < 0) {
+    u32 pc = GPR(GPR_PC);
+    SetGPR(GPR_RA, pc + 4);
+    doBranch(pc + (Imm(code) << 2));
+  } else {
+    SetGPR(GPR_PC, GPR(GPR_PC) + 4);
+  }
+}
+
+// Branch on Greater than or Equal Zero And Link Likely
+void Interpreter::BGEZALL(u32 code) {
+  if (static_cast<int32_t>(RsVal(GPR(), code)) >= 0) {
+    u32 pc = GPR(GPR_PC);
+    SetGPR(GPR_RA, pc + 4);
+    doBranch(pc + (Imm(code) << 2));
+  } else {
+    SetGPR(GPR_PC, GPR(GPR_PC) + 4);
+  }
+}
+
+////////////////////////////////////////
+// Shift Amount
+////////////////////////////////////////
+
+void Interpreter::MTSAB(u32 code) {
+  SetSA((RsVal(GPR(), code) & 0xf) ^ (Imm(code) & 0xf));
+}
+
+void Interpreter::MTSAH(u32 code) {
+  SetSA(((RsVal(GPR(), code) & 0x7) ^ (Imm(code) & 0x7)) << 1);
+}
 
 ////////////////////////////////////////
 // Special u32s
@@ -939,13 +1045,15 @@ void (Interpreter::*const Interpreter::SPECIALS[64])(u32) = {
 };
 
 
-void (Interpreter::*const Interpreter::BCONDS[24])(u32) = {
-    &Interpreter::BLTZ,   &Interpreter::BGEZ,   &Interpreter::NLOP, &Interpreter::NLOP,
-    &Interpreter::NLOP,   &Interpreter::NLOP,   &Interpreter::NLOP, &Interpreter::NLOP,
-    &Interpreter::NLOP,   &Interpreter::NLOP,   &Interpreter::NLOP, &Interpreter::NLOP,
-    &Interpreter::NLOP,   &Interpreter::NLOP,   &Interpreter::NLOP, &Interpreter::NLOP,
-    &Interpreter::BLTZAL, &Interpreter::BGEZAL, &Interpreter::NLOP, &Interpreter::NLOP,
-    &Interpreter::NLOP,   &Interpreter::NLOP,   &Interpreter::NLOP, &Interpreter::NLOP
+void (Interpreter::*const Interpreter::BCONDS[32])(u32) = {
+    &Interpreter::BLTZ,   &Interpreter::BGEZ,   &Interpreter::BLTZL,   &Interpreter::BGEZL,
+    &Interpreter::NLOP,   &Interpreter::NLOP,   &Interpreter::NLOP,    &Interpreter::NLOP,
+    &Interpreter::TGEI,   &Interpreter::TGEIU,  &Interpreter::TLTI,    &Interpreter::TLTIU,
+    &Interpreter::TEQI,   &Interpreter::NLOP,   &Interpreter::TNEI,    &Interpreter::NLOP,
+    &Interpreter::BLTZAL, &Interpreter::BGEZAL, &Interpreter::BLTZALL, &Interpreter::BGEZALL,
+    &Interpreter::NLOP,   &Interpreter::NLOP,   &Interpreter::NLOP,    &Interpreter::NLOP,
+    &Interpreter::MTSAB,  &Interpreter::MTSAH,  &Interpreter::NLOP,    &Interpreter::NLOP,
+    &Interpreter::NLOP,   &Interpreter::NLOP,   &Interpreter::NLOP,    &Interpreter::NLOP
 };
 
 

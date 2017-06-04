@@ -14,7 +14,7 @@ namespace mips {
 class Interpreter : /*public Component, */private RegisterAccessor, private UserMemoryAccessor
 {
 public:
-  Interpreter(PSX* psx, Processor* cpu, BIOS* bios, IOP* iop);
+  Interpreter(PSX* psx, Processor* cpu, BIOS* bios, IOP* iop, Disassembler* p_disasm);
   ~Interpreter() {}
 
   void Reset();
@@ -141,6 +141,20 @@ private:
   void BLTZAL(u32);
   void BGEZAL(u32);
 
+  // for PS2
+  void BLTZL(u32);
+  void BGEZL(u32);
+  void TGEI(u32);
+  void TGEIU(u32);
+  void TLTI(u32);
+  void TLTIU(u32);
+  void TEQI(u32);
+  void TNEI(u32);
+  void BLTZALL(u32);
+  void BGEZALL(u32);
+  void MTSAB(u32);
+  void MTSAH(u32);
+
   void BCOND(u32);
   void SYSCALL(u32);
   void BREAK(u32);
@@ -174,20 +188,39 @@ private:
   BIOS& bios_;
   IOP& iop_;
 
+  Disassembler* const p_disasm_;
+
   static DelayFunc delaySpecials[64];
   static DelayFunc delayOpcodes[64];
 
   static void (Interpreter::*const OPCODES[64])(u32);
   static void (Interpreter::*const SPECIALS[64])(u32);
-  static void (Interpreter::*const BCONDS[24])(u32);
+  static void (Interpreter::*const BCONDS[32])(u32);
   static void (Interpreter::*const COPz[16])(u32);
 
   static void (Interpreter::*const HLEt[])();
 };
 
 inline void Interpreter::ExecuteOpcode(u32 code) {
-  // Disasm().OutputToFile();
+#if 1
+  static bool dump_regs = true;
+  if (cpu_.cycle32() == 0) {
+    dump_regs = true;
+    p_disasm_->StartOutputToFile();
+  }
+  if (cpu_.cycle32() > 10000) {
+    dump_regs = false;
+    p_disasm_->StopOutputToFile();
+  }
+  if (dump_regs) {
+    std::printf("[%08x: %08x] [SP %08x RA %08x V0 %08x V1 %08x A0 %08x S0 %08x S1 %08x]\n",
+                GPR(GPR_PC) - 4, code, GPR(GPR_SP), GPR(GPR_RA), GPR(GPR_V0), GPR(GPR_V1),
+                GPR(GPR_A0), GPR(GPR_S0), GPR(GPR_S1));
+  }
+#endif
+  p_disasm_->OutputCodeToFile();
   (this->*OPCODES[Opcode(code)])(code);
+  p_disasm_->OutputChangeRegistersToFile();
 }
 
 }   // namespace Interpreter

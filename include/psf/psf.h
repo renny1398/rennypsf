@@ -81,7 +81,7 @@ public:
   PSF2Directory* Parent();
   const wxString& GetName() const;
   const wxString GetFullPath() const;
-  PSF2Entry* Find(const wxString& path);
+  PSF2Entry* Find(const wxString& path, bool case_insensitive = true);
   PSF2Directory* GetRoot();
 
 protected:

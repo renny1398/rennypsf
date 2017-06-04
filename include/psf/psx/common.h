@@ -68,7 +68,7 @@ class IOP;
 }
 
 namespace SPU {
-struct SPUCore;
+class SPUCore;
 class SPUBase;
 class SPU2;
 }

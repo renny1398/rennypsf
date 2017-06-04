@@ -98,6 +98,7 @@ void Registers::Reset() {
   GPR.Reset();
   CP0.Reset();
   Interrupt = 0;
+  shift_amount = 0;
 }
 
 
@@ -117,19 +118,21 @@ void RegisterAccessor::ResetRegisters() {
   regs_.Reset();
 }
 
+////////////////////////////////////////////////////////////////////////
+// Processor Functions
+////////////////////////////////////////////////////////////////////////
 
-Processor::Processor(PSX* psx, RootCounterManager* rcnt)
-  : Component(psx),
+Processor::Processor(PSX* psx)
+  : /* Component(psx), */
     RegisterAccessor(Regs),
     MemoryAccessor(psx),
     IRQAccessor(psx),
     Regs(), GPR(Regs.GPR),
-    rcnt_(rcnt)
-{
-  rennyAssert(rcnt != nullptr);
+    p_rcnt_(nullptr), p_bios_(nullptr) {
 
   inDelaySlot = false;
   doingBranch = false;
+  leaveRAalone = false;
 
   /*
   GPR.AT = 0xffffff8e;
@@ -166,6 +169,13 @@ Processor::Processor(PSX* psx, RootCounterManager* rcnt)
   rennyLogDebug("PSXProcessor", "Initialized R3000A processor.");
 }
 
+void Processor::SetRcntReferent(RootCounterManager* p_rcnt) {
+  p_rcnt_ = p_rcnt;
+}
+
+void Processor::SetBIOSReferent(BIOS* p_bios) {
+  p_bios_ = p_bios;
+}
 
 void Processor::Reset()
 {
@@ -179,11 +189,11 @@ void Processor::Reset()
 }
 
 unsigned int Processor::cycle32() const {
-  return rcnt_->cycle32();
+  return p_rcnt_->cycle32();
 }
 
 void Processor::IncreaseCycle() {
-  rcnt_->IncreaseCycle();
+  p_rcnt_->IncreaseCycle();
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -390,24 +400,6 @@ void Processor::Execute(Interpreter* interp, bool in_softcall) {
   }
   do {
     interp->ExecuteOnce();
-    /*
-    uint32_t spusync_cycles = rcnt_->cycle32() - last_spusync_cycle_;
-    if (spusync_cycle_unit <= spusync_cycles) {
-      if (last_spusync_cycle_ == 0) {
-        spu_->Advance(1);
-        spusync_cycles -= spusync_cycle_unit;
-        last_spusync_cycle_ += spusync_cycle_unit;
-      }
-      for (; spusync_cycle_unit <= spusync_cycles; spusync_cycles -= spusync_cycle_unit) {
-        spu_->GetAsync(spu_out_);
-        last_spusync_cycle_ += spusync_cycle_unit;
-      }
-
-      // printf("Cycle = %d (in softcall: %d)\n", Cycle, in_softcall ? 1 : 0);
-      if (in_softcall == false || doingBranch) return;
-    } else if (in_softcall && doingBranch) {
-      return;
-    }*/
   } while (in_softcall && doingBranch == false);
 }
 
@@ -436,18 +428,19 @@ void Processor::Exception(u32 code, bool branch_delay) {
 
   // (KUo, IEo, KUp, IEp) <- (KUp, IEp, KUc, IEc)
   SetCP0(COP0_SR, (status & ~0x3f) | ((status & 0xf) << 2) );
-  Bios().Exception();
+  p_bios_->Exception();
 }
 
 void Processor::BranchTest() {
-  rcnt_->Update();
+  p_rcnt_->Update();
   if (irq() && (CP0(COP0_SR) & 0x401) == 0x401) {
+    // rennyLogWarning("R3000A", "IRQ Exception.");
     Exception(0x400, false);
   }
 }
 
 void Processor::DeadLoopSkip() {
-  rcnt_->DeadLoopSkip();
+  p_rcnt_->DeadLoopSkip();
 }
 
 }   // namespace mips

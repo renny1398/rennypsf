@@ -6,13 +6,23 @@
 #include <wx/regex.h>
 
 // for debug
+#include <sstream>
+#include <iomanip>
 #include "psf/psx/disassembler.h"
 
 namespace psx {
 
 
 IOP::IOP(PSX* psx) :
-  Component(psx), UserMemoryAccessor(psx), root_(nullptr), load_addr_(0x23f00) {}
+  Component(psx), UserMemoryAccessor(psx), root_(nullptr),
+#ifndef NDEBUG
+  p_disasm_(&psx->Disasm()),
+#endif
+  load_addr_(0x23f00) {
+#ifndef NDEBUG
+  rennyAssert(p_disasm_ != nullptr);
+#endif
+}
 
 IOP::~IOP() {
   if (root_) {
@@ -235,11 +245,11 @@ bool IOP::stdio(uint32_t call_num) {
     do {
       wxString out = sprintf(psxMs8ptr(a0), a1, a2, a3);
       if (out.Find("start") != wxNOT_FOUND) {
-        rennyLogInfo("IOP::stdio(printf)", "Start Dumping.");
-        Disasm().StartOutputToFile();
+        // rennyLogInfo("IOP::stdio(printf)", "Start Dumping.");
+        // Disasm().StartOutputToFile();
       } else if (out.Find("end") != wxNOT_FOUND) {
-        rennyLogInfo("IOP::stdio(printf)", "End Dumping.");
-        Disasm().StopOutputToFile();
+        // rennyLogInfo("IOP::stdio(printf)", "End Dumping.");
+        // Disasm().StopOutputToFile();
       }
       rennyLogInfo("IOP::stdio(printf)", static_cast<const char*>(out));
     } while (false);
@@ -311,62 +321,86 @@ bool IOP::modload(uint32_t call_num) {
   uint32_t a1 = R3000ARegs().GPR.A1;
   const uint32_t a2 = R3000ARegs().GPR.A2;
 
-  switch (call_num) {
-    case 7:	// LoadStartModule
-      {
-        wxString module_name = psxMs8ptr(a0 + 6); // len("psf2:/") == 6
-        wxString str1 =psxMs8ptr(a2);
-        rennyLogDebug("IOP::modload", "LoadStartModule: %s", static_cast<const char*>(module_name));
+  switch (call_num) {    
+  case 7:	// LoadStartModule
+    {
+      wxString module_name = psxMs8ptr(a0 + 8); // len("aofile:/") == 8
+      // wxString str1 = psxMs8ptr(a2);
 
-        uint32_t new_alloc_addr = load_addr_;
-        if (new_alloc_addr & 0xf) {
-          new_alloc_addr &= 0xfffffff0;
-          new_alloc_addr += 0x10;
-        }
-        load_addr_ = new_alloc_addr + 2048;
+      uint32_t new_alloc_addr = load_addr_;
+      if (new_alloc_addr & 0xf) {
+        new_alloc_addr &= 0xfffffff0;
+        new_alloc_addr += 0x10;
+      }
+      load_addr_ = new_alloc_addr + 2048;
 
-        PSF2Entry* module_entry = (const_cast<PSF2Directory*>(root_)->Find(module_name));
-        if (module_entry != nullptr) {
+      PSF2Entry* module_entry = (const_cast<PSF2Directory*>(root_)->Find(module_name));
+      if (module_entry != nullptr) {
 
-          PSF2File* module = module_entry->file();
-          uint32_t start = LoadELF(module);
+        PSF2File* module = module_entry->file();
+        uint32_t start = LoadELF(module);
 
-          if (start != 0xffffffff) {
-            uint32_t args[20], numargs = 1, argofs;
-            uint8_t *argwalk = psxMu8ptr(a2);
+        if (start != 0xffffffff) {
+          uint32_t args[20], numargs = 1, argofs;
+          uint8_t *argwalk = psxMu8ptr(a2);
 
-            args[0] = a0;
-            argofs = 0;
+          args[0] = a0; // arg0: module name
+          argofs = 0;
 
-            if (a1 > 0) {
-              args[numargs++] = a2;
+          if (a1 > 0) {
+            args[numargs++] = a2;
 
-              while (a1) {
-                if ((*argwalk == 0) && (a1 > 1)) {
-                  args[numargs++] = a2 + argofs + 1;
-                }
-                argwalk++;
-                argofs++;
-                a1--;
+            while (a1) {
+              if ((*argwalk == 0) && (a1 > 1)) {
+                args[numargs++] = a2 + argofs + 1;
               }
+              argwalk++;
+              argofs++;
+              a1--;
             }
-
-            for (uint32_t i = 0; i < numargs; i++) {
-              psxMu32ref(new_alloc_addr + i*4) = BFLIP32(args[i]);
-            }
-
-            R3000ARegs().GPR.A0 = numargs;
-            R3000ARegs().GPR.A1 = 0x80000000 | new_alloc_addr;
-
-            R3000ARegs().PC = start/* - 4*/;
           }
+
+          for (uint32_t i = 0; i < numargs; i++) {
+            psxMu32ref(new_alloc_addr + i*4) = BFLIP32(args[i]);
+          }
+
+          // for debug
+          std::stringstream ss;
+          ss << "(";
+          for (decltype(numargs) i = 1; i < numargs; ++i) {
+            ss << "0x" << std::hex << psxMu32val(new_alloc_addr + i*4);
+            if (i+1 != numargs) {
+              ss << ", ";
+            }
+          }
+          ss << ")";
+          rennyLogDebug("IOP::modload", "LoadStartModule: %s %s",
+                        static_cast<const char*>(module_name),
+                        static_cast<const char*>(ss.str().c_str()));
+
+          R3000ARegs().GPR.A0 = numargs;
+          R3000ARegs().GPR.A1 = 0x80000000 | new_alloc_addr;
+
+          R3000ARegs().PC = start/* - 4*/;
+          R3000a().LeaveRAAlone();
+#ifndef NDEBUG
+          wxString disasm_out;
+          disasm_out.sprintf("PC := 0x%08X", start);
+          p_disasm_->OutputStringToFile(disasm_out);
+#endif
         }
       }
-      return true;
-
-    default:
-      rennyLogError("IOP::modload", "Unhandled service %d.", call_num);
-      return false;
+    }
+    return true;
+  case 4: // ReBootStart
+  case 5: // LoadModuleAddress
+  case 6: // LoadModule
+  case 8: // StartModule
+  case 9: // LoadModuleBufferAddess
+  case 10:// LoadModuleBuffer
+  default:
+    rennyLogError("IOP::modload", "Unhandled service %d.", call_num);
+    return false;
   }
 }
 
@@ -455,21 +489,24 @@ bool IOP::ioman(uint32_t call_num) {
       files_[a0].pos += static_cast<int>(a1);
       break;
     case 2: // SEEK_END
-      files_[a0].pos = files_[a0].file->GetSize() - a1;
+      // files_[a0].pos = files_[a0].file->GetSize() - a1;
+      files_[a0].pos = files_[a0].file->GetSize() + static_cast<int>(a1);
       break;
     default:
       return false;
     }
     R3000ARegs().GPR.V0 = files_[a0].pos;
+    rennyLogDebug("IOP::ioman(lseek)", "lseek(%d, 0x%08x, %d) -> 0x%08x",
+                  a0, a1, a2, files_[a0].pos);
     return true;
 
   case 20:  // AddDrv
-    rennyLogDebug("IOP::ioman", "Call AddDrv.", call_num);
+    rennyLogDebug("IOP::ioman", "Call AddDrv.");
     R3000ARegs().GPR.V0 = 0;
     return true;
 
   case 21:  // DelDrv
-    rennyLogDebug("IOP::ioman", "Call DelDrv.", call_num);
+    rennyLogDebug("IOP::ioman", "Call DelDrv.");
     R3000ARegs().GPR.V0 = 0;
     return true;
 
@@ -508,13 +545,20 @@ bool IOP::Call(PSXAddr pc, uint32_t call_num) {
   const wxString module_name(reinterpret_cast<const char*>(psxMu32ptr(scan)), 8);
 
   bool ret = false;
-  if (module_name.IsSameAs(wxString("stdio\0", 6))) {
+  rennyLogDebug("IOP(Debug)", "module_name: %s (length = %ld)",
+                static_cast<const char*>(module_name), module_name.length());
+#ifndef NDEBUG
+  wxString str_callinfo("IOP: call ");
+  str_callinfo.Append(module_name);
+  p_disasm_->OutputStringToFile(str_callinfo);
+#endif
+  if (module_name.IsSameAs(wxString("stdio\0\0\0", 8))) {
     ret = stdio(call_num);
-  } else if (module_name.IsSameAs(wxString("sysmem\0", 7))) {
+  } else if (module_name.IsSameAs(wxString("sysmem\0\0", 8))) {
     ret = sysmem(call_num);
   } else if (module_name.IsSameAs(wxString("modload\0", 8))) {
     ret = modload(call_num);
-  } else if (module_name.IsSameAs(wxString("ioman\0", 6))) {
+  } else if (module_name.IsSameAs(wxString("ioman\0\0\0", 8))) {
     ret = ioman(call_num);
   } else {
     rennyLogError("IOP", "Unhandled service %d for module %s.", call_num, static_cast<const char*>(module_name));

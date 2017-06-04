@@ -1,12 +1,9 @@
-#ifndef SPU_CHANNEL_H_
-#define SPU_CHANNEL_H_
+#pragma once
 
-#include <wx/scopedptr.h>
 #include <wx/vector.h>
 
 // #include "common/SoundFormat.h"
 #include "psf/spu/soundbank.h"
-
 
 // class Sample;
 class SampleSequence;
@@ -154,19 +151,19 @@ private:
 };
 
 
-
 class InterpolationBase;
-typedef wxScopedPtr<InterpolationBase> InterpolationPtr;
+typedef InterpolationBase* InterpolationPtr;
 
 class SPUBase;
+class SPUCore;
 class SPUVoiceManager;
 
-
-class SPUVoice/* : public ::Sample16 */ {
+class SPUVoice {
 public:
-  SPUVoice();   // for vector constructor
+  // SPUVoice();   // for vector constructor
   SPUVoice(const SPUVoice&);
-  SPUVoice(SPUBase* pSPU, int ch);
+  SPUVoice(SPUCore* p_core);
+  ~SPUVoice();
 
   void StartSound();
   static void InitADSR();
@@ -175,19 +172,18 @@ public:
   void Advance();
   bool Get(SampleSequence* dest) const;
 
-  SPUBase& Spu() { return *p_spu_; }
-  const SPUBase& Spu() const { return *p_spu_; }
+  SPUBase* p_spu();
+  const SPUBase* p_spu() const;
 
 protected:
   void VoiceChangeFrequency();
   // void ADPCM2LPCM();
 
 private:
-  SPUBase* const p_spu_;
+  // SPUBase* const p_spu_;
+  SPUCore* const p_core_;
 
 public:
-  const int ch;
-
   // for REVERB
   wxVector<short> lpcm_buffer_l;
   wxVector<short> lpcm_buffer_r;
@@ -224,8 +220,8 @@ public:
   int     bFMod;                              // freq mod (0=off, 1=sound channel, 2=freq channel)
   int     iRVBNum;                            // another reverb helper
   int     iOldNoise;                          // old noise val for this channel
-  EnvelopeActive        ADSR;                               // active ADSR settings
-  EnvelopePassive      ADSRX;                              // next ADSR settings (will be moved to active on sample start)
+  EnvelopeActive  ADSR;                               // active ADSR settings
+  EnvelopePassive ADSRX;                              // next ADSR settings (will be moved to active on sample start)
 
   bool IsOn() const {
     // wxMutexLocker locker(on_mutex_);
@@ -267,65 +263,49 @@ private:
   friend class SPUVoiceManager;
 };
 
-
-
-class SPUCoreVoiceManager/* : public ::SoundBlock */ {
-
+class SPUCoreVoiceManager {
 public:
-  SPUCoreVoiceManager();
-  SPUCoreVoiceManager(SPUBase* pSPU, int channel_count);
+  // SPUCoreVoiceManager() // for vector constructor
+  //   : p_core_(nullptr) {}
+  SPUCoreVoiceManager(SPUCore* p_core, int GetVoiceCount);
 
-  unsigned int block_size() const {
-    return channel_count_ * sizeof(float);
-  }
-
-  SampleSequence& Ch(int ch);
-
-private:
-  SPUBase* const pSPU_;
-  int channel_count_;
-};
-
-
-
-
-
-class SPUVoiceManager/* : public ::SoundBlock */ {
-public:
-  SPUVoiceManager();  // for vector constructor
-  SPUVoiceManager(SPUBase* pSPU, int channelNumber);
-
-  /* Sample& Ch(int ch) { return channels_.at(ch); } */
-  SPUVoice& At(int ch) { return channels_.at(ch); }
-
-  unsigned int channel_count() const {
-    return channels_.size();
-  }
+  SPUVoice& VoiceRef(int ch);
+  unsigned int GetVoiceCount() const;
+  int GetVoiceIndex(SPUVoice*) const;
 
   bool ExistsNew() const;
   void SoundNew(uint32_t flags, int start);
   void VoiceOff(uint32_t flags, int start);
 
-  void StepForAll();
-  void ResetStepStatus();
+  void Advance();
 
 private:
-  SPUBase* const pSPU_;
-  // ChannelInfo* channels_;
-  wxVector<SPUVoice> channels_;
-  uint32_t flagNewChannels_;
-
-  friend class SPUVoice;
+  // SPUBase* const p_spu_;
+  SPUCore* const p_core_;
+  // int core_seq_;
+  wxVector<SPUVoice> voices_;
+  uint32_t new_flags_;
 };
 
 
 
+class SPUVoiceManager {
+public:
+  SPUVoiceManager();  // for vector constructor
+  SPUVoiceManager(SPUBase* p_spu);
 
+  SPUVoice& VoiceRef(int ch);
+  unsigned int voice_count() const;
 
+  bool ExistsNew() const;
+  // void SoundNew(uint32_t flags, int start); // deprecated
+  // void VoiceOff(uint32_t flags, int start); // deprecated
 
+  void Advance();
+  // void ResetStepStatus();
 
+private:
+  SPUBase* const p_spu_;
+};
 
 } // namespace SPU
-
-
-#endif  // SPU_CHANNEL_H_

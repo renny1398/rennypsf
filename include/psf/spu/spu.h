@@ -54,34 +54,35 @@ private:
 
 class SPUNoteOnRequest : public SPURequest {
 protected:
-  SPUNoteOnRequest(int ch) : ch_(ch) {}
+  SPUNoteOnRequest(SPUVoice* p_voice) : p_voice_(p_voice) {}
 public:
   void Execute(SPUBase*) const;
-  static const SPURequest* CreateRequest(int ch);
+  static const SPURequest* CreateRequest(SPUVoice* p_voice);
 private:
-  int ch_;
+  SPUVoice* const p_voice_;
 };
 
 
 class SPUNoteOffRequest : public SPURequest {
 protected:
-  SPUNoteOffRequest(int ch) : ch_(ch) {}
+  SPUNoteOffRequest(SPUVoice* p_voice)
+    : p_voice_(p_voice) {}
 public:
   void Execute(SPUBase*) const;
-  static const SPURequest* CreateRequest(int ch);
+  static const SPURequest* CreateRequest(SPUVoice* p_voice);
 private:
-  int ch_;
+  SPUVoice* const p_voice_;
 };
 
 
 class SPUSetOffsetRequest : public SPURequest {
 protected:
-  SPUSetOffsetRequest(int ch) : ch_(ch) {}
+  SPUSetOffsetRequest(SPUVoice* p_voice) : p_voice_(p_voice) {}
 public:
   void Execute(SPUBase*) const;
-  static const SPURequest* CreateRequest(int ch);
+  static const SPURequest* CreateRequest(SPUVoice* p_voice);
 private:
-  int ch_;
+  SPUVoice* const p_voice_;
 };
 
 
@@ -129,33 +130,47 @@ private:
  * SPU Core
  */
 
-struct SPUCore {
+class SPUCore {
 
-  SPUCore() {}
-  SPUCore(SPUBase* spu) : voice_manager_(spu, 24 + 2 /* 2 for Reverb */) {}
+public:
+  SPUCore();  // for vector constructor
+  SPUCore(SPUBase* spu);
+
+  SPUBase* p_spu() const { return p_spu_; }
 
   static const int kStateFlagDMACompleted = 0x80;
 
+  void Advance();
+
+  SPUVoice& Voice(int ch) { return voice_manager_.VoiceRef(ch); }
+  SPUCoreVoiceManager& Voices() { return voice_manager_; }
+
+  void ReadDMAMemory(psx::PSXAddr addr, uint32_t size);
+  void WriteDMAMemory(psx::PSXAddr addr, uint32_t size);
+  void InterruptDMA();
+
+  void SetDMADelay(int new_delay);
+  void DecreaseDMADelay();
+
+private:
+  SPUBase* const p_spu_;
+  // MAIN infos struct for each channel
+  SPUCoreVoiceManager voice_manager_;
+
+public:
   unsigned short ctrl_; // Sp0
   unsigned short stat_;
   unsigned int irq_;  // IRQ address
   mutable unsigned int addr_; // DMA current pointer
   // unsigned int rvb_addr_;
   // unsigned int rvb_addr_end_;
-
-  void Step();
-
-  SPUVoice& Voice(int ch) { return voice_manager_.At(ch); }
-  SPUVoiceManager& Voices() { return voice_manager_; }
-
 private:
-  // MAIN infos struct for each channel
-  SPUVoiceManager voice_manager_;
+  int dma_delay_;
 };
 
 
 
-class SPUBase : public psx::Component, private psx::UserMemoryAccessor
+class SPUBase : public psx::Component, public psx::UserMemoryAccessor
 {
 public:
   SPUBase(psx::PSX* composite);
@@ -168,7 +183,6 @@ public:
   bool IsRunning() const;
 
   bool Advance(int step_count);
-  void ResetStepStatus();
 
   void set_output(SoundBlock* out) {
     out_ = out;
@@ -200,6 +214,7 @@ public:
   void SetIRQAddress(SPUAddr addr);
 
   // Accessor and Mutator
+  psx::PSX* p_psx() { return p_psx_; }
   SPUCore& core(int i) {
     const SPUBase* const this_const = this;
     return const_cast<SPUCore&>(this_const->core(i));
@@ -257,10 +272,13 @@ public:
   void NotifyOnChangeTone(const SPUInstrument_New& tone) const;
   void NotifyOnRemoveTone(const SPUInstrument_New& tone) const;
 
+  // DMA
   void ReadDMA4Memory(psx::PSXAddr addr, uint32_t size);
   void WriteDMA4Memory(psx::PSXAddr addr, uint32_t size);
   void ReadDMA7Memory(psx::PSXAddr addr, uint32_t size);
   void WriteDMA7Memory(psx::PSXAddr addr, uint32_t size);
+  void InterruptDMA4();
+  void InterruptDMA7();
 
   static const int kMemorySize = 0x100000;  // for PS1
 
@@ -268,8 +286,8 @@ protected:
   void SetupStreams();
   void RemoveStreams();
 
-  void ReadDMAMemoryEx(SPUCore* core, psx::PSXAddr addr, uint32_t size);
-  void WriteDMAMemoryEx(SPUCore* core, psx::PSXAddr addr, uint32_t size);
+private:
+  psx::PSX* const p_psx_;
 
 public:
   unsigned char* m_pSpuIrq;
@@ -311,6 +329,7 @@ private:
 
 protected:
   wxVector<SPUCore> cores_;
+  SPUVoiceManager voice_manager_;
   SPUThread* thread_;
 };
 
@@ -361,7 +380,7 @@ private:
 };
 
 
-
+/*
 class SPU2 : public SPUBase {
 public:
   SPU2(psx::PSX*);
@@ -380,7 +399,7 @@ private:
 
   SPUCore cores_[2];
 };
-
+*/
 
 /*
 class SPUListener {

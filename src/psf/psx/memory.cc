@@ -7,6 +7,10 @@
 
 namespace psx {
 
+////////////////////////////////////////////////////////////////////////
+// UserMemoryAccessor constructor/destructor definitions
+////////////////////////////////////////////////////////////////////////
+
 UserMemoryAccessor::UserMemoryAccessor(Memory* mem)
   : mem_(mem->mem_user_) {
   rennyAssert(mem_ != nullptr);
@@ -17,16 +21,23 @@ UserMemoryAccessor::UserMemoryAccessor(PSX* psx)
   rennyAssert(mem_ != nullptr);
 }
 
-MemoryAccessor::MemoryAccessor(Memory *mem)
-  : mem_(*mem) {
-  rennyAssert(mem != nullptr);
+////////////////////////////////////////////////////////////////////////
+// MemoryAccessor constructor/destructor definitions
+////////////////////////////////////////////////////////////////////////
+
+MemoryAccessor::MemoryAccessor(Memory *p_mem)
+  : p_mem_(p_mem) {
+  rennyAssert(p_mem != nullptr);
 }
 
 MemoryAccessor::MemoryAccessor(PSX *psx)
-  : mem_(psx->Mem()) {
-  rennyAssert(&mem_ != nullptr);
+  : p_mem_(&psx->Mem()) {
+  rennyAssert(p_mem_ != nullptr);
 }
 
+////////////////////////////////////////////////////////////////////////
+// Memory function definitions
+////////////////////////////////////////////////////////////////////////
 
 Memory::Memory(int version, HardwareRegisters* hw_regs)
   : version_(version), hw_regs_(*hw_regs), psxH_(hw_regs) {
@@ -97,18 +108,37 @@ void Memory::Copy(PSXAddr dest, const void* src, int length)
 
 
 template<typename T>
-T Memory::Read(PSXAddr addr) const
-{
+T Memory::Read(PSXAddr addr) const {
   u32 segment = addr >> 16;
-  if (segment == 0x1f80) {
+  switch (segment) {
+  case 0x1d00:
+    if ((addr & 0xff80) == 0) {
+      // SIF
+      rennyLogDebug("PSXMemory", "SIF!");
+      return hw_regs_.Read<T>(addr);
+    }
+    return hw_regs_.Read<T>(addr);
+  case 0x1f80:
     if (addr < 0x1f801000) {
       // read Scratch Pad
       return psxH_.psxHval<T>(addr);
     }
     // read Hardware Registers
     return hw_regs_.Read<T>(addr);
-  } else if (version_ == 2 && (segment & 0xfff0) == 0xbf90) {
-    return hw_regs_.Read<T>(addr);
+  case 0x1f90:
+    if (version_ == 2) {
+      rennyLogDebug("PSXMemory", "Read(0x%08x) : read SPU2.", addr);
+      return hw_regs_.Read<T>(addr);
+    }
+  case 0xbf80:
+  case 0xbf90:
+    if (version_ == 2) {
+      return hw_regs_.Read<T>(addr);
+    }
+  }
+  if ((segment & 0xffc0) == 0x1fc0) {
+    rennyLogDebug("PSXMemory", "Read(0x%08x) : return 0.", addr);
+    return 0;
   }
   u8 *base_addr = segment_LUT_[segment];
   u32 offset = addr & 0xffff;
@@ -139,18 +169,41 @@ u32 Memory::Read32(PSXAddr addr) const {
 
 
 template<typename T>
-void Memory::Write(PSXAddr addr, T value)
-{
+void Memory::Write(PSXAddr addr, T value) {
   u32 segment = addr >> 16;
-  if (segment == 0x1f80) {
+  switch (segment) {
+  case 0x1d00:
+    if ((addr & 0xff80) == 0) {
+      // SIF
+      rennyLogDebug("PSXMemory", "SIF!");
+      hw_regs_.Write(addr, value);
+    }
+    break;
+  case 0x1f80:
     if (addr < 0x1f801000) {
       psxH_.psxHref<T>(addr) = BFLIP(value);
       return;
     }
     hw_regs_.Write(addr, value);
     return;
-  } else if (version_ == 2 && (segment == 0xbf80 || segment == 0xbf90)) {
-    hw_regs_.Write(addr, addr);
+  case 0x1f90:
+    if ((addr & 0x0000f800) == 0) {
+      // SPU2
+      rennyLogDebug("PSXMemory", "SPU2!");
+      hw_regs_.Write(addr, value);
+      return;
+    }
+    hw_regs_.Write(addr, value);
+    return;
+  case 0xbf80:
+  case 0xbf90:
+    if (version_ == 2) {
+      hw_regs_.Write(addr, value);
+      return;
+    }
+    break;
+  case 0x1fc1:
+    rennyLogDebug("PSXMemory", "EMUCALL??");
   }
   u8 *base_addr = segment_LUT_[segment];
   u32 offset = addr & 0xffff;

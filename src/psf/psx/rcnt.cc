@@ -284,6 +284,7 @@ void RootCounterManager::DeadLoopSkip()
   }
 
   if (lmin > 0) {
+    // skip to next target
     cycle_ = cycle + lmin;
   }
 }

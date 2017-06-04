@@ -1,7 +1,7 @@
 #include "psf/psx/dma.h"
 #include "psf/spu/spu.h"
 #include "common/debug.h"
-
+#include "psf/psx/psx.h"
 
 namespace psx {
 
@@ -54,11 +54,11 @@ void DMA::execSPU(u32 madr, u32 bcr, u32 chcr)
   // Transfer continuous stream of data
   switch (chcr) {
   case 0x01000201:    // CPU to DMA4 transfer
-    bcr = (bcr >> 16) * (bcr & 0xffff) * sizeof(u32);
+    bcr = (bcr >> 16) * (bcr & 0xffff) * sizeof(u32) * version_;
     Spu().WriteDMA4Memory(madr, bcr);
     return;
   case 0x01000200:    // DMA4 to CPU transfer
-    bcr = (bcr >> 16) * (bcr & 0xffff) * sizeof(u32);
+    bcr = (bcr >> 16) * (bcr & 0xffff) * sizeof(u32) * version_;
     Spu().ReadDMA4Memory(madr, bcr);
     return;
   }
@@ -67,13 +67,32 @@ void DMA::execSPU(u32 madr, u32 bcr, u32 chcr)
 void DMA::execPIO(u32, u32, u32) {}
 void DMA::execGPU_OTC(u32, u32, u32) {}
 
+void DMA::execSPU2(u32 madr, u32 bcr, u32 chcr)
+{
+  // Transfer continuous stream of data
+  switch (chcr) {
+  case 0x01000201:    // CPU to DMA4 transfer
+  case 0x00100010:
+  case 0x000f0010:
+  case 0x00010010:
+    bcr = (bcr >> 16) * (bcr & 0xffff) * sizeof(u32) * version_;
+    Spu().WriteDMA7Memory(madr, bcr);
+    return;
+  case 0x01000200:    // DMA4 to CPU transfer
+    bcr = (bcr >> 16) * (bcr & 0xffff) * sizeof(u32) * version_;
+    Spu().ReadDMA7Memory(madr, bcr);
+    return;
+  }
+}
+
 
 DMA::DMA(PSX* composite)
   : Component(composite),
     IRQAccessor(composite),
     HardwareRegisterAccessor(composite),
     DPCR(psxHu32ref(0x10f0)),
-    DICR(psxHu32ref(0x10f4))
+    DICR(psxHu32ref(0x10f4)),
+    version_(composite->version())
 {
   executeTable[0] = &DMA::execMDECin;
   executeTable[1] = &DMA::execMDECout;
@@ -82,6 +101,7 @@ DMA::DMA(PSX* composite)
   executeTable[4] = &DMA::execSPU;
   executeTable[5] = &DMA::execPIO;
   executeTable[6] = &DMA::execGPU_OTC;
+  executeTable[7] = &DMA::execSPU2;
 }
 
 

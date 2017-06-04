@@ -63,24 +63,6 @@ bool PSF::Open(SoundBlock* block) {
   psx_->Bios().Init();
   block->ChangeChannelCount(24); // TODO: 24 or 48
   block->EnableReverb();
-  /*
-  block->ReverbCh(0).set_volume_max(0x4000);
-  block->ReverbCh(0).set_volume(0x4000, 0);
-  block->ReverbCh(1).set_volume_max(0x4000);
-  block->ReverbCh(1).set_volume(0, 0x4000);
-*/
-  // Advance SPU
-  /*
-  const uint32_t cycles = 33868800 / psx_->Spu().GetCurrentSamplingRate() / 2;
-  unprocessed_cycles_ = 0;
-  do {
-    uint32_t executed_cycles = psx_->Interp().Execute(cycles);
-    unprocessed_cycles_ += executed_cycles;
-  } while (unprocessed_cycles_ < cycles);
-  psx_->Spu().Step(1);
-  unprocessed_cycles_ -= cycles;
-*/
-  // psx_->R3000a().SetSPUOutput(&psx_->Spu(), block);
   psx_->Spu().set_output(block);
   do {
     psx_->R3000a().Execute(&psx_->Interp(), false);
@@ -97,26 +79,6 @@ bool PSF::Close() {
 
 bool PSF::DoAdvance(SoundBlock *dest) {
   psx_->Spu().set_output(dest);
-/*
-  do {
-    int ret = psx_->Interp().RCnt().SPURun(dest);
-    if (ret < 0) return false;
-    if (ret == 1) {
-      return true;
-    }
-    psx_->Interp().ExecuteOnce();
-  } while (true);
-*/
-  /*
-  const uint32_t cycles = 33868800 / psx_->Spu().GetCurrentSamplingRate() / 2;
-  while (unprocessed_cycles_ < cycles) {
-    uint32_t ret = psx_->Interp().Execute(cycles - unprocessed_cycles_);
-    unprocessed_cycles_ += ret;
-  }
-  unprocessed_cycles_ -= cycles;
-  return psx_->Spu().GetAsync(dest);
-  */
-  // psx_->R3000a().SetSPUOutput(&psx_->Spu(), dest);
   do {
     psx_->R3000a().Execute(&psx_->Interp(), false);
   } while (dest->sample_length() == 0);

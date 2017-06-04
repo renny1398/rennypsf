@@ -63,7 +63,7 @@ CMAKE_POLICY(SET CMP0046 OLD)
 IF(wxWidgets_FOUND)
 
     # use CUI
-    # SET(USE_GUI)
+    SET(USE_GUI)
 
     INCLUDE(${wxWidgets_USE_FILE})
     INCLUDE_DIRECTORIES(${wxWidgets_INCLUDE_DIRS})

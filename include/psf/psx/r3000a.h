@@ -1,5 +1,5 @@
 #pragma once
-#include "common.h"
+// #include "common.h"
 #include <wx/thread.h>
 #include "common/debug.h"
 #include "memory.h"
@@ -14,11 +14,11 @@ class SPUBase;
 namespace psx {
 
 enum GPR_ENUM {
-    GPR_ZR, GPR_AT, GPR_V0, GPR_V1, GPR_A0, GPR_A1, GPR_A2, GPR_A3,
-    GPR_T0, GPR_T1, GPR_T2, GPR_T3, GPR_T4, GPR_T5, GPR_T6, GPR_T7,
-    GPR_S0, GPR_S1, GPR_S2, GPR_S3, GPR_S4, GPR_S5, GPR_S6, GPR_S7,
-    GPR_T8, GPR_T9, GPR_K0, GPR_K1, GPR_GP, GPR_SP, GPR_FP, GPR_RA,
-    GPR_HI, GPR_LO, GPR_PC
+  GPR_ZR, GPR_AT, GPR_V0, GPR_V1, GPR_A0, GPR_A1, GPR_A2, GPR_A3,
+  GPR_T0, GPR_T1, GPR_T2, GPR_T3, GPR_T4, GPR_T5, GPR_T6, GPR_T7,
+  GPR_S0, GPR_S1, GPR_S2, GPR_S3, GPR_S4, GPR_S5, GPR_S6, GPR_S7,
+  GPR_T8, GPR_T9, GPR_K0, GPR_K1, GPR_GP, GPR_SP, GPR_FP, GPR_RA,
+  GPR_HI, GPR_LO, GPR_PC
 };
 
 enum COP0_ENUM {
@@ -37,12 +37,11 @@ class GeneralPurposeRegisters {
 public:
   GeneralPurposeRegisters();
   GeneralPurposeRegisters(const GeneralPurposeRegisters& src);
+  GeneralPurposeRegisters& operator=(const GeneralPurposeRegisters&) = delete;
   void Set(const GeneralPurposeRegisters& src);
   void Reset();
   u32& operator()(u32 i);
   const u32& operator()(u32 i) const;
-protected:
-  GeneralPurposeRegisters& operator=(const GeneralPurposeRegisters&);
 private:
   u32 R[35];
 public:
@@ -58,15 +57,14 @@ public:
   u32 &HI, &LO, &PC;
 };
 
-extern const char *strGPR[35];
+// extern const char* strGPR[35];
 
 class Cop0Registers {
 public:
   Cop0Registers();
+  Cop0Registers& operator=(const Cop0Registers&) = delete;
   void Reset();
   u32& operator()(u32 i);
-protected:
-  Cop0Registers& operator=(const Cop0Registers&);
 private:
   u32 R[17];
 public:
@@ -94,28 +92,37 @@ public:
 ////////////////////////////////////////////////////////////////////////
 
 enum OPCODE_ENUM {
-  OPCODE_SPECIAL, OPCODE_BCOND, OPCODE_J, OPCODE_JAL, OPCODE_BEQ, OPCODE_BNE, OPCODE_BLEZ, OPCODE_BGTZ,
-  OPCODE_ADDI, OPCODE_ADDIU, OPCODE_SLTI, OPCODE_SLTIU, OPCODE_ANDI, OPCODE_ORI, OPCODE_XORI, OPCODE_LUI,
-  OPCODE_COP0, OPCODE_COP1, OPCODE_COP2, OPCODE_COP3,
-  OPCODE_LB = 0x20, OPCODE_LH, OPCODE_LWL, OPCODE_LW, OPCODE_LBU, OPCODE_LHU, OPCODE_LWR,
-  OPCODE_SB = 0x28, OPCODE_SH, OPCODE_SWL, OPCODE_SW, OPCODE_SWR = 0x2e,
-  OPCODE_LWC0 = 0x30, OPCODE_LWC1, OPCODE_LWC2, OPCODE_LWC3,
-  OPCODE_SWC0 = 0x38, OPCODE_SWC1, OPCODE_SWC2, OPCODE_SWC3, OPCODE_HLECALL = 0x3b,
+  OPCODE_SPECIAL,     OPCODE_BCOND, OPCODE_J,    OPCODE_JAL,
+  OPCODE_BEQ,         OPCODE_BNE,   OPCODE_BLEZ, OPCODE_BGTZ,
+  OPCODE_ADDI,        OPCODE_ADDIU, OPCODE_SLTI, OPCODE_SLTIU,
+  OPCODE_ANDI,        OPCODE_ORI,   OPCODE_XORI, OPCODE_LUI,
+  OPCODE_COP0,        OPCODE_COP1,  OPCODE_COP2, OPCODE_COP3,
+  OPCODE_LB = 0x20,   OPCODE_LH,    OPCODE_LWL,  OPCODE_LW,
+  OPCODE_LBU,         OPCODE_LHU,   OPCODE_LWR,
+  OPCODE_SB = 0x28,   OPCODE_SH,    OPCODE_SWL,  OPCODE_SW,
+  OPCODE_SWR = 0x2e,
+  OPCODE_LWC0 = 0x30, OPCODE_LWC1,  OPCODE_LWC2, OPCODE_LWC3,
+  OPCODE_SWC0 = 0x38, OPCODE_SWC1,  OPCODE_SWC2, OPCODE_SWC3,
+  OPCODE_HLECALL = 0x3b,
   OPCODE_MAX = 0x40
 };
 
 enum SPECIAL_ENUM {
-  SPECIAL_SLL, SPECIAL_SRL = 0x02, SPECIAL_SRA, SPECIAL_SLLV, SPECIAL_SRLV = 0x06, SPECIAL_SRAV,
-  SPECIAL_JR, SPECIAL_JALR, SPECIAL_SYSCALL = 0x0c, SPECIAL_BREAK,
-  SPECIAL_MFHI = 0x10, SPECIAL_MTHI, SPECIAL_MFLO, SPECIAL_MTLO,
-  SPECIAL_MULT = 0x18, SPECIAL_MULTU, SPECIAL_DIV, SPECIAL_DIVU,
-  SPECIAL_ADD = 0x20, SPECIAL_ADDU, SPECIAL_SUB, SPECIAL_SUBU, SPECIAL_AND, SPECIAL_OR, SPECIAL_XOR, SPECIAL_NOR,
-  SPECIAL_SLT = 0x2a, SPECIAL_SLTU,
+  SPECIAL_SLL,
+  SPECIAL_SRL = 0x02,     SPECIAL_SRA,   SPECIAL_SLLV,
+  SPECIAL_SRLV = 0x06,    SPECIAL_SRAV,  SPECIAL_JR,   SPECIAL_JALR,
+  SPECIAL_SYSCALL = 0x0c, SPECIAL_BREAK,
+  SPECIAL_MFHI = 0x10,    SPECIAL_MTHI,  SPECIAL_MFLO, SPECIAL_MTLO,
+  SPECIAL_MULT = 0x18,    SPECIAL_MULTU, SPECIAL_DIV,  SPECIAL_DIVU,
+  SPECIAL_ADD = 0x20,     SPECIAL_ADDU,  SPECIAL_SUB,  SPECIAL_SUBU,
+  SPECIAL_AND,            SPECIAL_OR,    SPECIAL_XOR,  SPECIAL_NOR,
+  SPECIAL_SLT = 0x2a,     SPECIAL_SLTU,
   SPECIAL_MAX = 0x40
 };
 
 enum BCOND_ENUM {
-  BCOND_BLTZ, BCOND_BGEZ, BCOND_BLTZAL = 0x10, BCOND_BGEZAL
+  BCOND_BLTZ,          BCOND_BGEZ,
+  BCOND_BLTZAL = 0x10, BCOND_BGEZAL
 };
 
 ////////////////////////////////////////////////////////////////////////
@@ -124,9 +131,10 @@ enum BCOND_ENUM {
 
 class Registers {
 public:
-  Registers() : HI(GPR.HI), LO(GPR.LO), PC(GPR.PC),
-                /*ref_cycle_(0), */Interrupt(0) {}
-
+  Registers()
+    : HI(GPR.HI), LO(GPR.LO), PC(GPR.PC), Interrupt(0),
+      shift_amount(0) {}
+  Registers& operator=(const Registers&) = delete;
   void Reset();
 
   GeneralPurposeRegisters GPR;
@@ -134,8 +142,9 @@ public:
   u32& HI;
   u32& LO;
   u32& PC;
-  // u32& ref_cycle_;
-  u32 Interrupt;
+  u32  Interrupt;
+
+  u32 shift_amount;
 
   friend class RegisterAccessor;
 };
@@ -160,6 +169,9 @@ public:
   void SetCP0(u32 i, u32 value) { regs_.CP0(i) = value; }
   void ResetCP0() { regs_.CP0.Reset(); }
 
+  u32 SA() const { return regs_.shift_amount; }
+  void SetSA(u32 sa) { regs_.shift_amount = sa; }
+
   void ResetRegisters();
 
 private:
@@ -179,12 +191,16 @@ protected:
 
 class Interpreter;
 
-class Processor // TODO: implement RootCounterAccessor, remove Component
-    : public Component, public RegisterAccessor, private MemoryAccessor,
-      private IRQAccessor/*, private RootCounterAccessor*/ {
+// TODO: implement DelaySlot
+class Processor
+    : public RegisterAccessor, private MemoryAccessor,
+      private IRQAccessor {
 public:
-  Processor(PSX* psx, RootCounterManager* rcnt);
+  Processor(PSX* psx);
   ~Processor() = default;
+
+  void SetRcntReferent(RootCounterManager* p_rcnt);
+  void SetBIOSReferent(BIOS* p_bios);
 
   void Reset();
   void Execute();
@@ -192,7 +208,6 @@ public:
   // void Clear(u32 addr, u32 size);
   void Shutdown();
 
-  // static Processor& GetInstance()
   // Conter Cycle Functions
   unsigned int cycle32() const;
   void IncreaseCycle();
@@ -231,6 +246,9 @@ public:
   bool IsInDelaySlot() const;
   void EnterDelaySlot();
   void LeaveDelaySlot();
+  bool IsRAAlone() const;
+  void LeaveRAAlone() { leaveRAalone = true; }
+  void EnableEnteringRA();
 
   bool isDoingBranch() const;
 
@@ -240,10 +258,12 @@ public:
   GeneralPurposeRegisters& GPR;
 
 private:
-  RootCounterManager* const rcnt_;
+  RootCounterManager* p_rcnt_;
+  BIOS* p_bios_;
 
   bool inDelaySlot;    // for SYSCALL
   bool doingBranch;    // set when doBranch is called
+  bool leaveRAalone;   // for LoadModuleStart
 
   friend class Interpreter;
   friend class Recompiler;
@@ -260,6 +280,20 @@ inline void Processor::EnterDelaySlot() {
 
 inline void Processor::LeaveDelaySlot() {
   inDelaySlot = false;
+}
+
+inline bool Processor::IsRAAlone() const {
+  return leaveRAalone;
+}
+
+/*
+inline void Processor::LeaveRAAlone() {
+  leaveRAalone = true;
+}
+*/
+
+inline void Processor::EnableEnteringRA() {
+  leaveRAalone = false;
 }
 
 inline bool Processor::isDoingBranch() const {

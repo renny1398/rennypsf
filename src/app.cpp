@@ -155,7 +155,7 @@ wxThread::ExitCode ConsoleThread::Entry() {
   is_exiting_ = false;
 
   while (!TestDestroy()) {
-    std::cout << "> ";
+    std::cerr << "> ";
     std::getline(std::cin, line);
     if (TestDestroy()) break;
     Command* cmd = CommandFactory::GetInstance()->CreateCommand(line);
