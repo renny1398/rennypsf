@@ -745,28 +745,7 @@ void BIOS::Init()
 
 void BIOS::Shutdown() {}
 
-void BIOS::Interrupt()
-{
-  /*
-  // for Root Counter 3 (interrupt = 1)
-  if ( BFLIP32(irq_data()) & 1 ) {
-    if (rcnt_event_[3][1].status == BFLIP32(EVENT_STATUS_ACTIVE)) {
-      SoftCall(BFLIP32(rcnt_event_[3][1].fhandler));
-    }
-  }
-
-  // for Root Counter 0, 1, 2 (interrupt = 0x10, 0x20, 0x40)
-  if ( BFLIP32(irq_data()) & 0x70 ) {
-    for (int i = 0; i < 3; i++) {
-      if (BFLIP32(irq_data()) & (1 << (i+4))) {
-        if (rcnt_event_[i][1].status == BFLIP32(EVENT_STATUS_ACTIVE)) {
-          SoftCall(BFLIP32(rcnt_event_[i][1].fhandler));
-          HwRegs().Write32(0x1f801070, ~(1 << (i+4)));
-        }
-      }
-    } 
-  }
-  */
+void BIOS::Interrupt() {
   // for RootCounter
   for (int i = 0; i < 4; i++) {
     const auto interrupt = RCnt().interrupt(i);
@@ -800,7 +779,7 @@ void BIOS::Exception()
       Return(1);
       return;
     }
-    HwRegs().Write16(0x1f801070, 0);
+    BIOS::set_irq16(0);
     break;
   case 0x20:  // SYSCALL
     status = p_cp0_->SR;
@@ -810,6 +789,7 @@ void BIOS::Exception()
       break;
     case 2: // LeaveCritical (enable IRQs)
       status |= 0x404;
+      break;
     }
     p_gpr_->PC = p_cp0_->EPC + 4;
     p_cp0_->SR = (status & 0xfffffff0) | ((status & 0x3c) >> 2);

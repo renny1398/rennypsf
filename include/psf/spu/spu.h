@@ -117,7 +117,6 @@ private:
 };
 
 
-
 ////////////////////////////////////////////////////////////////////////
 // SPU abstract class
 ////////////////////////////////////////////////////////////////////////
@@ -151,6 +150,7 @@ public:
 
   void SetDMADelay(int new_delay);
   void DecreaseDMADelay();
+  void RegisterDMAInterruptHandler(psx::PSXAddr routine, uint32_t flag);
 
 private:
   SPUBase* const p_spu_;
@@ -166,6 +166,8 @@ public:
   // unsigned int rvb_addr_end_;
 private:
   int dma_delay_;
+  psx::PSXAddr dma_callback_routine_;
+  uint32_t dma_flag_;
 };
 
 

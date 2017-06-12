@@ -2,6 +2,7 @@
 
 #include <wx/string.h>
 #include <wx/weakref.h>
+#include <wx/file.h>
 #include <stdint.h>
 
 class wxFrame;
@@ -49,6 +50,7 @@ public:
 
 private:
   static RennyDebug* instance_;
+  wxFile log_file_;
 
   wxWeakRef<wxFrame> frame_;
   wxWeakRef<RennyDebugListCtrl> list_ctrl_;

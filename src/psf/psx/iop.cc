@@ -2,6 +2,7 @@
 #include "psf/psx/r3000a.h"
 #include "psf/psf.h"
 #include "common/debug.h"
+#include <cstring>
 #include <wx/vector.h>
 #include <wx/regex.h>
 
@@ -12,6 +13,9 @@
 
 namespace psx {
 
+void IOP::RegisterInternalLibrary(const wxString& name, InternalLibraryCallback callback) {
+  internal_lib_map_[name] = callback;
+}
 
 IOP::IOP(PSX* psx) :
   Component(psx), UserMemoryAccessor(psx), root_(nullptr),
@@ -22,6 +26,13 @@ IOP::IOP(PSX* psx) :
 #ifndef NDEBUG
   rennyAssert(p_disasm_ != nullptr);
 #endif
+  RegisterInternalLibrary(wxString("stdio\0\0\0", 8), &IOP::stdio);
+  RegisterInternalLibrary(wxString("sysclib\0", 8), &IOP::sysclib);
+  RegisterInternalLibrary(wxString("intrman\0", 8), &IOP::intrman);
+  RegisterInternalLibrary(wxString("loadcore", 8), &IOP::loadcore);
+  RegisterInternalLibrary(wxString("sysmem\0\0", 8), &IOP::sysmem);
+  RegisterInternalLibrary(wxString("modload\0", 8), &IOP::modload);
+  RegisterInternalLibrary(wxString("ioman\0\0\0", 8), &IOP::ioman);
 }
 
 IOP::~IOP() {
@@ -40,7 +51,6 @@ void IOP::set_load_addr(PSXAddr load_addr) {
   load_addr_ = load_addr;
 }
 
-
 void IOP::SetRootDirectory(const PSF2Directory *root) {
   root_ = root;
 }
@@ -51,6 +61,7 @@ unsigned int IOP::LoadELF(PSF2File* psf2irx) {
   if (psf2irx == nullptr) {
     return 0xffffffff;
   }
+  const char* irx_name = static_cast<const char*>(psf2irx->GetName());
   const unsigned char* data = psf2irx->GetData();
 
   if (load_addr_ & 3) {
@@ -81,20 +92,26 @@ unsigned int IOP::LoadELF(PSF2File* psf2irx) {
 
     switch (type) {
     case 0:
+      rennyLogDebug("IOP::LoadELF", "%s: section table header", irx_name);
       break;
 
     case 1:
+      rennyLogDebug("IOP::LoadELF", "%s: PROGBITS(0x%08x, 0x%08x, %d)",
+                    irx_name, load_addr_ + addr, offset, size);
       Psx().Memcpy(load_addr_ + addr, &data[offset], size);
       totallen += size;
       break;
 
     case 2:
+      rennyLogDebug("IOP::LoadELF", "%s: SYMTAB", irx_name);
       break;
 
     case 3:
+      rennyLogDebug("IOP::LoadELF", "%s: STRTAB", irx_name);
       break;
 
     case 8:
+      rennyLogDebug("IOP::LoadELF", "%s: NOBITS(0x%08x)", irx_name, load_addr_ + addr);
       Psx().Memset(load_addr_ + addr, 0, size);
       totallen += size;
       break;
@@ -164,7 +181,7 @@ unsigned int IOP::LoadELF(PSF2File* psf2irx) {
   entry |= 0x80000000;
   load_addr_ += totallen;
 
-  rennyLogDebug("IOP::LoadELF", "%s Load Entry = 0x%08x", psf2irx->GetName().c_str().AsChar(), entry);
+  rennyLogDebug("IOP::LoadELF", "%s: set load entry 0x%08x", irx_name, entry);
   return entry;
 }
 
@@ -231,7 +248,9 @@ const wxString IOP::sprintf(const wxString& format, uint32_t param1, uint32_t pa
   return msg;
 }
 
-
+////////////////////////////////////////////////////////////////////////
+// Internal library functions
+////////////////////////////////////////////////////////////////////////
 
 bool IOP::stdio(uint32_t call_num) {
 
@@ -244,13 +263,6 @@ bool IOP::stdio(uint32_t call_num) {
   case 4: // printf
     do {
       wxString out = sprintf(psxMs8ptr(a0), a1, a2, a3);
-      if (out.Find("start") != wxNOT_FOUND) {
-        // rennyLogInfo("IOP::stdio(printf)", "Start Dumping.");
-        // Disasm().StartOutputToFile();
-      } else if (out.Find("end") != wxNOT_FOUND) {
-        // rennyLogInfo("IOP::stdio(printf)", "End Dumping.");
-        // Disasm().StopOutputToFile();
-      }
       rennyLogInfo("IOP::stdio(printf)", static_cast<const char*>(out));
     } while (false);
     return true;
@@ -260,13 +272,171 @@ bool IOP::stdio(uint32_t call_num) {
   }
 }
 
+bool IOP::sysclib(uint32_t call_num) {
+  const uint32_t a0 = R3000ARegs().GPR.A0;
+  const uint32_t a1 = R3000ARegs().GPR.A1;
+  const uint32_t a2 = R3000ARegs().GPR.A2;
+  const uint32_t a3 = R3000ARegs().GPR.A3;
+  switch (call_num) {
+  case 12:	// memcpy
+    rennyLogDebug("IOP::sysclib", "memcpy(0x%08x, 0x%08x, %d)", a0, a1, a2);
+    ::memcpy(psxMu8ptr(a0), psxMu8ptr(a1), a2);
+    R3000ARegs().GPR.V0 = a0;
+    return true;
+  case 13:	// memmove
+    rennyLogDebug("IOP::sysclib", "memmove(0x%08x, 0x%08x, %d)", a0, a1, a2);
+    ::memmove(psxMu8ptr(a0), psxMu8ptr(a1), a2);
+    R3000ARegs().GPR.V0 = a0;
+    return true;
+  case 14:	// memset
+    rennyLogDebug("IOP::sysclib", "memset(0x%08x, %d, %d)", a0, a1, a2);
+    ::memset(psxMu8ptr(a0), a1, a2);
+    return true;
+  case 17:	// bzero
+    rennyLogDebug("IOP::sysclib", "bzero(0x%08x, %d)", a0, a1);
+    ::memset(psxMu8ptr(a0), 0, a1);
+    return true;
+  case 19:	// sprintf
+    {
+      wxString out = IOP::sprintf(wxString(psxMs8ptr(a1)), a2, a3, 0);
+      rennyLogDebug("IOP::sysclib(sprintf)", static_cast<const char*>(out));
+      Psx().Memcpy(a0, static_cast<const char*>(out), out.length());
+    }
+    return true;
+  case 23:	// strcpy
+    rennyLogDebug("IOP::sysclib", "strcpy(0x%08x, 0x%08x)", a0, a1);
+    ::strcpy(psxMs8ptr(a0), psxMs8ptr(a1));
+    R3000ARegs().GPR.V0 = a0;
+    return true;
+  case 27:	// strlen
+    rennyLogDebug("IOP::sysclib", "strlen(0x%08x)", a0);
+    R3000ARegs().GPR.V0 = ::strlen(psxMs8ptr(a0));
+    return true;
+  case 30:	// strncpy
+    rennyLogDebug("IOP::sysclib", "strncpy(0x%08x, 0x%08x, %d)", a0, a1, a2);
+    ::strncpy(psxMs8ptr(a0), psxMs8ptr(a1), a2);
+    R3000ARegs().GPR.V0 = a0;
+    return true;
+  case 36:	// strtol
+    rennyLogDebug("IOP::sysclib", "strtol(0x%08x, 0x%08x, %d)", a0, a1, a2);
+    if (a1) {
+      rennyLogError("IOP::sysclib", "Unhandled strtol with non-NULL second parm.");
+      return false;
+    }
+    R3000ARegs().GPR.V0 = ::strtol(psxMs8ptr(a0), nullptr, a2);
+    return true;
+  default:
+    rennyLogError("IOP::sysclib", "Unhandled service %d", call_num);
+    return false;
+  }
+}
+
+bool IOP::intrman(uint32_t call_num) {
+  switch (call_num) {
+  case 4: // RegisterIntrHandler
+    do {
+      const uint32_t a0 = R3000ARegs().GPR.A0;
+      const uint32_t a1 = R3000ARegs().GPR.A1;
+      const uint32_t a2 = R3000ARegs().GPR.A2;
+      const uint32_t a3 = R3000ARegs().GPR.A3;
+      switch (a0) {
+      case 9:
+        rennyLogDebug("IOP::intrman", "RegisterIntrHandler_IRQ9(%d, 0x%80X, %d)", a1, a2, a3);
+        // irq9_fval = a1;
+        // irq9_cb = a2;
+        // irq9_flag = a3;
+        return true;
+      case 36:
+        // dma4_fval = a1;
+        rennyLogDebug("IOP::intrman", "RegisterIntrHandler_DMA4(0x%80X, %d)", a2, a3);
+        Spu().core(0).RegisterDMAInterruptHandler(a2, a3);
+        return true;
+      case 40:
+        // dma7_fval = a1;
+        rennyLogDebug("IOP::intrman", "RegisterIntrHandler_DMA7(0x%80X, %d)", a2, a3);
+        Spu().core(1).RegisterDMAInterruptHandler(a2, a3);
+        return true;
+      default:
+        return false;
+      }
+    } while (false);
+    break;
+  case 5:	// ReleaseIntrHandler
+    rennyLogDebug("IOP::intrman", "ReleaseIntrHandler()");
+    return true;
+  case 6:	// EnableIntr
+    rennyLogDebug("IOP::intrman", "EnableIntr()");
+    return true;
+  case 7:	// DisableIntr
+    rennyLogDebug("IOP::intrman", "DisableIntr()");
+    return true;
+  case 8: // CpuDisableIntr
+    rennyLogDebug("IOP::intrman", "CpuDisableIntr()");
+    return true;
+  case 9: // CpuEnableIntr
+    rennyLogDebug("IOP::intrman", "CpuEnaableIntr()");
+    return true;
+  case 17:	// CpuSuspendIntr
+    rennyLogDebug("IOP::intrman", "CpuSuspendIntr()");
+    if (R3000a().IsInterruptSuspended()) {
+      R3000a().GPR(GPR_V0) = -102;
+    } else {
+      R3000a().GPR(GPR_V0) = 0;
+    }
+    R3000a().SuspendInterrupt();
+    return true;
+  case 18:	// CpuResumeIntr
+    rennyLogDebug("IOP::intrman", "CpuResumeIntr()");
+    R3000a().ResumeInterrupt();
+    R3000a().GPR(GPR_V0) = 0;
+    return true;
+  case 23:	// QueryIntrContext
+    rennyLogDebug("IOP::intrman", "QueryIntrContext()");
+    R3000a().GPR(GPR_V0) = 0;
+    return true;
+  default:
+    rennyLogError("IOP::intrman", "Unhandled service %d.", call_num);
+    return false;
+  }
+}
+
+bool IOP::loadcore(uint32_t call_num) {
+  switch (call_num) {
+  case 5: // FlushDcache
+    rennyLogDebug("IOP::loadcore", "FlushDcache()");
+    return true;
+  case 6:	// RegisterLibraryEntries
+    do {
+      uint32_t a0 = R3000ARegs().GPR.A0;
+      a0 &= 0x1fffff;
+      rennyLogDebug("IOP::loadcore", "RegisterLibraryEntries(%08x)", a0);
+      if (psxMu32val(a0) == BFLIP32(0x41c00000)) {
+        a0 += 12;  // skip '0x41c00000', zero and version
+        lib_entries_.push_back(ExternalLibEntry(wxString(psxMs8ptr(a0), 8),
+                                                a0 + 8));
+        rennyLogDebug("IOP::loadcore", "Library name is '%s'",
+                      static_cast<const char*>(lib_entries_.rbegin()->name_));
+        R3000ARegs().GPR.V0 = 0;
+        return true;
+      } else {
+        rennyLogError("IOP::loadcore", "Entry table signature missing.");
+        R3000ARegs().GPR.V0 = 0;
+        return false;
+      }
+    } while (false);
+      break;
+  default:
+    rennyLogError("IOP::loadcore", "Unhandled service %d.", call_num);
+    return false;
+  }
+}
 
 bool IOP::sysmem(uint32_t call_num) {
 
   const uint32_t a0 = R3000ARegs().GPR.A0;
   uint32_t a1 = R3000ARegs().GPR.A1;
-  const uint32_t a2 = R3000ARegs().GPR.A0;
-  const uint32_t a3 = R3000ARegs().GPR.A0;  // dummy
+  const uint32_t a2 = R3000ARegs().GPR.A2;
+  const uint32_t a3 = R3000ARegs().GPR.A3;  // dummy
 
   switch (call_num) {
   case 4: // AllocMemory
@@ -276,11 +446,15 @@ bool IOP::sysmem(uint32_t call_num) {
         new_alloc_addr &= 0xfffffff0;
         new_alloc_addr += 0x10;
       }
+      if (a1 == 1114112) {
+        // Shadow Hearts Hack
+        new_alloc_addr = 0x60000;
+      }
       if (a1 & 0xf) {
         a1 &= 0xfffffff0;
         a1 += 0x10;
       }
-      load_addr_ = new_alloc_addr;
+      load_addr_ = new_alloc_addr + a1;
       rennyLogDebug("IOP::sysmem", "AllocMemory(%d, %d, 0x%x) = 0x%08x", a0, a1, a2, new_alloc_addr | 0x80000000);
       R3000ARegs().GPR.V0 = new_alloc_addr;
     }
@@ -528,6 +702,29 @@ bool IOP::ioman(uint32_t call_num) {
 }
 
 
+IOP::InternalLibraryCallback IOP::GetInternalLibraryCallback(const wxString& name) {
+  auto it = internal_lib_map_.find(name);
+  if (it == internal_lib_map_.end()) {
+    return nullptr;
+  }
+  return it->second;
+}
+
+
+bool IOP::CallExternalLibrary(const wxString& name, uint32_t call_num) {
+  for (const auto& lib_entry : lib_entries_) {
+    if (lib_entry.name_.IsSameAs(name, 8)) {
+      R3000ARegs().PC = psxMu32val(lib_entry.dispatch_ + call_num * 4) /* - 4 */;
+      R3000a().LeaveRAAlone();
+      return true;
+    }
+  }
+  rennyLogError("IOP", "Unhandled service %d for module %s.",
+                call_num, static_cast<const char*>(name));
+  return false;
+}
+
+
 bool IOP::Call(PSXAddr pc, uint32_t call_num) {
 
   PSXAddr scan = pc & 0x0fffffff;
@@ -535,7 +732,7 @@ bool IOP::Call(PSXAddr pc, uint32_t call_num) {
     scan -= 4;
   }
 
-  if (psxMu32val(scan) != BFLIP32(0x41e00000)) { // scan < 0x10000
+  if (scan < 0x10000) {
     rennyLogError("IOP", "Couldn't find IOP link signature.");
     return false;
   }
@@ -544,27 +741,18 @@ bool IOP::Call(PSXAddr pc, uint32_t call_num) {
 
   const wxString module_name(reinterpret_cast<const char*>(psxMu32ptr(scan)), 8);
 
-  bool ret = false;
-  rennyLogDebug("IOP(Debug)", "module_name: %s (length = %ld)",
-                static_cast<const char*>(module_name), module_name.length());
+  // rennyLogDebug("IOP(Debug)", "module_name: %s (length = %ld)",
+  //              static_cast<const char*>(module_name), module_name.length());
 #ifndef NDEBUG
   wxString str_callinfo("IOP: call ");
   str_callinfo.Append(module_name);
   p_disasm_->OutputStringToFile(str_callinfo);
 #endif
-  if (module_name.IsSameAs(wxString("stdio\0\0\0", 8))) {
-    ret = stdio(call_num);
-  } else if (module_name.IsSameAs(wxString("sysmem\0\0", 8))) {
-    ret = sysmem(call_num);
-  } else if (module_name.IsSameAs(wxString("modload\0", 8))) {
-    ret = modload(call_num);
-  } else if (module_name.IsSameAs(wxString("ioman\0\0\0", 8))) {
-    ret = ioman(call_num);
-  } else {
-    rennyLogError("IOP", "Unhandled service %d for module %s.", call_num, static_cast<const char*>(module_name));
-    return false;
+  InternalLibraryCallback internal_lib_cb = GetInternalLibraryCallback(module_name);
+  if (internal_lib_cb) {
+    return (this->*internal_lib_cb)(call_num);
   }
-  return ret;
+  return CallExternalLibrary(module_name, call_num);
 }
 
 } // namespace psx

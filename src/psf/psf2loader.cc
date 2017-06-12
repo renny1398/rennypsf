@@ -148,17 +148,31 @@ void PSF2Directory::AddEntry(PSF2Entry *entry) {
 bool PSF2Directory::LoadFile(wxFileInputStream *stream, const char *filename, int uncompressed_size, int block_size) {
 
   const int X = (uncompressed_size + block_size - 1) / block_size;
-  wxScopedArray<unsigned char> uncompressed_data(new unsigned char[uncompressed_size]);
 
-  stream->SeekI(4*X, wxFromCurrent);
+  wxVector<int> usizes;
+  usizes.reserve(X);
+  int reserve_size = 0;
+  for (auto i = 0; i < X; ++i) {
+    int tmp;
+    stream->Read(&tmp, 4);
+    usizes.push_back(tmp);
+    reserve_size += tmp;
+  }
 
-  wxZlibInputStream zlib_stream(*stream);
-  zlib_stream.Read(&uncompressed_data[0], uncompressed_size);
+  wxScopedArray<unsigned char> uncompressed_data(new unsigned char[reserve_size]);
+  int uncomp_offset = 0;
+  for (auto& usize : usizes) {
+    wxZlibInputStream zlib_stream(*stream);
+    zlib_stream.Read(&uncompressed_data[uncomp_offset], usize);
+    uncomp_offset += zlib_stream.LastRead();
+  }
+  uncompressed_size = uncomp_offset;
 
   PSF2File* entry = new PSF2File(this, filename, uncompressed_data, uncompressed_size);
   AddEntry(entry);
 
-  rennyLogDebug("PSF2Directory", "Loaded psf2:%s", static_cast<const char*>(entry->GetFullPath()));
+  rennyLogDebug("PSF2Directory", "Loaded psf2:%s (file size: %d)",
+                static_cast<const char*>(entry->GetFullPath()), uncompressed_size);
 
   return true;
 }

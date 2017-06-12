@@ -94,11 +94,11 @@ class BIOS : public Component, /*private mips::RegisterAccessor, */private UserM
   void SysDeqIntRP();
   void ChangeClearRCnt();
 
+  void SoftCall(u32 pc);
+
  protected:
   void Return();
   void Return(u32 return_code);
-  void SoftCall(u32 pc);
-  void SoftCall2(u32 pc);
   void DeliverEventEx(u32 ev, u32 spec);
 
  private:

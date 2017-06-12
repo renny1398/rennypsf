@@ -109,7 +109,8 @@ wxListItemAttr* RennyDebugListCtrl::OnGetItemAttr(long item) const {
 
 
 RennyDebug::RennyDebug(wxWindow* parent)
-  : frame_(new wxFrame(parent, wxID_ANY, wxT("Renny Debug Window"), wxDefaultPosition, wxSize(1024, 768))) {
+  : frame_(new wxFrame(parent, wxID_ANY, wxT("Renny Debug Window"), wxDefaultPosition, wxSize(1024, 768))),
+    log_file_("rennypsf_log.txt", wxFile::write) {
 
   wxBoxSizer* vert_sizer = new wxBoxSizer(wxVERTICAL);
 
@@ -123,6 +124,7 @@ RennyDebug::~RennyDebug() {
   if (instance_ != nullptr) {
     delete instance_;
   }
+  log_file_.Close();
 }
 
 RennyDebug* RennyDebug::instance_ = nullptr;
@@ -175,14 +177,21 @@ void RennyDebug::Log(LogLevel log_level, const wxString& instance_name, const wx
   rennyAssert(log_level < kLogLevelMax);
   const wxString& str_log_level = str_log_levels[log_level];
 
+  wxString str_print;
+  str_print.sprintf(wxT("[%s] %s: %s"), str_log_level, instance_name, msg);
+
   if (frame_ != nullptr && list_ctrl_ != nullptr) {
     list_ctrl_->Log(str_log_level, instance_name, msg, wxNow());
   } else {
     if (kLogLevelWarning <= log_level) {
-      wxMessageOutputStderr().Printf(wxT("[%s] %s: %s"), str_log_level, instance_name, msg);
+      wxMessageOutputStderr().Printf(str_print);
     } else {
-      wxMessageOutputDebug().Printf(wxT("[%s] %s: %s"), str_log_level, instance_name, msg);
+      wxMessageOutputDebug().Printf(str_print);
     }
+  }
+  if (log_file_.IsOpened()) {
+    log_file_.Write(str_print);
+    log_file_.Write(wxT("\n"));
   }
 }
 

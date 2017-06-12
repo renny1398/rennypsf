@@ -77,7 +77,7 @@ bool PSF::Close() {
   return true;
 }
 
-bool PSF::DoAdvance(SoundBlock *dest) {
+bool PSF::DoAdvance(SoundBlock* dest) {
   psx_->Spu().set_output(dest);
   do {
     psx_->R3000a().Execute(&psx_->Interp(), false);

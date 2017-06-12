@@ -132,8 +132,7 @@ enum BCOND_ENUM {
 class Registers {
 public:
   Registers()
-    : HI(GPR.HI), LO(GPR.LO), PC(GPR.PC), Interrupt(0),
-      shift_amount(0) {}
+    : HI(GPR.HI), LO(GPR.LO), PC(GPR.PC), shift_amount(0) {}
   Registers& operator=(const Registers&) = delete;
   void Reset();
 
@@ -142,7 +141,6 @@ public:
   u32& HI;
   u32& LO;
   u32& PC;
-  u32  Interrupt;
 
   u32 shift_amount;
 
@@ -181,8 +179,6 @@ protected:
   u32& HI;
   u32& LO;
   u32& PC;
-  // u32& Cycle;
-  u32& Interrupt;
 };
 
 ////////////////////////////////////////////////////////////////////////
@@ -215,6 +211,11 @@ public:
   // Execute Functions
   void Execute(Interpreter* interp, bool in_softcall = false);
 
+  // Suspend/Resume Interrupt
+  void SuspendInterrupt();
+  void ResumeInterrupt();
+  bool IsInterruptSuspended() const;
+
   // Load Functions (TODO: Delay Load)
   void Load8s(u32 reg_enum, PSXAddr addr);
   void Load8u(u32 reg_enum, PSXAddr addr);
@@ -242,12 +243,13 @@ public:
 
   void BranchTest();
   void Exception(uint32_t code, bool branch_delay);
+  void CallIrqRoutine(PSXAddr routine, uint32_t parameter);
 
   bool IsInDelaySlot() const;
   void EnterDelaySlot();
   void LeaveDelaySlot();
   bool IsRAAlone() const;
-  void LeaveRAAlone() { leaveRAalone = true; }
+  void LeaveRAAlone();
   void EnableEnteringRA();
 
   bool isDoingBranch() const;
@@ -264,6 +266,7 @@ private:
   bool inDelaySlot;    // for SYSCALL
   bool doingBranch;    // set when doBranch is called
   bool leaveRAalone;   // for LoadModuleStart
+  bool interrupt_suspended_;
 
   friend class Interpreter;
   friend class Recompiler;
@@ -286,11 +289,9 @@ inline bool Processor::IsRAAlone() const {
   return leaveRAalone;
 }
 
-/*
 inline void Processor::LeaveRAAlone() {
   leaveRAalone = true;
 }
-*/
 
 inline void Processor::EnableEnteringRA() {
   leaveRAalone = false;

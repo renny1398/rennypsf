@@ -97,20 +97,17 @@ u32& Cop0Registers::operator()(u32 i) {
 void Registers::Reset() {
   GPR.Reset();
   CP0.Reset();
-  Interrupt = 0;
   shift_amount = 0;
 }
 
 
 RegisterAccessor::RegisterAccessor(Registers &regs)
-  : regs_(regs), HI(regs.GPR.HI), LO(regs.GPR.LO), PC(regs.GPR.PC),
-    Interrupt(regs.Interrupt) {
+  : regs_(regs), HI(regs.GPR.HI), LO(regs.GPR.LO), PC(regs.GPR.PC) {
   // rennyAssert(&regs_ != nullptr);
 }
 
 RegisterAccessor::RegisterAccessor(PSX *psx)
-  : regs_(psx->R3000ARegs()), HI(regs_.GPR.HI), LO(regs_.GPR.LO), PC(regs_.GPR.PC),
-    Interrupt(regs_.Interrupt) {
+  : regs_(psx->R3000ARegs()), HI(regs_.GPR.HI), LO(regs_.GPR.LO), PC(regs_.GPR.PC) {
   // rennyAssert(&regs_ != nullptr);
 }
 
@@ -133,6 +130,7 @@ Processor::Processor(PSX* psx)
   inDelaySlot = false;
   doingBranch = false;
   leaveRAalone = false;
+  interrupt_suspended_ = false;
 
   /*
   GPR.AT = 0xffffff8e;
@@ -194,6 +192,18 @@ unsigned int Processor::cycle32() const {
 
 void Processor::IncreaseCycle() {
   p_rcnt_->IncreaseCycle();
+}
+
+bool Processor::IsInterruptSuspended() const {
+  return interrupt_suspended_;
+}
+
+void Processor::SuspendInterrupt() {
+  interrupt_suspended_ = true;
+}
+
+void Processor::ResumeInterrupt() {
+  interrupt_suspended_ = false;
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -437,6 +447,15 @@ void Processor::BranchTest() {
     // rennyLogWarning("R3000A", "IRQ Exception.");
     Exception(0x400, false);
   }
+}
+
+void Processor::CallIrqRoutine(PSXAddr routine, uint32_t parameter) {
+  if (interrupt_suspended_) return;
+  GeneralPurposeRegisters saved_regs;
+  saved_regs.Set(GPR);
+  GPR(GPR_A0) = parameter;
+  p_bios_->SoftCall(routine);
+  GPR.Set(saved_regs);
 }
 
 void Processor::DeadLoopSkip() {

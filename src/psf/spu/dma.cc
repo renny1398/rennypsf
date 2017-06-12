@@ -1,4 +1,5 @@
 #include "psf/spu/spu.h"
+#include "psf/psx/psx.h"
 #include "psf/psx/memory.h"
 #include "common/debug.h"
 #include <cstring>
@@ -86,11 +87,19 @@ void SPUCore::WriteDMAMemory(PSXAddr psx_addr, uint32_t size) {
   SetDMADelay(80);
 }
 
+void SPUCore::RegisterDMAInterruptHandler(PSXAddr routine, uint32_t flag) {
+  dma_callback_routine_ = routine;
+  dma_flag_ = flag;
+}
+
 void SPUCore::InterruptDMA() {
   if (p_spu()->core_count() == 1) return;
   ctrl_ &= 0x30;
   // regArea[PS2_C?_ADMAS] = 0;
   stat_ |= 0x80;
+  if (dma_callback_routine_ != 0) {
+    p_spu()->p_psx()->R3000a().CallIrqRoutine(dma_callback_routine_, dma_flag_);
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////

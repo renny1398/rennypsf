@@ -1,9 +1,10 @@
 #pragma once
 #include "common.h"
 #include "memory.h"
+#include <cstdint>
 #include <wx/string.h>
 #include <wx/vector.h>
-#include <cstdint>
+#include <wx/hashmap.h>
 
 class PSF2File;
 class PSF2Directory;
@@ -40,9 +41,14 @@ public:
   void set_load_addr(PSXAddr load_addr);
 
 private:
+  typedef bool (IOP::*InternalLibraryCallback)(uint32_t);
+  void RegisterInternalLibrary(const wxString& name, InternalLibraryCallback callback);
+  InternalLibraryCallback GetInternalLibraryCallback(const wxString& name);
+  bool CallExternalLibrary(const wxString& name, uint32_t call_num);
+
   const PSF2Directory* root_;
 #ifndef NDEBUG
-  mips::Disassembler* p_disasm_;  // for debug
+  mips::Disassembler* p_disasm_;
 #endif
 
   struct File {
@@ -51,6 +57,15 @@ private:
     File() : file(0), pos(0) {}
   };
   wxVector<File> files_;
+  WX_DECLARE_STRING_HASH_MAP(InternalLibraryCallback, InternalLibraryMap);
+  InternalLibraryMap internal_lib_map_;
+  struct ExternalLibEntry {
+    wxString name_;
+    uint32_t dispatch_;
+    ExternalLibEntry(wxString name, uint32_t dispatch) :
+      name_(name), dispatch_(dispatch) {}
+  };
+  wxVector<ExternalLibEntry> lib_entries_;
 
   PSXAddr load_addr_;
 };

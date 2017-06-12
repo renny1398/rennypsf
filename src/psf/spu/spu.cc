@@ -131,10 +131,12 @@ void SPUSetOffsetRequest::Execute(SPUBase*) const {
 ////////////////////////////////////////////////////////////////////////
 
 SPUCore::SPUCore()
-  : p_spu_(nullptr), voice_manager_(this, 0), dma_delay_(0) {}
+  : p_spu_(nullptr), voice_manager_(this, 0),
+    dma_delay_(0), dma_callback_routine_(0), dma_flag_(0) {}
 
 SPUCore::SPUCore(SPUBase* spu)
-  : p_spu_(spu), voice_manager_(this, 24), dma_delay_(0) {
+  : p_spu_(spu), voice_manager_(this, 24),
+    dma_delay_(0), dma_callback_routine_(0), dma_flag_(0) {
   rennyAssert(spu != nullptr);
 }
 
